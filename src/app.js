@@ -168,7 +168,7 @@
       .concat(['light', 'dark', 'system'].map(v => ({ kind: 'theme', key: v, label: TM.cmd(TM[v]), right: A.display, icon: ICON[v === 'light' ? 'sun' : v === 'dark' ? 'moon' : 'system'] })))
       .filter(p => !q || R.foldText(p.label).includes(q));
     const camps = (seed.allCampaigns || seed.campaigns || []).filter(c => !q || R.foldText(c.name).includes(q)).map(c => ({ kind: 'campaign', key: c.id, label: c.name, live: c.approval === 'approved',
-      right: c.approval !== 'approved' ? C.appr.state[c.approval] || '' : R.statusOf(c, td) === R.CANCELLED ? K.cancelledTag : C.status[R.statusOf(c, td)], icon: ICON.nav.campaign }));
+      right: R.statusOf(c, td) === R.CANCELLED ? K.cancelledTag : c.approval !== 'approved' ? C.appr.state[c.approval] || '' : C.status[R.statusOf(c, td)], icon: ICON.nav.campaign }));   /* QA-v0.13 B5 */
     /* CR-06 §8 — PRODUCTS: by code or name (only when something is typed) → its drawer */
     const prods = q ? (CP.store.data().products || []).filter(p => [p.code, p.name, p.nickname].some(x => R.foldText(x).includes(q))).slice(0, 8)
       .map(p => ({ kind: 'product', key: p.code, label: `${p.code} · ${p.nickname}`, right: C.prod.state[p.status] || p.status, icon: ICON.nav.products })) : [];

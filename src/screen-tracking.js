@@ -45,9 +45,16 @@ CP.screens.tracking = (function () {
   /* every Campaign, every year — the issues of the one rule (R.issues) */
   const allScope = () => ({ from: '2000-01-01', to: '2099-12-31', statuses: R.STATUSES.slice(), includeCancelled: true, today: td() });
   const issuesAll = () => R.issues(U.seed(), allScope());
-  /* ‹ › — urgent → watch → the rest (by Start) */
-  function order() { const iss = issuesAll(), first = iss.rows.map(r => r.id); return first.concat(camps().filter(c => !first.includes(c.id) && R.statusOf(c, td()) !== R.CANCELLED).sort((a, b) => a.start.localeCompare(b.start)).map(c => c.id)); }
-  function firstId() { const o = order(); return o[0] || (camps()[0] || {}).id || ''; }
+  /* QA-v0.13 B28 · B31 · B38 — one order for the Campaign list and ‹ ›: the Campaigns of the year chosen · Urgent → To watch (running only) →
+     To close (ended, not closed) → Others (not started · ended and closed) → Cancelled · by Start inside a group */
+  function rankOf(x, iss) { const s = R.statusOf(x, td()); if (s === R.CANCELLED) return 4; const cs = R.campState(x, plans()[x.id], td());
+    if (cs.key === 'toclose') return 2; if (s !== 'ongoing') return 3; const r = iss.get(x.id); return r && r.severity === 'urgent' ? 0 : r && r.severity === 'watch' ? 1 : 3; }
+  function listOf(year) { const iss = issuesAll().byId; return camps().filter(c => yearOf(c) === year).map(c => ({ c, rank: rankOf(c, iss) })).sort((a, b) => a.rank - b.rank || a.c.start.localeCompare(b.c.start)); }
+  function order() { const c = byId(st.cid), y = c ? yearOf(c) : st.year; return listOf(y).map(x => x.c.id); }
+  function firstId() { const y = +td().slice(0, 4), o = listOf(y).filter(x => x.rank < 4); return (o[0] && o[0].c.id) || (camps()[0] || {}).id || ''; }
+  /* QA-v0.13 B32 — the channels a Campaign sells in (its plan · else its sales rows) */
+  function chsOf(c) { const p = plans()[c.id], v = p && (R.approvedVersion(p) || R.working(p)), d = v && v.details && v.details.channels;
+    return d && d.length ? d : R.CHANNELS.filter(k => (R.model(U.seed()).salesRows.get(c.id) || []).some(r => r.channel === k)); }
   const stCls = s => (s === 'behind' ? 'behind' : s === 'at_risk' ? 'at_risk' : s === 'on_track' ? 'on_target' : '');
   const paceWord = s => (s ? C.yr.st[s] : C.yr.pace.early);
 
@@ -55,7 +62,10 @@ CP.screens.tracking = (function () {
   function render(sub) {
     el = $('tab-tracking');
     if (!el.dataset.built) build();
-    const [id, tab] = String(sub || '').split('/'), c = (id && byId(decodeURIComponent(id))) || byId(st.cid) || byId(firstId()) || null;
+    const [id, tab] = String(sub || '').split('/');
+    if (id && !byId(decodeURIComponent(id))) { $('m_tools').innerHTML = ''; $('m_tabs').innerHTML = ''; $('m_body').innerHTML = `<div class="card"><div class="c3-empty"><b>${esc(M0.notFound)}</b> · <a class="link" href="#tracking">${esc(M0.backToList)}</a></div></div>`; return; }
+    const c = (id && byId(decodeURIComponent(id))) || byId(st.cid) || byId(firstId()) || null;
+    if (c && st.channel !== 'all' && !chsOf(c).includes(st.channel)) st.channel = 'all';
     const tab11 = tab === 'budget' ? 'expenses' : tab;   /* CR-11 §2 — the old tab budget is Expenses */
     st.cid = c ? c.id : ''; st.year = c ? yearOf(c) : st.year || +td().slice(0, 4); st.tab = TABS.includes(tab11) ? tab11 : TABS.includes(st.tab) && !id ? st.tab : 'summary'; save();
     const want = st.cid ? `#tracking/${st.cid}/${st.tab}` : '#tracking';
@@ -91,20 +101,20 @@ CP.screens.tracking = (function () {
 
   /* ---------- toolbar (CR-09 §4.1 · CR-11 §3 — no head card: the Campaign field ≥ 360 px, its list 520 px · Request budget · View plan · Export on the right) ---------- */
   function renderTools() {
-    const years = [...new Set(camps().map(yearOf))].sort(), list = camps().filter(c => yearOf(c) === st.year), c = byId(st.cid), iss = issuesAll().byId;
-    const rank = x => { const r = iss.get(x.id); return r && r.severity === 'urgent' ? 0 : r && r.severity === 'watch' ? 1 : 2; };
-    const sorted = list.slice().sort((a, b) => rank(a) - rank(b) || a.start.localeCompare(b.start)), GL = M0.groups;
-    const opts = sorted.map((x, i) => { const g = GL[rank(x)], r = iss.get(x.id); return { value: x.id, label: x.name, sub: `${R.dm(x.start)} – ${R.dm(x.end)}`, chip: `<span class="ms-chips">${statusChip(R.statusOf(x, td()))}${r && r.severity ? U.issueChip(r.chips[0].key) : ''}</span>`,
-      inGroup: g, group: i === 0 || rank(sorted[i - 1]) !== rank(x) ? g : '' }; });
+    const years = [...new Set(camps().map(yearOf))].sort(), lo = listOf(st.year), list = lo.map(x => x.c), c = byId(st.cid), iss = issuesAll().byId, GL = M0.groups5;
+    const opts = lo.map(({ c: x, rank }, i) => { const g = GL[rank], r = iss.get(x.id), cs = rank === 2 ? CP.cpage.stateChip(x, plans()[x.id]) : '';
+      return { value: x.id, label: x.name, sub: `${R.dm(x.start)} – ${R.dm(x.end)}`, chip: `<span class="ms-chips">${cs || statusChip(R.statusOf(x, td()))}${rank < 2 && r && r.severity ? U.issueChip(r.chips[0].key) : ''}</span>`,
+        inGroup: g, group: i === 0 || lo[i - 1].rank !== rank ? g : '' }; });
     $('m_tools').innerHTML = `<label class="ms"><select class="ms-trigger sel yr" data-myear aria-label="${esc(K.year)}">${years.map(y => `<option value="${y}"${y === st.year ? ' selected' : ''}>${y}</option>`).join('')}</select></label>` +
       (list.length ? U.singleSelect({ id: 'm_camp', cls: 'mcamp', options: opts, value: st.cid, label: c ? c.name : K.campaign, labelHTML: c ? `<span class="cs-l">${esc(c.name)}</span>${statusChip(R.statusOf(c, td()))}` : esc(K.campaign), aria: K.campaign, placeholder: K.campaignPh,
         onChange: v => go(v) }) : `<span class="muted">${esc(K.none)}</span>`) +
       `<span class="navbtns"><button type="button" class="icon-btn" data-step="-1" title="${esc(K.prev)} (←)" aria-label="${esc(K.prev)}">${ICON.prev}</button><button type="button" class="icon-btn" data-step="1" title="${esc(K.next)} (→)" aria-label="${esc(K.next)}">${ICON.next}</button></span>` +
       /* CR-11 §3 (D101) — the buttons of the head card, on every tab · stuck (≥ 1280 px) they show their icon only */
-      `<span class="mright">${c && canRequest(c) ? `<button type="button" class="btn" data-mreq title="${esc(C.plan.btn.request)}">${ICON.plus}<span>${esc(C.plan.btn.request)}</span></button>` : ''}` +
+      `<span class="mright">${c && canChange(c) ? `<button type="button" class="btn" data-mchg aria-haspopup="menu" title="${esc(C.cpg.change)}">${ICON.plus}<span>${esc(C.cpg.change)}</span>${ICON.chevronDown}</button>` : ''}` +
       (c ? `<a class="btn ghost" data-mplan href="#planning/${esc(c.id)}/overview" title="${esc(M0.viewPlan)}">${ICON.plan}<span>${esc(M0.viewPlan)}</span></a>` : '') +
       `<button type="button" class="btn exp" data-export title="${esc(D.exportTip)}">${ICON.download}<span>${esc(D.exportBtn)}</span></button></span>`;
   }
+  const canChange = c => { const plan = plans()[c.id], cs = plan ? R.campState(c, plan, td()) : null; return !!plan && !!cs && cs.key !== 'closed' && cs.key !== 'cancelled' && ['budget', 'period', 'close'].some(k => R.canDo('change', CP.actor.get(), plan, { kind: k, closed: false, cancelled: false }).ok); };
   const canRequest = c => { const plan = plans()[c.id]; return !!plan && R.canDo('request', CP.actor.get(), plan, { live: R.statusOf(c, td()) === 'ongoing' || R.statusOf(c, td()) === 'not_started' }).ok; };
 
   /* ---------- Summary (CR-09 §4.2 · CR-11 §4): Campaign period · KPI · Burn-up | What to do ---------- */
@@ -125,7 +135,8 @@ CP.screens.tracking = (function () {
     const box = $('m_period'); if (!box) return;
     /* CR-13 §3 · §5.3 — Ended · to close / Closed 30/09/2026 · Ann · Period change pending · Close requested (the chips of the Campaign page) */
     const r = issuesAll().byId.get(c.id), plan = plans()[c.id], cs = R.campState(c, plan, td()), pend = [...new Set(((plan && plan.requests) || []).filter(q => q.status === 'pending' && (q.type === 'period' || q.type === 'close')).map(q => q.type))];
-    const chips = (cs.key === 'closed' || cs.key === 'toclose' ? CP.cpage.stateChip(c, plan, { by: true }) : statusChip(R.statusOf(c, td()))) + (r ? r.chips.map(x => U.issueChip(x.key)).join('') : '') +
+    const ended = td() > c.end, sp = ended ? R.campaignPace(U.seed(), c.id, td()) : null, endAt = ended && sp && sp.ach != null ? `<span class="chip" data-endedat>${esc(M0.endedAt(R.pct(sp.ach)))}</span>` : '';
+    const chips = (cs.key === 'closed' || cs.key === 'toclose' ? CP.cpage.stateChip(c, plan, { by: true }) : statusChip(R.statusOf(c, td()))) + endAt + (r ? r.chips.filter(x => !(ended && ['behind', 'at_risk', 'on_track'].includes(x.key))).map(x => U.issueChip(x.key)).join('') : '') +
       pend.map(k => `<a class="chip warn" href="#planning/${esc(c.id)}/requests">${esc(C.cpg.pending[k])}</a>`).join('');
     box.innerHTML = U.periodHTML(c, { today: td(), chips }); U.periodFit(box);
   }
@@ -140,10 +151,10 @@ CP.screens.tracking = (function () {
      CR-11 §5.2 (D104) P&L = Net revenue · Gross profit · Total expenses · Campaign profit (the Dashboard's P&L cards, of this Campaign — the statement's Actual) */
   function kpiCards(c) {
     const { A, Pl, F, sp, b, tg } = nums(c), Kk = M0.k9, kc = U.kpiCard, bs = U.barSeg, ended = td() > c.end, PK = C.pl.k;
-    const ach = R.ratio(A.rev, Pl.rev), cls = stCls(sp && sp.status) || 'on_target', left = (Pl.rev || 0) - (A.rev || 0);
+    const ach = R.ratio(A.rev, Pl.rev), cls = stCls(sp && sp.status) || 'on_target', left = (Pl.rev || 0) - (A.rev || 0), td2 = R.targetByMonth(U.seed(), c.id, { unit: 'amount', today: td() }).toDate;
     const rev = kc({ key: 'revenue', label: labelInfo(Kk.revenue, Kk.revTip), value: A.rev == null ? C.common.none : R.baht(A.rev), none: A.rev == null, suffix: Kk.ofTarget(R.shortBaht(Pl.rev)),
       bar: bs(Math.min(1, ach || 0) * 100, cls), tg, barTip: C.sb.pace.barTip(R.pct(ach), R.pct(tg), sp && sp.pace != null && sp.status ? R.paceText(sp.pace) : ''),
-      cap: A.rev == null ? esc(D.k.noSales) : `<b class="attx ${cls}">${esc(R.pct(ach))}</b> · ${esc(left < -0.5 ? Kk.above(R.shortBaht(-left)) : (ended ? Kk.short : Kk.toGo)(R.shortBaht(left)))} · <b class="attx ${cls}">${esc(paceWord(sp && sp.status))}</b>` });
+      cap: A.rev == null ? esc(D.k.noSales) : `<b class="attx ${cls}">${esc(R.pct(ach))}</b> ${esc(Kk.ofFull)} · ${esc(left < -0.5 ? Kk.above(R.shortBaht(-left)) : (ended ? Kk.short : Kk.toGo)(R.shortBaht(left)))} · <b class="attx ${cls}">${esc(paceWord(sp && sp.status))}</b>${td2 && td2.pct != null ? ` <span class="muted">${esc(Kk.toDatePct(R.pct(td2.pct)))}</span>` : ''}` });
     const used = b ? b.used : null, over = b && b.remaining < -0.5;
     const bud = kc({ key: 'budget', label: labelInfo(Kk.budget, Kk.budgetTip), value: b ? R.baht(b.spent) : C.common.none, none: !b, suffix: b ? Kk.ofBudget(R.shortBaht(b.current)) : '',
       bar: b ? bs(Math.min(1, used || 0) * 100, used > 1 ? 'over' : 'ok') : '', tg, barTip: b ? Kk.usedTip(R.pct(used), R.pct(tg)) : '',
@@ -228,6 +239,7 @@ CP.screens.tracking = (function () {
       if (x.key === 'over') return `<li class="${x.sev}">${U.issueChip(x.key)}<span>${esc(T2.over(R.shortBaht(-b.remaining)))}</span>${canRequest(c) ? `<button type="button" class="btn small" data-mreq>${esc(T2.request)}</button>` : ''}</li>`;
       return `<li class="${x.sev}">${U.issueChip(x.key)}<span>${esc(T.endedOver(R.shortBaht(-b.remaining)))}</span></li>`;
     };
+    if (notStarted(c)) { $('m_todo').innerHTML = `<div class="card-head"><h3>${esc(T.title)}</h3></div><div class="na-none small" data-todons>${esc(M0.notStartedTodo(Math.max(0, R.dayDiff(c.start, td()))))} · <a class="link" href="#planning/${esc(c.id)}/overview">${esc(M0.viewPlan)}</a></div>`; return; }
     $('m_todo').innerHTML = `<div class="card-head"><h3>${esc(T.title)}</h3></div>` + (items.length ? `<ul class="todo t9">${items.map(row).join('')}</ul>`
       : `<div class="na-none small" data-todook><span class="okm" aria-hidden="true">✓</span> ${esc(T2.none)}</div>`);
   }
@@ -240,15 +252,15 @@ CP.screens.tracking = (function () {
       `<div class="card" id="m_month"></div><div class="r13"><div class="card" id="m_mix"></div><div class="card" id="m_ch"></div></div><div class="card" id="m_mx"></div>` +
       /* CR-11 §5.3 — Sub-channel share (its own height) | SKU trend (D102 · D103 — SKU contribution removed: the Share is in the matrix) */
       `<div class="r2 r2top"><div class="card" id="m_subs"></div><div class="card" id="m_trend"></div></div>`;
+    if (c) { const have = chsOf(c); $('m_body').querySelectorAll('.seg[data-chf] button').forEach(b => { if (b.dataset.v !== 'all' && !have.includes(b.dataset.v)) { b.disabled = true; b.title = S9.noCh; } }); }
     renderMonth(); renderMix(); renderCh(); renderMatrix(); renderSubs(); renderTrend();
-    void c;
   }
   function renderMonth() {
     const box = $('m_month'); if (!box) return;
     const c = byId(st.cid), M = K.m, S9 = M0.s9, table = st.mView === 'table', byCh = st.mBy === 'channel' && !ch();
     if (!c) { box.innerHTML = ''; return; }
     const md = R.targetByMonth(U.seed(), c.id, { channel: ch(), unit: st.unit, today: td() });
-    const o = { mode: st.mode, color: '--rev', good: 'up', planWord: M.target, lflWord: M.targetLfl, fmt: isQty() ? U.shortNum : R.compact, full: isQty() ? v => `${R.fmtNum(Math.round(v))} pcs` : R.baht };
+    const o = { mode: st.mode, color: '--rev', good: 'up', planWord: M.target, lflWord: M.targetLfl, fmt: isQty() ? U.shortNum : R.compact, full: isQty() ? v => C.common.pcs(R.fmtNum(Math.round(v))) : R.baht };
     /* By channel: the actual of each channel stacked (its colour) · the tick = the whole target */
     if (byCh) { const chs = R.CHANNELS.filter(k => (R.model(U.seed()).salesRows.get(c.id) || []).some(r => r.channel === k)), per = Object.fromEntries(chs.map(k => [k, R.targetByMonth(U.seed(), c.id, { channel: k, unit: st.unit, today: td() }).rows]));
       md.rows.forEach((r, i) => chs.forEach(k => { r[k] = per[k][i] ? per[k][i].actual : null; }));
@@ -273,7 +285,7 @@ CP.screens.tracking = (function () {
   /* Sales mix by channel (1/3): the donut of the actual · Target mix / Actual mix (D83) */
   function renderMix() {
     const box = $('m_mix'), c = byId(st.cid); if (!box || !c) return;
-    const X9 = M0.mix, m = R.salesMix(U.seed(), c.id, { unit: st.unit, today: td() }), head = `<div class="card-head"><h3>${labelInfo(X9.title, X9.tip)}</h3></div>`;
+    const X9 = M0.mix, m = R.salesMix(U.seed(), c.id, { unit: st.unit, today: td() }), head = `<div class="card-head"><h3>${labelInfo(X9.title, X9.tip)}</h3>${ch() ? `<div class="ctl"><span class="chip">${esc(M0.s9.allCh)}</span></div>` : ''}</div>`;
     if (fold(c) || !m.actual) { box.innerHTML = head + U.foldedLine(); return; }
     const sl = m.channels.filter(x => x.actual > 0).sort((a, b) => b.actual - a.actual).map(x => ({ key: x.channel, label: `${C.channel[x.channel]} · ${C.channelLong[x.channel]}`, value: x.actual, color: CH_TOKEN[x.channel],
       tip: C.sb.chmix.slice(C.channelLong[x.channel], val(x.actual), R.pct(x.aShare, 1)) }));
@@ -397,9 +409,9 @@ CP.screens.tracking = (function () {
       `` : `<div class="card"><div class="c3-empty">${esc(C.track.noBudget(''))}</div></div>`) +
       /* CR-11 §5.4 — Budget · by month | Spend by group · Budget by line · the requests */
       `<div class="r31"><div class="card" id="m_bva"></div><div class="card" id="m_grp"></div></div>` + (t ? `<div class="card" id="m_lines"></div>` : '') +
-      `<div class="card"><div class="card-head"><h3>${esc(B.requests)} <span class="hnote">${reqs.length}</span></h3><div class="ctl"><a class="link" href="#planning/approvals">${esc(B.toApprovals)}</a></div></div>` +
+      `<div class="card"><div class="card-head"><h3>${esc(B.requests)} <span class="hnote">${reqs.length}</span></h3><div class="ctl"><a class="link" href="#planning/${esc(c.id)}/requests">${esc(B.toApprovals)}</a></div></div>` +
       (reqs.length ? `<div class="tablewrap"><table class="tbl simple reqtbl"><thead><tr><th>${esc(Q.cols.no)}</th><th>${esc(Q.cols.type)}</th><th>${esc(Q.cols.reason)}</th><th class="num">${esc(Q.cols.amount)}</th><th>${esc(Q.cols.by)}</th><th>${esc(Q.cols.status)}</th></tr></thead><tbody>` +
-        reqs.map(q => `<tr><td>#${q.no}</td><td>${esc(Q.type[q.type] || q.type)}</td><td class="wrap">${esc(q.reason)}</td><td class="num"><b class="${R.sumLines(q.lines) < 0 ? 'neg' : ''}">${esc(R.signedShort(R.sumLines(q.lines)))}</b></td><td>${esc(q.by)}</td><td>${U.apChip(q.status)}</td></tr>`).join('') + '</tbody></table></div>'
+        reqs.map(q => `<tr class="click" tabindex="0" data-openreq="${q.no}"><td>#${q.no}</td><td>${esc(Q.type[q.type] || q.type)}</td><td class="wrap">${esc(q.reason)}</td><td class="num"><b class="${R.sumLines(q.lines) < 0 ? 'neg' : ''}">${esc(CP.cpage.reqAmount(q))}</b></td><td>${esc(q.by)}</td><td>${U.apChip(q.status)}</td></tr>`).join('') + '</tbody></table></div>'
         : `<div class="c3-empty">${esc(Q.none)}</div>`) + '</div>';
     if (t) renderLines(c, t); renderBva(); renderGrp();
   }
@@ -615,6 +627,7 @@ CP.screens.tracking = (function () {
     const ms1 = t.closest('[data-mxsku]'); if (ms1) { st.mxSku = ''; save(); renderMatrix(); renderTrend(); return; }
     const dl = t.closest('[data-dl]'); if (dl) { U.saveXlsx(D.file[dl.dataset.dl] || dl.dataset.dl, scopeText(), [X.rowsFor(dl.dataset.dl, ctx())], meta()); return; }
     if (t.closest('[data-mreq]')) { CP.reqdraw.open(st.cid); return; }
+    const mc = t.closest('[data-mchg]'); if (mc) { CP.cpage.changeMenu(mc, st.cid); return; }
     if (t.closest('[data-gosku]')) { st.mxTab = 'behind'; st.channel = 'all'; st.mxSku = ''; save(); go(st.cid, 'sales'); setTimeout(() => { const b = $('m_mx'); if (b) b.scrollIntoView({ block: 'start' }); }, 80); return; }
     const hfb = t.closest('[data-hfilter]'); if (hfb) { hf = hfb.dataset.hfilter; const b2 = $('m_hist'); if (b2) b2.innerHTML = U.historyHTML(plans()[st.cid], { filter: hf }); return; }
     const orq = t.closest('[data-openreq]'); if (orq) { CP.review.open({ kind: 'request', id: st.cid, no: +orq.dataset.openreq }); return; }

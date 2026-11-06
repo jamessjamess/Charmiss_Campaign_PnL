@@ -1,4 +1,4 @@
-# Campaign P&L — demo (Charmiss) · v0.13.0
+# Campaign P&L — demo (Charmiss) · v0.13.1
 
 A **demo** of the Campaign P&L web in the look and behaviour of KOL Management v0.1.19: **plan a Campaign in 7 steps with many
 teams**, get it approved by the Executive, **watch it run** (Campaign Tracking) — and the Dashboard of the whole year. **Every number is
@@ -6,7 +6,7 @@ made up** (CR-06 · D51): the page makes them in the browser from `data/mock-sce
 P&L Excel files. The way of the real P&L files (v0.5.0) is kept in [`archive/v0.5-real/`](archive/v0.5-real/README.md); what CR-07 took
 out (Operations · By campaign · Expenses …) is in `archive/v0.6-dashboard/` and `archive/v0.6-expenses/`; what CR-08 took out of the
 Dashboard (Sales & Budget · the year bar · the question lines) is in `archive/v0.7-dashboard/`. What CR-13 retired from Campaign Planning (Edit details · Open plan · the 6-step plan) is in `archive/v0.12-planning/`.
-Specs: [CR-01](docs/CR-01.md) · [CR-02](docs/CR-02.md) · [CR-03](docs/CR-03.md) · [CR-04](docs/CR-04.md) · [CR-05](docs/CR-05.md) · [CR-06](docs/CR-06.md) · [CR-07](docs/CR-07.md) · [CR-08](docs/CR-08.md) · [CR-09](docs/CR-09.md) · [CR-10](docs/CR-10.md) · [CR-11](docs/CR-11.md) · [CR-12](docs/CR-12.md) · [CR-13](docs/CR-13.md).
+Specs: [CR-01](docs/CR-01.md) · [CR-02](docs/CR-02.md) · [CR-03](docs/CR-03.md) · [CR-04](docs/CR-04.md) · [CR-05](docs/CR-05.md) · [CR-06](docs/CR-06.md) · [CR-07](docs/CR-07.md) · [CR-08](docs/CR-08.md) · [CR-09](docs/CR-09.md) · [CR-10](docs/CR-10.md) · [CR-11](docs/CR-11.md) · [CR-12](docs/CR-12.md) · [CR-13](docs/CR-13.md) · QA: [QA-v0.13](docs/QA-v0.13.md) (fixed in v0.13.1) · [regression checklist](docs/REGRESSION.md).
 
 ## Open it
 

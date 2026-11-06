@@ -63,7 +63,7 @@ CP.tabs.sales = (function () {
     /* Units sold — pieces against the target pieces to date */
     const ur = A.rev == null ? null : R.ratio(A.qty, L.qty), ust = R.attStatus(ur) || 'on_target', ugo = (L.qty || 0) - (A.qty || 0);
     const units = kc({ key: 'units', label: labelInfo(K.units, K.unitsTip), value: A.rev == null || !A.qty ? C.common.none : R.fmtNum(Math.round(A.qty)), none: A.rev == null || !A.qty, suffix: A.rev == null ? '' : K.unitsOf(R.fmtNum(Math.round(L.qty || 0))),
-      bar: bs(Math.min(1, ur || 0) * 100, ust), barTip: `${R.fmtNum(Math.round(A.qty || 0))} / ${R.fmtNum(Math.round(L.qty || 0))} pcs`,
+      bar: bs(Math.min(1, ur || 0) * 100, ust), barTip: C.common.pcs(`${R.fmtNum(Math.round(A.qty || 0))} / ${R.fmtNum(Math.round(L.qty || 0))}`),
       cap: ur == null ? esc(K.noUnits) : `<b class="attx ${ust}">${esc(R.pct(ur))}</b> · ${esc(ugo >= -0.5 ? K.unitsToGo(U.shortNum(ugo)) : K.unitsAhead(U.shortNum(-ugo)))}` });
     /* On track — the campaigns of the year by the Pace (D67) */
     const rows = paceRows(), n = rows.length, by = { on_track: 0, at_risk: 0, behind: 0, early: 0 };
@@ -83,7 +83,7 @@ CP.tabs.sales = (function () {
   /* ---------- Row 2 — Target vs Actual by month (฿ | Qty · Total | By campaign | By channel) ---------- */
   const CH_TOKEN = { MT: '--ch-mt', TT: '--ch-tt', ECOM: '--ch-ecom' };
   const chartOpts = () => ({ mode: st.mode, color: '--rev', good: 'up', planWord: D.m.legend.target, lflWord: D.m.tip.targetLfl, h: 300,
-    fmt: isQty() ? U.shortNum : R.compact, full: isQty() ? v => `${R.fmtNum(Math.round(v))} pcs` : R.baht });
+    fmt: isQty() ? U.shortNum : R.compact, full: isQty() ? v => C.common.pcs(R.fmtNum(Math.round(v))) : R.baht });
   /* the stack of a month: by campaign (Top 5 + Others — the tooltip lists every campaign of the month) · by channel (MT · TT · ECOM) */
   function stackOf(md, o) {
     const seed = U.seed(), meas = isQty() ? 'qty' : 'revenue', BC = SB.bycamp;
@@ -121,7 +121,7 @@ CP.tabs.sales = (function () {
     if (!table && !fold) U.monthChart($('s_svg'), $('s_box'), $('s_tip'), md, o);
   }
   function sumHTML(md) {
-    const M = D.m, t = md.toDate, sh = v => (isQty() ? `${U.shortNum(v)} pcs` : R.shortBaht(v));
+    const M = D.m, t = md.toDate, sh = v => (isQty() ? C.common.pcs(U.shortNum(v)) : R.shortBaht(v));
     if (!t) return `<span class="noa">${esc(D.k.noSales)}</span>` + (md.planTotal != null ? `<span class="noa">· ${esc(M.planOnly(M.legend.target, sh(md.planTotal)))}</span>` : '');
     const tone = R.tone(t.gap, 'up'), words = t.gap == null ? '' : Math.abs(t.gap) < 0.5 ? M.onTarget : (t.gap < 0 ? M.behind : M.ahead)(sh(Math.abs(t.gap)));
     return `<span class="tdl" tabindex="0" title="${esc(MN.toDate)}">${esc(M.toDateL)}</span><span>${esc(M.toDate(sh(t.actual), sh(t.plan), R.pctA(t.pct)))}</span>` + (words ? `<span>·</span><b class="${tone}">${esc(words)}</b>` : '');
@@ -208,7 +208,7 @@ CP.tabs.sales = (function () {
         `<td class="num">${gapCell(x.gap)}</td></tr>`; };   /* the Gap on both sides (Ach % is on the bar) */
     const tbl = (list, best, title, tip) => `<div class="skuside"><div class="skuh" title="${esc(tip)}">${esc(title)}</div>${list.length ? `<div class="tablewrap"><table class="tbl sku skuw"><thead><tr><th>${esc(K.cols.sku)}</th><th>${labelInfo(K.cols.ach, MN.ach, K.cols.ach)}</th><th class="num">${labelInfo(K.cols.gap, MN.gap, K.cols.gap)}</th></tr></thead><tbody>${list.map(x => tr(x, best)).join('')}</tbody></table></div>` : `<div class="c3-empty">${esc(W.none)}</div>`}</div>`;
     box.innerHTML = head + `<div class="sku2">${tbl(d.behind, false, W.behind, W.behindTip)}${tbl(d.best, true, W.best, W.bestTip)}</div>` +
-      `<div class="c3-note">${esc(`${d.n} SKUs · ${C.att.behind} ${d.by.behind} · ${C.att.at_risk} ${d.by.at_risk} · ${C.att.on_target} ${d.by.on_target}`)}</div>`;
+      `<div class="c3-note">${esc(`${C.common.skus(d.n)} · ${C.att.behind} ${d.by.behind} · ${C.att.at_risk} ${d.by.at_risk} · ${C.att.on_target} ${d.by.on_target}`)}</div>`;
   }
   const gapCell = v => (v == null ? none() : `<span class="${R.tone(v, 'up')}">${esc((v > 0.5 ? '+' : '') + R.baht(v))}</span>`);
 

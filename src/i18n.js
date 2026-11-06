@@ -11,9 +11,9 @@ CP.i18n = (function () {
   const C = CP.content, TH = CP.contentTH || {}, lang = CP.lang === 'en' ? 'en' : 'th';
   const NOT_WORDS = new Set(['key', 'icon', 'route', 'hash', 'version']), SKIP_TOP = new Set(['ops']);
   /* §5.2 — kept in English in both languages (the team's short words · keys · brand) */
-  const KEEP = ['P&L Waterfall', 'P&L', 'GP %', 'GP', 'COGS', 'A&P %', 'A&P', 'ROI', 'ROAS', 'SKUs', 'SKU', 'KPI', 'YTD', 'VAT', 'MT', 'TT', 'ECOM', 'Modern trade',
+  const KEEP = ['P&L Waterfall', 'P&L', 'GP %', 'GP', 'COGS', 'A&P %', 'A&P', 'ROI', 'ROAS', 'SKU', 'KPI', 'YTD', 'VAT', 'MT', 'TT', 'ECOM', 'Modern trade',
     'Traditional trade', 'E-commerce', 'NPD', 'Hero', 'Core', 'GWP', 'Ach %', 'Ach', 'Pace', 'pace', 'Burn-up', 'DEV', 'Ctrl+K', 'Ctrl', 'Esc', 'Enter', 'Tab', 'Delete', 'Shift', 'id', 'v1', 'v2', 'Campaign P&L',
-    'Campaign PnL', 'Charmiss', 'LOMR', 'EN', 'English', 'xlsx', 'Excel', 'CSV', 'Windows', 'macOS', 'Mock', 'Language', 'Switch to English', 'mm/yyyy', 'dd/mm/yyyy', 'yyyy', 'Est.', 'pcs'];
+    'Campaign PnL', 'Charmiss', 'LOMR', 'EN', 'English', 'xlsx', 'Excel', 'CSV', 'Windows', 'macOS', 'Mock', 'Language', 'Switch to English', 'mm/yyyy', 'dd/mm/yyyy', 'yyyy', 'Est.'];
   const KEEP_RE = new RegExp('(?<![A-Za-z])(?:' + KEEP.slice().sort((a, b) => b.length - a.length).map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')(?![A-Za-z])', 'g');
   const strip = s => String(s).replace(/"[^"]*"/g, ' ').replace(/\bD\d+\b/g, ' ').replace(/\bv\d+\b/g, ' ').replace(KEEP_RE, ' ');
   const latin = s => /[A-Za-z]{2,}/.test(strip(s));

@@ -348,11 +348,16 @@ CP.store = (function () {
   /* the demo as it is now: the made-up data + what was clicked (kept until a write here or in another tab) */
   function data() {
     const b = base(); if (st && st.base === b) return st;
-    const s = read(), list = s.list ? { updated_at: s.list.updated_at || null, rows: s.list.rows } : b.list;
-    st = { base: b, list, seed: s.list ? R.applyList(b.seed, list) : b.seed, plans: Object.assign({}, b.plans, s.plans || {}),
-      people: s.people || b.people, products: s.products || b.products, actor: b.actor };
+    const s = read(), list = s.list ? { updated_at: s.list.updated_at || null, rows: s.list.rows } : b.list, seed = s.list ? R.applyList(b.seed, list) : b.seed;
+    /* QA-v0.13 P9 — every plan read through R.migratePlan (a plan saved before CR-13 gets its envelope step) */
+    const camp = campOf(seed), plans = Object.assign({}, b.plans, s.plans || {});
+    Object.keys(plans).forEach(id => { plans[id] = R.migratePlan(plans[id], camp(id)); });
+    /* QA-v0.13 B27 — people saved by v0.13.0 lost their department: it comes back from the made-up list (same id or name) */
+    const people = s.people ? s.people.map(p => (p.dept !== undefined ? p : Object.assign({}, p, { dept: ((b.people || []).find(x => x.id === p.id || x.name === p.name) || {}).dept || '' }))) : b.people;
+    st = { base: b, list, seed, plans, people, products: s.products || b.products, actor: b.actor };
     return st;
   }
+  const campOf = seed => { const m = new Map(); (seed.allCampaigns || []).concat(seed.campaigns || []).forEach(c => { if (!m.has(c.id)) m.set(c.id, c); }); return id => m.get(id) || null; };
   function write(f) { const s = read(); f(s); try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) { throw err('denied', { cause: e }); } st = null; bump(); }
   function reset() { try { localStorage.removeItem(KEY); } catch (e) { /* nothing kept */ } st = null; bump(); }
   window.addEventListener('storage', e => { if (e.key === KEY || e.key === null) { st = null; bump(); } });
@@ -362,14 +367,17 @@ CP.store = (function () {
   async function savePlan(id, step, o = {}) {
     const saved = (read().plans || {})[id] || base().plans[id] || null, mine = data().plans[id] || null, known = o.rev != null ? o.rev : revOf(mine);
     if ((saved || known != null) && revOf(saved) !== known) { st = null; bump(); throw err('conflict', { id }); }
-    const b = saved || o.create; if (!b) throw err('invalid', { errors: { plan: 'no plan' } });
+    const b0 = saved || o.create; if (!b0) throw err('invalid', { errors: { plan: 'no plan' } });
+    const b = R.migratePlan(b0, campOf(data().seed)(id));
     const next = step(R.clonePlan(b)); next.rev = (b.rev || 0) + 1;
     write(s => { s.plans = Object.assign({}, s.plans, { [id]: next }); });
     return next;
   }
   /* Admin — the people of the demo */
   async function savePeople(rows) {
-    const clean = rows.map(r => ({ id: r.id || R.campaignId(r.name, []), name: String(r.name || '').trim(), role: R.roleKey(r.role), active: r.active !== false })).filter(r => r.name);
+    /* QA-v0.13 B27 — the department is kept (a plan's steps go to the people of a department) · at least one active person of Brand stays */
+    const clean = rows.map(r => ({ id: r.id || R.campaignId(r.name, []), name: String(r.name || '').trim(), role: R.roleKey(r.role), dept: R.DEPTS.includes(r.dept) ? r.dept : '', active: r.active !== false })).filter(r => r.name);
+    if (!clean.some(r => r.active && r.dept === 'brand')) throw err('invalid', { errors: { people: 'brand' } });
     write(s => { s.people = clean; }); return clean;
   }
   /* the Campaign list (New · Edit · Cancel · Restore — D48) */

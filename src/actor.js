@@ -55,20 +55,22 @@ CP.actor = (function () {
   /* ---------- Admin: Edit people… (data/people.csv · Mock: localStorage) ---------- */
   function editPeople() {
     const rows = people().map(p => Object.assign({}, p)), Dd = C.camps.d;
+    /* QA-v0.13 B27 — a person has a department (the steps of a plan go to its people · New campaign = Brand) */
     const row = (p, i) => `<tr data-pi="${i}"><td><input class="inp sm" data-pn value="${esc(p.name)}" aria-label="${esc(A.name)}"></td><td><select class="inp sm" data-pr aria-label="${esc(A.role)}">${R.ROLE_KEYS.map(k => `<option value="${k}"${k === p.role ? ' selected' : ''}>${esc(A.roles[k])}</option>`).join('')}</select></td>` +
+      `<td><select class="inp sm" data-pd aria-label="${esc(A.dept)}"><option value=""${p.dept ? '' : ' selected'}>${esc(A.depts.none)}</option>${R.DEPTS.map(k => `<option value="${k}"${k === p.dept ? ' selected' : ''}>${esc(A.depts[k])}</option>`).join('')}</select></td>` +
       `<td class="c"><input type="checkbox" data-pa${p.active !== false ? ' checked' : ''} aria-label="${esc(A.active)}"></td></tr>`;
-    const body = () => `<div class="dlg-h">${esc(A.peopleTitle)}</div><div class="dlg-b"><p class="muted small">${esc(A.peopleHelp)}</p><table class="tbl simple ptbl"><thead><tr><th>${esc(A.name)}</th><th>${esc(A.role)}</th><th class="c">${esc(A.active)}</th></tr></thead><tbody>${rows.map(row).join('')}</tbody></table>` +
+    const body = () => `<div class="dlg-h">${esc(A.peopleTitle)}</div><div class="dlg-b"><p class="muted small">${esc(A.peopleHelp)}</p><table class="tbl simple ptbl"><thead><tr><th>${esc(A.name)}</th><th>${esc(A.role)}</th><th>${esc(A.dept)}</th><th class="c">${esc(A.active)}</th></tr></thead><tbody>${rows.map(row).join('')}</tbody></table>` +
       `<button type="button" class="link" data-padd>${esc(A.add)}</button><div class="ferr" id="pp_err"></div></div><div class="dlg-f"><button type="button" class="btn" data-r="0">${esc(Dd.cancel)}</button><button type="button" class="btn primary" data-r="1">${esc(A.save)}</button></div>`;
     U.openDialog(body(), true);
     const dlg = $('dlg');
-    const read = () => dlg.querySelectorAll('tr[data-pi]').forEach(tr => { const p = rows[+tr.dataset.pi]; p.name = tr.querySelector('[data-pn]').value; p.role = tr.querySelector('[data-pr]').value; p.active = tr.querySelector('[data-pa]').checked; });
+    const read = () => dlg.querySelectorAll('tr[data-pi]').forEach(tr => { const p = rows[+tr.dataset.pi]; p.name = tr.querySelector('[data-pn]').value; p.role = tr.querySelector('[data-pr]').value; p.dept = tr.querySelector('[data-pd]').value; p.active = tr.querySelector('[data-pa]').checked; });
     dlg.onclick = async e => {
-      if (e.target.closest('[data-padd]')) { read(); rows.push({ id: '', name: '', role: 'staff', active: true }); dlg.innerHTML = body(); const ins = dlg.querySelectorAll('[data-pn]'); ins[ins.length - 1].focus(); return; }
+      if (e.target.closest('[data-padd]')) { read(); rows.push({ id: '', name: '', role: 'staff', dept: '', active: true }); dlg.innerHTML = body(); const ins = dlg.querySelectorAll('[data-pn]'); ins[ins.length - 1].focus(); return; }
       const r = e.target.closest('[data-r]'); if (!r) return;
       if (r.dataset.r === '0') { dlg.onclick = null; U.closeDialog(); return; }
       read(); r.disabled = true;
       try { await CP.store.savePeople(rows.map(p => Object.assign({}, p, { id: p.id || R.campaignId(p.name, rows.filter(x => x !== p && x.id)) }))); dlg.onclick = null; U.closeDialog(); U.toast(A.saved); draw(); document.dispatchEvent(new CustomEvent('cp:actor')); }
-      catch (x) { r.disabled = false; $('pp_err').textContent = C.appr.toast.failed; }
+      catch (x) { r.disabled = false; $('pp_err').textContent = x.errors && x.errors.people === 'brand' ? A.needBrand : C.appr.toast.failed; }
     };
   }
 

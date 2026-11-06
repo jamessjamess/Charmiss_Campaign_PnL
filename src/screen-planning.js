@@ -21,7 +21,7 @@ CP.screens.planning = (function () {
   const td = () => U.today();
   const me = () => CP.actor.get();
   const listRows = () => S.data().list.rows;
-  const ro = () => (R.canDo('create', me()).ok ? '' : ` disabled aria-disabled="true"`);
+  const ro = () => (R.canDo('create', me()).ok ? '' : ` disabled aria-disabled="true" title="${esc(K.newWhy)}"`);   /* QA-v0.13 B20 */
   const fold = t => String(t || '').toLocaleLowerCase('th').replace(/\s+/g, ' ').trim();
 
   let sec = null, view = 'plans', stickP = { toTop() {} };
@@ -31,6 +31,7 @@ CP.screens.planning = (function () {
     const parts = String(sub || '').split('/');
     /* #planning/<id>[/<step>] — the plan (screen-plan.js) */
     if (parts[0] === 'table') parts[0] = 'plans';
+    if (parts[0] === 'requests') parts[0] = 'approvals';   /* QA-v0.13 B34 — the old name of My requests */
     if (parts[0] && parts[0] !== 'new' && !VIEWS.includes(parts[0])) { view = 'page'; $('k_listv').classList.add('hidden'); $('k_pagev').classList.remove('hidden'); CP.cpage.render($('k_pagev'), decodeURIComponent(parts[0]), parts.slice(1).join('/') || null); return; }
     /* the tab seen last (as the Dashboard) — #planning alone opens it */
     view = VIEWS.includes(parts[0]) ? parts[0] : VIEWS.includes(st.view) ? st.view : 'plans';
@@ -129,7 +130,7 @@ CP.screens.planning = (function () {
     const when = x => String(x.decided_at || x.at || ((x.plan.log || []).slice(-1)[0] || {}).at || '');
     const row = (x, sub, n, open) => { const kind = x.kind === 'plan' ? AP.kind.plan : AP.kind[x.req.type] || x.req.type, amt = x.kind === 'plan' ? R.planTotals(x.v).budget : R.sumLines(x.req.lines || []);
       return `<tr class="${sub ? 'sub' : 'grp'}"${sub ? ` data-decsub="${esc(x.c.id)}"` : ` data-decrow="${esc(x.c.id)}"`}><td class="nm">${sub ? '' : `<span class="bnm">${n > 1 ? `<button type="button" class="chev" data-decopen="${esc(x.c.id)}" aria-expanded="${open}" aria-label="${esc(open ? T.hide : T.earlier(n - 1))}">${ICON.chevronDown}</button>` : '<span class="chev ph"></span>'}<a href="#planning/${esc(x.c.id)}"><b>${esc(x.c.name)}</b></a>${n > 1 ? ` <span class="muted small">${esc(T.earlier(n - 1))}</span>` : ''}</span>`}</td>` +
-        `<td>${esc(kind)}</td><td>${esc(x.kind === 'plan' ? `v${x.v.v}` : `#${x.req.no}`)}</td><td class="num"><b class="${amt < 0 ? 'neg' : ''}">${esc(x.kind === 'plan' ? R.shortBaht(amt) : R.signedShort(amt))}</b></td>` +
+        `<td>${esc(kind)}</td><td>${esc(x.kind === 'plan' ? `v${x.v.v}` : `#${x.req.no}`)}</td><td class="num"><b class="${amt < 0 ? 'neg' : ''}">${esc(x.kind === 'plan' ? R.shortBaht(amt) : x.req.type === 'period' || x.req.type === 'close' ? '—' : CP.cpage.reqAmount(x.req))}</b></td>` +
         `<td>${U.apChip(x.status)}</td><td>${esc(x.decided_by || x.by || '—')}</td><td class="nowrap">${esc(d(when(x)))}</td>` +
         `<td>${x.status === 'draft' ? `<a class="btn small ghost" href="#planning/${esc(x.c.id)}">${esc(AP.open)}</a>` : `<button type="button" class="btn small" data-aprev="${esc(x.kind)}|${esc(x.c.id)}|${x.req ? x.req.no : ''}">${esc(AP.review)}</button>`}</td></tr>`; };
     const body = [...groups.values()].map(g => g.sort((a, b) => when(b).localeCompare(when(a)))).sort((a, b) => when(b[0]).localeCompare(when(a[0])))
@@ -152,7 +153,7 @@ CP.screens.planning = (function () {
     } else {
       const q = x.req, t = R.sumLines(q.lines), lw = l => `${l.line} ${R.monthShort(l.month)} ${R.signedShort(+l.amount)}`;
       /* P6 — no "…": the first 2 lines + "+2 more" (the whole list in its tooltip) */
-      body = kv(A.amount, R.signedShort(t), t < 0 ? 'neg' : '') + kv(A.reason, q.reason) + `<div class="apkv aplines"><span>${esc(A.lines(q.lines.length))}</span><b>${q.lines.slice(0, 2).map(l => `<span class="apl">${esc(lw(l))}</span>`).join('')}` +
+      body = kv(A.amount, CP.cpage.reqAmount(q), t < 0 ? 'neg' : '') + kv(A.reason, q.reason) + `<div class="apkv aplines"><span>${esc(A.lines(q.lines.length))}</span><b>${q.lines.slice(0, 2).map(l => `<span class="apl">${esc(lw(l))}</span>`).join('')}` +
         (q.lines.length > 2 ? `<span class="chip more" title="${esc(q.lines.map(lw).join('\n'))}">${esc(AP.more(q.lines.length - 2))}</span>` : '') + `</b></div>`;
       if (x.status === 'pending') { const im = R.requestImpact(seedNow(), c.id, q.lines); body += kv(A.impact, `${R.shortBaht(im.before)} → ${R.shortBaht(im.after)} · A&P ${R.pct(im.ap[1], 1)}`); }
     }
@@ -274,7 +275,7 @@ CP.screens.planning = (function () {
     const cancelled = R.statusOf(c, td()) === R.CANCELLED, m = document.createElement('div'), live = c.approval === 'approved', off = canEdit(c) ? '' : ' disabled';
     m.id = 'k_menu'; m.className = 'menu-pop'; m.setAttribute('role', 'menu');
     const a = me(), p = (seedNow().plans || {})[id], cs = live ? R.campState(c, p, td()) : null, X2 = k => ({ kind: k, closed: cs && cs.key === 'closed', cancelled });
-    const chg = live && cs.key !== 'closed' && !cancelled ? [['budget', C.cpg.types.budget], ['period', C.cpg.types.period], ['close', cs.key === 'toclose' ? C.cpg.types.close : C.cpg.types.closeEarly]]
+    const chg = live && cs.key !== 'closed' && !cancelled ? [['budget', C.cpg.types.budget], ['period', C.cpg.types.period], ['close', cs.key === 'toclose' ? C.cpg.types.close : C.cpg.types.closeEarly]].filter(([k]) => !(k === 'close' && cs.key === 'not_started'))
       .map(([k, l]) => { const d = R.canDo('change', a, p, X2(k)); return `<button type="button" role="menuitem" class="sub" data-kact="chg-${k}"${d.ok ? '' : ` disabled title="${esc(d.why || '')}"`}>${esc(`${C.cpg.change} › ${l}`)}</button>`; }).join('') : '';
     m.innerHTML = (view === 'page' ? '' : `<button type="button" role="menuitem" data-kact="page">${esc(PL.menu.plan)}</button>`) + (live ? `<button type="button" role="menuitem" data-kact="open">${esc(C.cpg.toTracking)}</button>` : '') + chg +
       (R.canDo('duplicate', a, p).ok ? `<button type="button" role="menuitem" data-kact="duplicate">${esc(C.plan.btn.duplicate)}</button>` : '') +
@@ -327,10 +328,12 @@ CP.screens.planning = (function () {
   let F = null;   // { id, form, row, touched, tried, dirty }
   const dateOk = R.isISODate;
   function formOf(row) {
-    if (!row) return { name: '', start: '', end: '', end_marketing: '', status: 'auto', reason: '' };
+    if (!row) { const a = me(), os = owners(); return { name: '', start: '', end: '', end_marketing: '', status: 'auto', reason: '', owner: (os.find(p => a && p.name === a.name) || os[0] || { name: a ? a.name : '' }).name }; }
     const k = R.statusKey(row.status), past = row.end && td() > row.end;
     return { name: row.campaign, start: row.start, end: row.end, end_marketing: row.end_marketing || '', status: k === 'cancelled' ? 'cancelled' : k === 'complete' && !past ? 'complete' : 'auto', reason: row.note || '' };
   }
+  /* the people who may own a Campaign: Brand (active) */
+  const owners = () => CP.actor.people().filter(p => p.active !== false && p.dept === 'brand');
   function openForm(id) {
     const row = id ? listRows().find(r => r.id === id) : null; if (id && !row) return;
     F = { id, row, form: formOf(row), touched: new Set(), tried: false, dirty: false };
@@ -348,10 +351,12 @@ CP.screens.planning = (function () {
       `</div><button type="button" class="icon-btn" data-dr-close aria-label="${esc(C.common.close)}" title="${esc(C.common.close)} (Esc)">${ICON.close}</button></div>` +
       `<form class="dr-body kform" id="k_form" novalidate autocomplete="off">` +
       `<div class="field"><label for="k_f_name">${esc(Dd.name)} <span class="req">*</span></label><input id="k_f_name" class="inp" maxlength="120" value="${esc(f.name)}"><div class="help" id="k_f_idhelp">${esc(edit ? Dd.idLocked(idNow) : Dd.idHelp(idNow))}</div><div class="ferr" id="k_e_name"></div></div>` +
-      `<div class="frow"><div class="field"><label for="k_t_start">${esc(Dd.start)} <span class="req">*</span></label>${U.dateHTML('id="k_f_start"', f.start, { textId: 'k_t_start' })}<div class="ferr" id="k_e_start"></div></div>` +
+      /* QA-v0.13 B19 — the dates in their order: Start → End marketing → End campaign · a new one: Owner (Brand) */
+      `<div class="frow f3"><div class="field"><label for="k_t_start">${esc(Dd.start)} <span class="req">*</span></label>${U.dateHTML('id="k_f_start"', f.start, { textId: 'k_t_start' })}<div class="ferr" id="k_e_start"></div></div>` +
+      `<div class="field"><label for="k_t_endm">${esc(Dd.endMkt)}</label>${U.dateHTML('id="k_f_endm"', f.end_marketing, { textId: 'k_t_endm' })}<div class="ferr" id="k_e_end_marketing"></div></div>` +
       `<div class="field"><label for="k_t_end">${esc(Dd.end)} <span class="req">*</span></label>${U.dateHTML('id="k_f_end"', f.end, { textId: 'k_t_end' })}<div class="ferr" id="k_e_end"></div></div></div>` +
-      `<div class="help" id="k_f_days"></div>` +
-      `<div class="field"><label for="k_t_endm">${esc(Dd.endMkt)}</label>${U.dateHTML('id="k_f_endm"', f.end_marketing, { textId: 'k_t_endm' })}<div class="help">${esc(Dd.endMktHelp)}</div><div class="ferr" id="k_e_end_marketing"></div></div>` +
+      `<div class="help">${esc(Dd.endMktHelp)}</div><div class="help" id="k_f_days"></div>` +
+      (edit ? '' : `<div class="field"><label for="k_f_owner">${esc(C.cpg.d.f.owner)} <span class="req">*</span></label><select id="k_f_owner" class="inp">${owners().map(p => `<option${p.name === f.owner ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>`) +
       (edit ? `<div class="field"><label for="k_f_status">${esc(Dd.status)}</label><select id="k_f_status" class="inp"><option value="auto"${f.status === 'auto' ? ' selected' : ''} id="k_f_auto">${esc(Dd.statusAuto(autoWord()))}</option>` +
       `<option value="complete"${f.status === 'complete' ? ' selected' : ''}>${esc(Dd.statusComplete)}</option><option value="cancelled"${f.status === 'cancelled' ? ' selected' : ''}>${esc(Dd.statusCancelled)}</option></select>` +
       `<div class="field sub${f.status === 'cancelled' ? '' : ' hidden'}" id="k_f_reasonw"><label for="k_f_reason">${esc(Dd.reason)}</label><textarea id="k_f_reason" class="inp" rows="2" maxlength="300" placeholder="${esc(Dd.reasonPh)}">${esc(f.reason)}</textarea></div></div>` : '') +
@@ -365,7 +370,7 @@ CP.screens.planning = (function () {
   }
   function read() {
     const v = id => { const el = $(id); return el ? el.value : ''; }, f = F.form;
-    f.name = v('k_f_name'); f.start = v('k_f_start'); f.end = v('k_f_end'); f.end_marketing = v('k_f_endm'); f.status = v('k_f_status') || 'auto'; f.reason = v('k_f_reason');
+    f.name = v('k_f_name'); f.start = v('k_f_start'); f.end = v('k_f_end'); if ($('k_f_owner')) f.owner = v('k_f_owner'); f.end_marketing = v('k_f_endm'); f.status = v('k_f_status') || 'auto'; f.reason = v('k_f_reason');
   }
   const errorsNow = () => R.validateCampaign(F.form, listRows(), F.id);
   /* the parts that follow what is typed — the focus stays where it is */
@@ -389,7 +394,7 @@ CP.screens.planning = (function () {
     const e = errorsNow(); if (Object.keys(e).length) { const first = ['name', 'start', 'end', 'end_marketing'].find(k => e[k]); const el = $({ name: 'k_f_name', start: 'k_t_start', end: 'k_t_end', end_marketing: 'k_t_endm' }[first]); if (el) el.focus(); return; }
     const f = F.form, edit = !!F.id;
     const values = { campaign: f.name.trim(), start: f.start, end: f.end, end_marketing: f.end_marketing, status: f.status };
-    if (!edit) values.owner = me().name;
+    if (!edit) values.owner = f.owner || me().name;
     if (f.status === 'cancelled') values.note = f.reason.trim(); else if (!edit) values.note = '';
     F.saving = true; $('k_f_save').textContent = K.d.saving; update(); $('k_f_msg').innerHTML = '';
     const res = await run({ action: edit ? 'edit' : 'add', id: F.id, values }, values.campaign, { onError: x => {
@@ -397,13 +402,13 @@ CP.screens.planning = (function () {
     } });
     if (F && !res) { F.saving = false; $('k_f_save').textContent = K.d.save; update(); }
     /* CR-05 — a new Campaign is a Draft plan: the plan, then its page */
-    if (res && !edit && res.row) await newPlanFor(res.row.id);
+    if (res && !edit && res.row) await newPlanFor(res.row.id, null, values.owner);
   }
-  async function newPlanFor(id, from) {
-    const a = me(), at = R.nowLocal();
+  async function newPlanFor(id, from, ownerName) {
+    const a = me(), at = R.nowLocal(), owner = ownerName || a.name;
     const c = campaigns().find(x => x.id === id) || S.data().list.rows.find(x => x.id === id) || {}, start = c.start;
     try { await S.savePlan(id, p => { const q = from ? Object.assign(p, { versions: [Object.assign(R.clonePlan(from), { v: 1, status: 'draft', submitted_at: null, submitted_by: null, decided_at: null, decided_by: null, comment: '' })] }) : p;
-      q.steps = R.newSteps(start, a.name, CP.actor.people()); if (from) ['1', '2', '3', '4a', '4b', '4c'].forEach(k => { q.steps[k].status = 'in_progress'; }); return q; }, { create: R.newPlan(id, a.name, at, a.name) }); }
+      q.steps = R.newSteps(start, owner, CP.actor.people(), td()); if (from) ['1', '2', '3', '4a', '4b', '4c'].forEach(k => { q.steps[k].status = 'in_progress'; }); q.schema = R.PLAN_SCHEMA; return q; }, { create: R.newPlan(id, owner, at, a.name) }); }
     catch (x) { U.toast(AP.toast.failed); return; }
     location.hash = `#planning/${id}/plan/details`;
   }

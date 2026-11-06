@@ -136,7 +136,7 @@ CP.pnl = (function () {
     const cells = (t, st, tg) => (cp ? '' : `<td class="num">${esc(R.baht(t.original))}</td><td class="num">${t.changes ? `<span class="${t.changes < 0 ? 'neg' : ''}">${esc((t.changes > 0 ? '+' : '') + R.baht(t.changes))}</span>` : none()}</td>`) +
       `<td class="num"><b>${esc(R.baht(t.current))}</b></td><td class="num">${esc(R.baht(t.committed))}</td>` +
       `<td>${t.current > 0 ? U.paceBar(t.used, tg, t.used > 1 ? 'over' : 'ok', 60) : none(B.noBudget(''))}</td>` +
-      `<td class="num${t.remaining < -0.5 ? ' neg' : ''}">${esc(R.baht(t.remaining))}</td><td class="num">${t.pending ? `<a class="link" href="#planning/approvals" title="${esc(B.toApprovals)}">${esc(R.signedShort(t.pending))}</a>` : none()}</td>` +
+      `<td class="num${t.remaining < -0.5 ? ' neg' : ''}">${esc(R.baht(t.remaining))}</td><td class="num">${t.pending ? `<a class="link" href="${t.id ? `#planning/${esc(t.id)}/requests` : '#planning/approvals'}" title="${esc(B.toApprovals)}">${esc(R.signedShort(t.pending))}</a>` : none()}</td>` +
       `<td>${st === undefined ? '' : U.issueChip(st)}</td>`;
     const bst = t => { const ir = iss.byId.get(t.id); return ir && ir.budget && ir.budget.status ? ir.budget.status : 'ok'; };
     const withB = bt.rows.filter(t => t.current > 0 || t.committed > 0 || t.pending).sort((a, b) => (cp ? (BRANK[bst(a)] ?? 5) - (BRANK[bst(b)] ?? 5) : 0) || (b.used || 0) - (a.used || 0));

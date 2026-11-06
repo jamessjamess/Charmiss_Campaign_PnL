@@ -1017,5 +1017,24 @@ CP.contentTH = (function () {
   T.plng.stTabs2.toclose = 'รอปิด';
   T.plan.checks.envelope = 'ทุกกลุ่มมีวงเงิน หรือเลือก ไม่มีค่าใช้จ่าย';
 
+  /* ---------- QA-v0.13 — the words of the fixes (B4 B5 B7 B8 B9 B11 B12 B16 B17 B18 B20 B21 B27 B28 B29 B30 B32 B33 B35 B36) ---------- */
+  Object.assign(T.common, { pcs: v => `${v} ชิ้น`, skus: n => `${n} SKU` });
+  Object.assign(T.actor, { dept: 'ฝ่าย', depts: { none: '—', brand: 'แบรนด์', sales: 'ฝ่ายขาย', marketing: 'การตลาด', finance: 'การเงิน', executive: 'ผู้บริหาร', admin: 'แอดมิน' },
+    needBrand: 'ต้องมีคนฝ่ายแบรนด์ที่ใช้งานอยู่อย่างน้อย 1 คน — สร้างแคมเปญใหม่ได้เฉพาะฝ่ายแบรนด์' });
+  T.camps.newWhy = 'สร้างแคมเปญใหม่ได้เฉพาะฝ่ายแบรนด์หรือแอดมิน';
+  T.prod.active = 'ใช้งานอยู่';
+  T.plan.sum.gpPct = 'GP %';
+  T.plan.history.pts = v => `${v > 0 ? '+' : '−'}${Math.abs(v).toFixed(1)} จุด`;
+  T.req.move = v => `ย้าย ${v}`;
+  T.appr.rv.ret = 'ส่งกลับ';
+  Object.assign(T.mon, { groups5: ['เร่งด่วน', 'ต้องจับตา', 'รอปิด', 'อื่น ๆ', 'ยกเลิก'], notFound: 'ไม่พบแคมเปญในติดตามแคมเปญ — มีเฉพาะแคมเปญที่อนุมัติแล้ว', backToList: 'กลับไปติดตามแคมเปญ',
+    endedAt: p => `จบที่ ${p} ของเป้า`, notStartedTodo: n => `ยังไม่เริ่ม · เริ่มในอีก ${n} วัน` });
+  Object.assign(T.mon.s9, { noCh: 'แคมเปญนี้ไม่ได้ขายในช่องทางนี้', allCh: 'ทุกช่องทาง' });
+  Object.assign(T.mon.k9, { ofFull: 'ของเป้าทั้งหมด', toDatePct: p => `(${p} ของเป้าถึงวันนี้)` });
+  T.cpg.cancelledRO = 'ยกเลิกแล้ว — อ่านอย่างเดียว · กู้คืนก่อนจึงแก้ไขได้';
+  T.cpg.use.planWas = v => `ตามแผน ${v}`;
+  Object.assign(T.step, { retBand: (by, d, cmt, steps) => `ส่งกลับโดย ${by} · ${d} · "${cmt}" · ขั้นที่ต้องแก้: ${steps}`,
+    squeezed: n => `แคมเปญเริ่มในอีก ${n} วัน — กำหนดส่งถูกบีบให้พอดีกับเวลาที่เหลือ` });
+
   return T;
 })();

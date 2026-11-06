@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.13.1 — 06/11/2026 · QA-v0.13 fixes (B1 – B38 · P9 · P10)
+
+- **Blocking** — B26: a plan made before v0.13 (Songkran Glow 2027 · Year-end Gift Set 2027 · Back to School Brow 2027) saves step 1 again ·
+  **P9**: every plan is read through `R.migratePlan` (`plan.schema = 13`): the missing envelope step is added — Done (auto) when the plan
+  already has budget lines or was sent, else step 4 of its owner (B6) · `step.assign` makes a missing step instead of failing ·
+  B27: Edit people has a **Department** column, Save keeps it, at least one active Brand person must stay · people saved by v0.13.0
+  get their department back.
+- **Numbers the Executive uses** — B1: the impact of a budget request counts Other (Heart Cushion #2: ฿7.43M → ฿8.03M · A&P 19.1%) ·
+  B21: a reallocation reads `Move ฿250K · ADS → KOL` (cards · Decided · Requests · History · Expenses KPI), never ฿0 · B7: Plan in use =
+  profit and A&P on the current budget (the plan's own under it).
+- **Planning** — B2: the Target builder defaults add up to 100.0 · B3: the Undo toast shows on top of the review · B4: a returned plan
+  shows `Returned by Ann · date · "comment" · Steps to fix: …` on every step · B5: a cancelled draft is read only with Restore · Ctrl+K
+  says Cancelled · B10: no Close early before Start · B14: the checks say 5a · 5b · 5c · B15: ≤ ฿100 off the envelope = no warning · B16:
+  the % tile is GP % · B17: A&P Δ in points · B18: Return (not Return to draft) · the close review has the profit line · B19: New
+  campaign = Start → End marketing → End + Owner (Brand) · B20: why New campaign is off · B22: Mark step done goes to the next step of the
+  same person · B24: Save + Mark done = one History row · B29: a campaign starting soon gets its Due dates squeezed into the days left
+  (+ a band) · B13: History words of a budget request from the request, in the language on screen.
+- **Tracking** — B28 · B31 · B38: one order for the list and ‹ › — the year chosen, Urgent → To watch (running) → **To close** → Others
+  → Cancelled · B8: **Request change ▾** (Budget · Period · Close) · B9: a campaign not started says so · B11: `Ended at 95% of target`
+  instead of At risk · B30: `26% of the full target … (106% of the target to date)` · B32: a channel the campaign does not sell in goes
+  back to All, its button off, the donut says All channels · B33: `#tracking/<unknown>` = Campaign not found · B37: the request links
+  open the Campaign's Requests (a row opens the request).
+- **Words / routes / phone** — B12: `ชิ้น` (not pcs) · B36: `41 SKU` · `pcs` / `SKUs` out of the i18n keep-list · B34:
+  `#planning/requests` → My requests · B35: Product Master `Active n` · B25: the chosen grid cell never covers the SKU names · Planning KPI
+  scroll sideways on a phone · B23: checked — Edge / Chrome name a Thai export right (the QA tool's `download` came from the tool).
+- **P10**: `docs/REGRESSION.md` — the checklist run before every CR report (R01 – R15).
+- Numbers: none changed — Mock anchor v0.7 the same · Pending the same.
+
 ## v0.13.0 — 06/11/2026 · CR-13 Campaign Planning: one page a campaign · Period change · Close campaign · History · 7 steps with helpers
 
 - **The campaign page** (`#planning/<id>` · D114): one page, two modes — a Draft / In review / Returned plan = **Plan** (the steps) ·

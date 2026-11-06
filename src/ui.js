@@ -73,7 +73,12 @@ CP.ui = (function () {
   document.addEventListener('scroll', e => { if (infoBtn && !(e.target.closest && e.target.closest('#infoPop'))) closeInfo(); }, true);
 
   /* ===================== small helpers ===================== */
-  function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2600); }
+  /* QA-v0.13 B3 — a toast shows above an open dialog (the review of the Executive: Approved #2 · Undo) — a modal <dialog> is in the top layer,
+     so the toast goes inside it while it is open and back to <body> when it closes */
+  function toastHost() { let t = $('toast'); if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; t.setAttribute('role', 'status'); t.setAttribute('aria-live', 'polite'); document.body.appendChild(t); }
+    const d = [...document.querySelectorAll('dialog[open]')].pop(), want = d || document.body; if (t && t.parentNode !== want) want.appendChild(t); return t; }
+  document.addEventListener('close', e => { const t = $('toast'); if (t && e.target && e.target.contains && e.target.contains(t)) document.body.appendChild(t); }, true);
+  function toast(msg) { const t = toastHost(); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2600); }
   function download(name, data, type) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([data], { type }));
@@ -303,8 +308,16 @@ CP.ui = (function () {
     period: '⇆', 'period.approved': '⇆', 'period.returned': '⇆', 'period.rejected': '⇆', 'period.withdrawn': '⇆', close: '■', closed: '■', 'close.returned': '■', 'close.rejected': '■', 'close.withdrawn': '■', reopened: '↺' };
   const histCls = a => (/^request/.test(a) ? 'req' : ['approved', 'step.done', 'closed', 'period.approved'].includes(a) ? 'ok' : /returned|revise|rejected/.test(a) ? 'back' : ['submitted', 'resubmitted', 'close', 'period'].includes(a) ? 'sub' : 'other');
   const histGroup = a => Object.keys(HIST_KIND).find(k => HIST_KIND[k].includes(a)) || 'changes';
+  function reqDetail(plan, x) {
+    const d = String(x.detail || ''), m = d.match(/^#(\d+)/); if (!m || !/^request/.test(x.action)) return d;
+    const q = ((plan && plan.requests) || []).find(r => r.no === +m[1]); if (!q || !q.lines || !q.lines.length || q.type === 'period' || q.type === 'close') return d;
+    const t = R.requestType(q.lines), amt = t === 'reallocation' ? C.req.move(R.shortBaht(R.movedOf(q.lines))) : R.signedShort(R.sumLines(q.lines)), cm = d.indexOf(' · ');
+    return `#${q.no} · ${C.req.type[t] || t} ${amt}${/resubmitted$/.test(d) ? ` · ${C.appr.log.resubmitted}` : ''}${x.action !== 'request' && cm > 0 ? d.slice(cm) : ''}`;
+  }
   function historyHTML(plan, o = {}) {
-    const H = C.hist, f = o.filter || 'all', all = ((plan && plan.log) || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at)));
+    const H = C.hist, f = o.filter || 'all', srt = ((plan && plan.log) || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at)));
+    /* QA-v0.13 B24 — Mark step done saves the draft first: the Draft saved of the same person in the same minute is not a row of its own */
+    const all = srt.filter((x, i) => !(x.action === 'saved' && srt.slice(Math.max(0, i - 2), i + 3).some(y => y !== x && y.action === 'step.done' && y.by === x.by && String(y.at).slice(0, 16) === String(x.at).slice(0, 16))));
     const list = all.filter(x => f === 'all' || histGroup(x.action) === f).slice(0, o.limit || 1e9), n = k => (k === 'all' ? all.length : all.filter(x => histGroup(x.action) === k).length);
     const chips = o.chips === false ? '' : `<div class="sttabs hchips" role="tablist">${['all', 'approvals', 'changes', 'budget', 'steps'].map(k => `<button type="button" role="tab" data-hfilter="${k}" class="${f === k ? 'on' : ''}" aria-selected="${f === k}">${esc(H.f[k])} <span class="n">${n(k)}</span></button>`).join('')}</div>`;
     if (!list.length) return chips + `<div class="c3-empty">${esc(H.none)}</div>`;
@@ -318,7 +331,7 @@ CP.ui = (function () {
     list.forEach(x => { const m = String(x.at).slice(0, 7);
       if (m !== mo && o.limit == null) { out += `<li class="hmon">${esc(R.monthName(m))}</li>`; mo = m; }
       out += `<li data-hk="${esc(histGroup(x.action))}" data-ha="${esc(x.action)}"><span class="hic ${histCls(x.action)}" aria-hidden="true">${esc(HIST_ICON[x.action] || '•')}</span><div class="hrow"><div class="hl"><span class="hw">${esc(C.appr.log[x.action] || x.action)}</span>` +
-        `<span class="muted"> · ${x.by ? avatar(x.by, true) : ''}${esc(x.by || '—')} · ${esc(R.dmy(String(x.at).slice(0, 10)))} ${esc(String(x.at).slice(11, 16))}</span> ${link(x)}</div>${x.detail ? `<div class="hd">${esc(x.detail)}</div>` : ''}</div></li>`; });
+        `<span class="muted"> · ${x.by ? avatar(x.by, true) : ''}${esc(x.by || '—')} · ${esc(R.dmy(String(x.at).slice(0, 10)))} ${esc(String(x.at).slice(11, 16))}</span> ${link(x)}</div>${x.detail ? `<div class="hd">${esc(reqDetail(plan, x))}</div>` : ''}</div></li>`; });
     return chips + `<ul class="hist h9 h13">${out}</ul>`;
   }
 
@@ -609,7 +622,9 @@ CP.ui = (function () {
 
   /* ===================== dialogs (KOL ui.js — openDialog · closeDialog · confirmDialog) — never the browser's alert / confirm / prompt ===================== */
   const dlg = $('dlg');
-  function openDialog(html, wide) { dlg.innerHTML = html; dlg.classList.toggle('wide', wide === true); if (!dlg.open) dlg.showModal(); }
+  /* QA-v0.13 B3 — a dialog drawn again keeps a toast that is showing (Undo) above it */
+  function keepToast(box, f) { const t = $('toast'), on = !!t && t.classList.contains('show'); if (t && box.contains(t)) document.body.appendChild(t); f(); if (on && box.open !== false) box.appendChild(t); }
+  function openDialog(html, wide) { keepToast(dlg, () => { dlg.innerHTML = html; }); dlg.classList.toggle('wide', wide === true); if (!dlg.open) dlg.showModal(); }
   function closeDialog() { if (dlg.open) dlg.close(); }
   /* ===================== a date as KOL (ui.js dateHTML · CR-03 §8): dd/mm/yyyy typed or picked — the browser's own date box follows its language (mm/dd in English US) ===================== */
   /* attrs go on the hidden input that holds yyyy-mm-dd ('invalid' while the text is not a date · '' when empty) */
@@ -720,12 +735,12 @@ CP.ui = (function () {
   /* the big container of a review (KOL createModal size L: 90vw · max 1400px · 85vh) · M = 720px */
   function openModal(html, size, onClose) {
     let m = $('mdl'); if (!m) { m = document.createElement('dialog'); m.id = 'mdl'; m.className = 'mdl'; document.body.appendChild(m); m.addEventListener('close', () => { const f = m._onClose; m._onClose = null; if (f) f(); }); }
-    m.className = 'mdl ' + (size || 'L'); m.innerHTML = html; m._onClose = onClose || null; if (!m.open) m.showModal(); return m;
+    m.className = 'mdl ' + (size || 'L'); keepToast(m, () => { m.innerHTML = html; }); m._onClose = onClose || null; if (!m.open) m.showModal(); return m;
   }
   function closeModal() { const m = $('mdl'); if (m && m.open) m.close(); }
   /* a toast with one action (Undo · Request budget) for ms (KOL: Undo 10 s) */
   function toastAction(msg, label, fn, ms) {
-    const t = $('toast'); t.textContent = ''; const s = document.createElement('span'); s.textContent = msg; t.appendChild(s);
+    const t = toastHost(); t.textContent = ''; const s = document.createElement('span'); s.textContent = msg; t.appendChild(s);
     if (label) { const b = document.createElement('button'); b.type = 'button'; b.className = 'tbtn'; b.textContent = label; b.addEventListener('click', () => { t.classList.remove('show', 'act'); fn(); }); t.appendChild(b); }
     t.classList.add('show', 'act'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show', 'act'), ms || 10000);
   }

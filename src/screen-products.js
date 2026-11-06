@@ -64,7 +64,7 @@ CP.products = (function () {
   }
   function drawTabs() {
     const rows = filtered(true), n = k => (k === 'all' ? rows.filter(p => p.status !== 'discontinued').length : rows.filter(p => p.status === k).length);
-    $('p_tabs').innerHTML = TABS.map(k => `<button type="button" role="tab" data-ptab="${k}" class="${st.tab === k ? 'on' : ''}" aria-selected="${st.tab === k}"${k === 'all' ? ` title="${esc(M.allTip)}"` : ''}>${esc(k === 'all' ? M.all : M.state[k])} <span class="n">${n(k)}</span></button>`).join('');
+    $('p_tabs').innerHTML = TABS.map(k => `<button type="button" role="tab" data-ptab="${k}" class="${st.tab === k ? 'on' : ''}" aria-selected="${st.tab === k}"${k === 'all' ? ` title="${esc(M.allTip)}"` : ''}>${esc(k === 'all' ? M.active : M.state[k])} <span class="n">${n(k)}</span></button>`).join('');
   }
   function drawTable() {
     const box = $('p_table'), every = sorted(filtered()), H = M.cols;

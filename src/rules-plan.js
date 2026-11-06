@@ -32,9 +32,47 @@ Object.assign(CP.rules, (function (R) {
   const STEP_TYPE = { '4a': 'marketing', '4b': 'sales', '4c': 'other' };
   const STEP_PAGE = { 1: 'details', 2: 'products', 3: 'target', env: 'envelope', '4a': 'budget', '4b': 'budget', '4c': 'budget', 5: 'forecast', 6: 'review' };
   /* the steps of a new plan: Brand steps = the owner · the others = the first person of that department · Due counted back from Start */
-  function newSteps(start, owner, people) {
+  /* QA-v0.13 B29 — today given (a new plan) and Start − 75 days already past: the Due dates keep their order, spread over the days left
+     (step 1 = tomorrow · the last step ≥ today + 3 · never after Start) — the plan says squeezed */
+  function newSteps(start, owner, people, today) {
     const of = d => { const p = (people || []).find(x => x.active !== false && x.dept === d); return p ? p.name : owner; };
-    return Object.fromEntries(STEP_KEYS.map(k => [k, { assignee: STEP_DEPT[k] === 'brand' ? owner : of(STEP_DEPT[k]), due: start ? R.addDays(start, STEP_DUE[k]) : null, status: 'not_started', done_at: null, by: null, refresh: false, none: false }]));
+    const lo = Math.min(...Object.values(STEP_DUE)), left = start && today ? R.dayDiff(start, today) : null, squeeze = left != null && R.addDays(start, lo) < today;
+    const dueOf = k => { if (!start) return null; if (!squeeze) return R.addDays(start, STEP_DUE[k]);
+      const D = Math.max(4, left), f = (STEP_DUE[k] - lo) / (0 - lo); return R.addDays(today, Math.max(1, Math.min(D, 1 + Math.round(f * (D - 1))))); };
+    return Object.fromEntries(STEP_KEYS.map(k => [k, Object.assign({ assignee: STEP_DEPT[k] === 'brand' ? owner : of(STEP_DEPT[k]), due: dueOf(k), status: 'not_started', done_at: null, by: null, refresh: false, none: false }, squeeze ? { squeezed: true } : {})]));
+  }
+  /* ===================== CR-14 §3 — the due dates in working days (Mon – Fri, not HOLIDAYS) · the one place to change them =====================
+     Brief 5 · Target ∥ Expenses 10 · Summary 3 (Finance 1 working day before the send) · Approval 5 · Buffer before Start 10 = 33.
+     A = the working days from today to Start: A ≥ 33 normal (back from Start) · 12 ≤ A < 33 squeeze (every part × A ÷ 33, ≥ 1, the rounding
+     on the Buffer) · A < 12 (or started) urgent (forward from today: Brief +1 · Target ∥ Expenses +3 · Finance +4 · Send +5) */
+  const DUE_RULES = { brief: 5, work: 10, summary: 3, approval: 5, buffer: 10, squeezeMin: 12 };
+  /* the holidays on a fixed date every year (mm-dd) + one-off dates (yyyy-mm-dd: the lunar ones · substitution days · company days) */
+  const HOLIDAYS = { fixed: ['01-01', '04-06', '04-13', '04-14', '04-15', '05-01', '05-04', '06-03', '07-28', '08-12', '10-13', '10-23', '12-05', '12-10', '12-31'], dates: [] };
+  function isWorkday(iso) { const w = new Date(iso + 'T00:00:00').getDay(); return w !== 0 && w !== 6 && !HOLIDAYS.fixed.includes(iso.slice(5)) && !HOLIDAYS.dates.includes(iso); }
+  function addWorkdays(iso, n) { let d = iso, k = Math.abs(n); const step = n < 0 ? -1 : 1; while (k > 0) { d = R.addDays(d, step); if (isWorkday(d)) k--; } return d; }
+  /* the working days after `from` up to and with `to` (0 when `to` is not after `from`) */
+  function workdaysBetween(from, to) { let n = 0, d = from; while (d < to) { d = R.addDays(d, 1); if (isWorkday(d)) n++; } return n; }
+  function planDues(start, today) {
+    const T = DUE_RULES, parts = ['brief', 'work', 'summary', 'approval', 'buffer'], total = parts.reduce((a, k) => a + T[k], 0), A = workdaysBetween(today, start), late = today > start ? R.dayDiff(today, start) : 0;
+    if (A < T.squeezeMin) { const brief = addWorkdays(today, 1), work = addWorkdays(today, 3), fin = addWorkdays(today, 4), submit = addWorkdays(today, 5);
+      return { mode: 'urgent', A, total, d: null, brief, work, fin, submit, approveBy: null, planFrom: today, late }; }
+    let d = Object.fromEntries(parts.map(k => [k, T[k]]));
+    if (A < total) { const f = A / total; d = Object.fromEntries(parts.map(k => [k, Math.max(1, Math.round(T[k] * f))])); d.buffer = Math.max(0, A - d.brief - d.work - d.summary - d.approval); }
+    const submit = addWorkdays(start, -(d.buffer + d.approval)), work = addWorkdays(submit, -d.summary), brief = addWorkdays(work, -d.work);
+    return { mode: A < total ? 'squeeze' : 'normal', A, total, d, brief, work, fin: addWorkdays(submit, -1), submit, approveBy: addWorkdays(submit, d.approval), planFrom: addWorkdays(brief, -d.brief), late };
+  }
+  /* QA-v0.13 P9 · B26 · B6 — the plans are read through migratePlan: a plan saved before a step existed gets the missing steps (CR-13: env) ·
+     env of an old plan = Done (auto · D121) when it already has budget lines or was sent · an old draft with no line yet = step 4 of its owner,
+     Due = Start − 45 · plan.schema = the rules it was made with (13 = the 7 steps) */
+  const PLAN_SCHEMA = 13;
+  function migratePlan(plan, c) {
+    if (!plan || !plan.steps || (plan.schema || 0) >= PLAN_SCHEMA) return plan;
+    const miss = STEP_KEYS.filter(k => !plan.steps[k]), p = Object.assign({}, plan, { schema: PLAN_SCHEMA, steps: Object.assign({}, plan.steps) }); if (!miss.length) return p;
+    const w = working(plan), lines = ((w && w.budget) || []).some(x => Math.abs(num(x.amount) || 0) > 0.5), sent = plan.approval !== 'draft' && plan.approval !== 'returned', start = c && c.start;
+    miss.forEach(k => { const st0 = { assignee: STEP_DEPT[k] === 'brand' ? plan.owner || null : null, due: start ? R.addDays(start, STEP_DUE[k]) : null, status: 'not_started', done_at: null, by: null, refresh: false, none: false };
+      if (k === 'env' && (lines || sent)) Object.assign(st0, { status: 'done', auto: true });
+      p.steps[k] = st0; });
+    return p;
   }
   /* CR-13 — a plan made before the envelope step: env is done (its envelope = the lines of each group) */
   const autoEnv = (plan, k) => k === 'env' && !!plan && !!plan.steps && !plan.steps.env;
@@ -272,7 +310,7 @@ Object.assign(CP.rules, (function (R) {
         L('saved', act.detail || `v${w.v}`); break;
       }
       case 'step.done': { const s = p.steps[act.step]; Object.assign(s, { status: 'done', done_at: act.at, by: act.by, refresh: false, none: !!act.none }); L('step.done', `${STEP_NAMES[act.step]}${act.none ? ' · ' + C.plan.noExpense : ''}`); break; }
-      case 'step.assign': { const s = p.steps[act.step]; const old = `${s.assignee || '—'} · ${s.due ? R.dmy(s.due) : '—'}`;
+      case 'step.assign': { const s = p.steps[act.step] || (p.steps[act.step] = { assignee: null, due: null, status: 'not_started', done_at: null, by: null, refresh: false, none: false }); const old = `${s.assignee || '—'} · ${s.due ? R.dmy(s.due) : '—'}`;
         if (act.assignee != null) s.assignee = act.assignee; if (act.due != null) s.due = act.due; L('step.assign', `${STEP_NAMES[act.step]}: ${old} → ${s.assignee || '—'} · ${s.due ? R.dmy(s.due) : '—'}`); break; }
       case 'submit': {
         if (p.approval === 'returned' && w.status === 'returned') { const nv = clone(w); Object.assign(nv, { v: w.v + 1 }); p.versions.push(nv); w = nv; }
@@ -343,12 +381,13 @@ Object.assign(CP.rules, (function (R) {
   /* ===================== budget requests (§7) ===================== */
   const sumLines = lines => (lines || []).reduce((s, l) => s + (num(l.amount) || 0), 0);
   const requestType = lines => { const t = sumLines(lines); return Math.abs(t) < 0.5 ? 'reallocation' : t > 0 ? 'increase' : 'release'; };
+  const movedOf = lines => (lines || []).reduce((s, l) => s + Math.max(0, num(l.amount) || 0), 0);
   /* Impact of the lines on a Campaign (merged seed): Current budget · A&P % · Plan profit before → after · each line × month: current · committed ·
      remaining before → after · a − below committed = an error */
   function requestImpact(seed, cid, lines) {
     const M = R.model(seed), cm = M.cells.get(cid) || new Map(), cur = { budget: 0, target: 0, cogs: 0 }, by = new Map(), lineTot = new Map();
-    cm.forEach((c, m) => { cur.target += c.rev[0] || 0; cur.cogs += c.cogs[0] || 0; cur.budget += (c.mkt[0] || 0) + (c.sls[0] || 0);
-      ['marketing', 'sales'].forEach(t => c.lines[t].forEach((v, line) => { by.set(`${t}|${line}|${m}`, { cur: v[0] || 0, com: v[1] || 0 }); const k = `${t}|${line}`, o = lineTot.get(k) || { cur: 0, com: 0 }; o.cur += v[0] || 0; o.com += v[1] || 0; lineTot.set(k, o); })); });
+    cm.forEach((c, m) => { cur.target += c.rev[0] || 0; cur.cogs += c.cogs[0] || 0; cur.budget += (c.mkt[0] || 0) + (c.sls[0] || 0) + (c.oth[0] || 0);
+      ['marketing', 'sales', 'other'].forEach(t => (c.lines[t] || new Map()).forEach((v, line) => { by.set(`${t}|${line}|${m}`, { cur: v[0] || 0, com: v[1] || 0 }); const k = `${t}|${line}`, o = lineTot.get(k) || { cur: 0, com: 0 }; o.cur += v[0] || 0; o.com += v[1] || 0; lineTot.set(k, o); })); });
     const add = sumLines(lines), after = cur.budget + add, gp = cur.target - cur.cogs;
     const rows = (lines || []).map(l => { const k = `${l.type}|${l.line}|${l.month}`, o = by.get(k) || { cur: 0, com: 0 }, t = lineTot.get(`${l.type}|${l.line}`) || { cur: 0, com: 0 }, a = num(l.amount) || 0;
       return Object.assign({}, l, { cur: o.cur, com: o.com, before: o.cur - o.com, after: o.cur + a - o.com, lineCur: t.cur, lineCom: t.com, err: a < 0 && o.cur + a < o.com - 0.5 }); });
@@ -650,7 +689,7 @@ Object.assign(CP.rules, (function (R) {
   }
 
   return { ROLE_KEYS, DEPTS, roleKey, isMgr, PLAN_STATES, REQ_STATES, PRODUCT_STATES, newPlan, working,
-    monthRanges, envOf, ENV_GROUPS, phaseWeights, spreadWhole, STEP_KEYS, STEP_NAMES, STEP_NUM, STEP_DEPT, STEP_TYPE, STEP_PAGE, newSteps, periodDates, monthMoves, periodMoves, periodImpact, moveRows, closureOf, campState, closeChecks, reqWords, stepState, planProgress, canDoStep, stepChecks, planForecast, breakEven, budgetStatus, issues, pnlForecast, planningKpi, approvedVersion, skuMap, priceOf, rowAmount,
+    monthRanges, envOf, ENV_GROUPS, phaseWeights, spreadWhole, STEP_KEYS, STEP_NAMES, STEP_NUM, STEP_DEPT, STEP_DUE, STEP_TYPE, STEP_PAGE, newSteps, migratePlan, PLAN_SCHEMA, movedOf, DUE_RULES, HOLIDAYS, isWorkday, addWorkdays, workdaysBetween, planDues, periodDates, monthMoves, periodMoves, periodImpact, moveRows, closureOf, campState, closeChecks, reqWords, stepState, planProgress, canDoStep, stepChecks, planForecast, breakEven, budgetStatus, issues, pnlForecast, planningKpi, approvedVersion, skuMap, priceOf, rowAmount,
     planTotals, planChecks, planDiff, canDo, planAct, sumLines, requestType, requestImpact,
     budgetTrack, mergePlans, approvalItems, waitingFor, clonePlan: clone, trackerRows,
     productUse, productChecks, skuFromMaster, planCogsDrift, runningByMonth };

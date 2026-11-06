@@ -10,7 +10,7 @@ CP.content = (function () {
   const s = n => (n === 1 ? '' : 's');
   return {
     app: {
-      title: 'Campaign P&L', brandBold: 'Campaign', brandRest: 'P&L', org: 'Charmiss', version: 'v0.13.0', dev: 'DEV',
+      title: 'Campaign P&L', brandBold: 'Campaign', brandRest: 'P&L', org: 'Charmiss', version: 'v0.13.1', dev: 'DEV',
       searchMenu: 'Search menu…', noMenuMatch: 'No page matches', collapseMenu: 'Collapse menu', expandMenu: 'Expand menu', openMenu: 'Open menu', mainMenu: 'Main menu',
       /* CR-12 §4.4 — the language switch (each language written in itself) · the theme Light · Dark · System (darkMode / lightMode: no longer used) */
       lang: { label: 'Language · ภาษา', th: 'ไทย', en: 'EN', thLong: 'ภาษาไทย', enLong: 'English', toTh: 'เปลี่ยนเป็นภาษาไทย', toEn: 'Switch to English' },
@@ -61,7 +61,7 @@ CP.content = (function () {
     /* E1 → E (James, 04/11/2026) — COGS of revenue rows typed without a quantity */
     cogsEst: { label: 'Est.', tip: (amt, who) => `COGS estimated for ${amt} of revenue typed without a quantity${who && who.length ? ` (${who.join(', ')})` : ''} — quantity = amount ÷ the same SKU's net price a piece × its COGS. Add the quantities and it becomes exact.`,
       note: (amt, who) => `Est. — COGS estimated for ${amt} of revenue with no quantity${who && who.length ? ` (${who.join(', ')})` : ''}` },
-    common: { discardTitle: 'Discard changes?', discardBody: 'What you typed in this form will be lost.', discard: 'Discard', keepEditing: 'Keep editing', none: '—', close: 'Close', cancel: 'Cancel', about: 'About this number', datePh: 'mm/yyyy', dayPh: 'dd/mm/yyyy', pickDate: 'Pick a date', table: 'Table', chart: 'Chart', download: 'Download', total: 'Total', other: 'Other',
+    common: { pcs: v => `${v} pcs`, skus: n => `${n} SKUs`, discardTitle: 'Discard changes?', discardBody: 'What you typed in this form will be lost.', discard: 'Discard', keepEditing: 'Keep editing', none: '—', close: 'Close', cancel: 'Cancel', about: 'About this number', datePh: 'mm/yyyy', dayPh: 'dd/mm/yyyy', pickDate: 'Pick a date', table: 'Table', chart: 'Chart', download: 'Download', total: 'Total', other: 'Other',
       /* CR-07 R7 — a table over 50 rows */
       range: (a, b, n) => `${a}–${b} of ${n}`, prevPage: 'Previous 50', nextPage: 'Next 50' },
     months: MONTHS, monthsShort: SHORT,
@@ -297,6 +297,7 @@ CP.content = (function () {
     },
     /* CR-03 — the Campaigns page · the New / Edit drawer · Cancel · the files */
     camps: {
+      newWhy: 'Only Brand or Admin can make a new campaign',
       title: 'Campaigns', allYears: 'All years', yearL: 'Year', search: 'Search campaign', includeCancelled: 'Include cancelled',
       sortBtn: v => `Sort: ${v}`, sorts: { status: 'Status', start: 'Start date', name: 'Name', updated: 'Updated' }, exportBtn: 'Export', newBtn: 'New campaign',
       tabs: { all: 'All', ongoing: 'On going', not_started: 'Not started', complete: 'Complete', draft: 'Draft', pending: 'Pending approval', rejected: 'Rejected', cancelled: 'Cancelled' },
@@ -337,6 +338,8 @@ CP.content = (function () {
       roles: { admin: 'Admin', manager: 'Manager', staff: 'Staff', viewer: 'Viewer', accounting: 'Accounting' },
       switchUser: 'Switch user', actingAs: 'Acting as',
       people: 'Edit people…', peopleTitle: 'People', peopleHelp: 'Who can act in the demo. The name is saved with every action.', add: '+ Add person', name: 'Name', role: 'Role', active: 'Active',
+      dept: 'Department', depts: { none: '—', brand: 'Brand', sales: 'Sales', marketing: 'Marketing', finance: 'Finance', executive: 'Executive', admin: 'Admin' },
+      needBrand: 'Keep at least one active person in Brand — only Brand can make a new campaign',
       save: 'Save people', saved: 'People saved', none: 'Nobody yet', viewer: 'Viewer — read only',
     },
     /* ===================== CR-05 §6 — Approval (as KOL: Draft · Pending approval · Approved · Returned + Rejected of D44) ===================== */
@@ -352,7 +355,7 @@ CP.content = (function () {
       card: { period: 'Period', target: 'Target', budget: 'Budget', ap: 'A&P', profit: 'Plan profit', amount: 'Amount', reason: 'Reason', impact: 'Impact', lines: n => `${n} line${n === 1 ? '' : 's'}`, vs: v => `vs v${v}` },
       rv: { title: (t, n) => `${t} · ${n}`, of: (i, n) => `${i} of ${n}`, prev: 'Previous request', next: 'Next request', changed: v => `What changed since v${v}`, campaign: 'Campaign', plan: 'Plan', request: 'Request',
         target: 'Target by SKU and channel', budget: 'Budget by line', checks: 'Checks', history: 'History', decision: 'Decision', comment: 'Comment',
-        hint: 'Optional to approve · needed to revise, return or reject (5 characters or more)', approve: 'Approve', ret: 'Return to draft', reject: 'Reject',
+        hint: 'Optional to approve · needed to revise, return or reject (5 characters or more)', approve: 'Approve', ret: 'Return', reject: 'Reject',
         revise: 'Revise', reviseSteps: 'Steps to do again (Revise)', pickStep: 'Tick at least one step to do again', forecast: 'Forecast (step 5)', scroll: 'Scroll to the end to approve', jump: 'Jump to decision ↓',
         readOnly: 'Read only — waiting for the Executive', withdraw: 'Withdraw to draft', master: 'Products vs Product Master',
         masterNote: 'Only the SKUs whose COGS or net price differ from the Product Master today — a promo price is allowed, COGS should follow the master.', returnedIn: (v, c) => `Returned in v${v}: ${c}`, short: 'At least 5 characters',
@@ -373,7 +376,7 @@ CP.content = (function () {
       owner: n => `Owner: ${n}`, v: v => `v${v}`, notFound: 'No campaign with this id', back: 'Back to Campaign Planning', noExpense: 'No expense in this group',
       btn: { submit: 'Submit for approval', approve: 'Approve', ret: 'Return', reject: 'Reject', request: 'Request budget', withdraw: 'Withdraw', save: 'Save draft', details: 'Edit details', cancel: 'Cancel campaign…',
         duplicate: 'Duplicate as draft', more: 'More actions', dashboard: 'Open in Dashboard ›', review: 'Review', newExpense: 'New expense' },
-      sum: { plan: 'Plan', track: 'Track', target: 'Target', qty: 'Pieces', cogs: 'COGS', gp: 'Gross profit', budget: 'Budget', mkt: 'Marketing', sls: 'Sales', ap: 'A&P %', profit: 'Plan profit', margin: 'Margin', roi: 'ROI',
+      sum: { gpPct: 'GP %', plan: 'Plan', track: 'Track', target: 'Target', qty: 'Pieces', cogs: 'COGS', gp: 'Gross profit', budget: 'Budget', mkt: 'Marketing', sls: 'Sales', ap: 'A&P %', profit: 'Plan profit', margin: 'Margin', roi: 'ROI',
         counts: (s, sc, m) => `${s} SKU${s === 1 ? '' : 's'} · ${sc} SKU × channel line${sc === 1 ? '' : 's'} · ${m} month${m === 1 ? '' : 's'}`, checks: 'Checks before Submit', warnings: 'Warnings', details: 'Details',
         endMkt: 'End marketing', created: 'Created', updated: 'Updated', timeLeft: 'Time left', revenue: 'Net revenue', profitA: 'Campaign profit' },
       checks: { sku: 'At least one SKU', cogsPrice: 'Every SKU has COGS and a price in the channels it has a target', target: 'Target above 0', budget: 'Budget above 0',
@@ -395,10 +398,11 @@ CP.content = (function () {
         leaveQ: 'Leave without saving?', leaveBody: 'The changes in the grid will be lost.', leave: 'Leave', stay: 'Stay', readOnly: 'Read only', addLine: '+ Line', linePh: 'Expense line', mkt: 'Marketing', sls: 'Sales', lineCorner: 'Line', groups: { marketing: 'Marketing', sales: 'Sales', other: 'Other' },
         apLine: (ap, m, s) => `A&P ${ap} of target · Marketing ${m} · Sales ${s}`, tracked: { orig: 'Original', changes: 'Approved changes', cur: 'Current', com: 'Spent', rem: 'Remaining', pend: 'Pending' },
         bahtTip: '฿ = qty × the SKU’s net price of the channel (read only)', newSku: code => `New SKU ${code}`, noSku: 'Add a SKU to start the grid', noLine: 'Add a line to start the grid', keys: '← ↑ → ↓ · Tab · Enter · Delete · Ctrl+V a block · Ctrl+Z / Ctrl+Y' },
-      history: { compare: 'Compare', none: 'Nothing yet', sku: 'SKU', line: 'Line', qty: 'Qty', diff: 'Δ', totals: 'Totals', same: 'No difference' },
+      history: { pts: v => `${v > 0 ? '+' : '−'}${Math.abs(v).toFixed(1)} pts`, compare: 'Compare', none: 'Nothing yet', sku: 'SKU', line: 'Line', qty: 'Qty', diff: 'Δ', totals: 'Totals', same: 'No difference' },
     },
     /* ===================== CR-05 §7 — Request budget ===================== */
     req: {
+      move: v => `Move ${v}`,
       title: 'Request budget', editTitle: n => `Request #${n}`, reason: 'Reason', reasonPh: 'Why is more (or less) budget needed?', line: 'Line', month: 'Month', amount: 'Amount ฿ (+ / −)', addLine: '+ Add line', remove: 'Remove line',
       type: { increase: 'Increase', reallocation: 'Reallocation', release: 'Release' }, impact: 'Impact', current: 'Current budget', ap: 'A&P %', profit: 'Plan profit', rem: 'Remaining', com: 'Spent', of: 'of the line',
       belowCom: 'Below what is already spent in this line and month', needReason: 'Enter the reason', needLine: 'Add at least one line with an amount', submit: 'Submit request', none: 'No request yet',
@@ -455,7 +459,7 @@ CP.content = (function () {
     /* ===================== CR-06 §7 — MASTER DATA › Product Master ===================== */
     prod: {
       title: 'Product Master', summary: (n, live, g) => `${n} products · ${live} not discontinued · ${g} groups`, search: 'Search code, barcode or name', category: 'Category', group: 'Group',
-      allCats: 'All categories', allGroups: 'All groups', all: 'All', allTip: 'Every product except Discontinued', exportBtn: 'Export', newBtn: 'New product', file: 'Product Master',
+      allCats: 'All categories', allGroups: 'All groups', all: 'All', allTip: 'Every product except Discontinued', active: 'Active', exportBtn: 'Export', newBtn: 'New product', file: 'Product Master',
       state: { npd: 'NPD', active: 'Active', clearance: 'Clearance', discontinued: 'Discontinued' }, launchOn: d => `Launch ${d}`,
       sorts: { code: 'Code', name: 'Name', category: 'Category', status: 'Status', updated: 'Updated' }, noMatch: 'No product matches', empty: 'No product yet',
       cols: { code: 'Code', product: 'Product', barcode: 'Barcode', group: 'Group', category: 'Category', status: 'Status', cogs: 'COGS / pc', price: ch => `Net ${ch}`, campaigns: 'Campaigns' },
@@ -567,7 +571,9 @@ CP.content = (function () {
     mon: {
       /* CR-10 D92 — the tab Budget is called Expenses · CR-11 §2 (D100) — the tabs in the order of the Dashboard, History last · route tab expenses (budget → expenses) */
       title: 'Campaign Tracking', tabs: { summary: 'Summary', pnl: 'P&L', sales: 'Sales', expenses: 'Expenses', history: 'History' },
-      none: 'No approved campaign in this year', groups: ['Urgent', 'To watch', 'Others'], viewPlan: 'View plan',
+      none: 'No approved campaign in this year', groups: ['Urgent', 'To watch', 'Others'], groups5: ['Urgent', 'To watch', 'To close', 'Others', 'Cancelled'],
+      notFound: 'Campaign not found in Campaign Tracking — only approved campaigns are here', backToList: 'Back to Campaign Tracking',
+      endedAt: p => `Ended at ${p} of target`, notStartedTodo: n => `Not started · starts in ${n} day${s(n)}`, viewPlan: 'View plan',
       stCols: { plan: 'Plan (full)', actual: 'Actual to date', fc: 'Forecast end (Est.)', fcVar: 'Forecast vs Plan' },
       k: { pace: 'Sales vs Time gone', paceTip: { h: 'Sales vs Time gone', d: 'Ach % of the full target against Time gone of the campaign.', f: 'Pace = Ach % ÷ Time gone' }, paceV: (a, tg) => `${a} · ${tg} gone`, paceCap: p => `Pace ${p}`,
         budget: 'Budget used', budgetTip: { h: 'Budget used', d: 'Spent ÷ Current budget of the whole campaign · the black tick = Time gone.', f: 'Spent ÷ Current budget' }, usedV: (u, tg) => `${u} · ${tg} gone`, usedCap: (sp, cur) => `${sp} of ${cur}`,
@@ -580,7 +586,7 @@ CP.content = (function () {
       subNoTarget: 'No target by sub-channel (D62)', share: (p, ch) => `${p} of ${ch} actual`,
       bud: { cols: { line: 'Line', current: 'Current budget', spent: 'Spent', used: 'Used %', remaining: 'Remaining' }, requests: 'Budget requests', toApprovals: 'Approvals ›' },
       /* CR-09 §4.2 (D79) — the KPI of Summary: the anatomy and order of the Dashboard · Time gone only in the head (and the tick of the bars) */
-      k9: { revenue: 'Net revenue', revTip: { h: 'Net revenue', d: 'Actual net revenue of the campaign against its full target · the bar = Ach % in the colour of the Pace (D67) · the black tick = Time gone.', f: 'Actual ÷ Full target' },
+      k9: { ofFull: 'of the full target', toDatePct: p => `(${p} of the target to date)`, revenue: 'Net revenue', revTip: { h: 'Net revenue', d: 'Actual net revenue of the campaign against its full target · the bar = Ach % in the colour of the Pace (D67) · the black tick = Time gone.', f: 'Actual ÷ Full target' },
         ofTarget: v => `of ${v} target`, toGo: v => `${v} to go`, short: v => `${v} short`, above: v => `${v} above`,
         budget: 'Budget used', budgetTip: { h: 'Budget used', d: 'Spent of the whole campaign against its current budget (the approved plan + the approved requests) · the black tick = Time gone.', f: 'Spent ÷ Current budget' },
         ofBudget: v => `of ${v} budget`, used: p => `${p} used`, over: v => `${v} over`, left: v => `${v} left`,
@@ -603,7 +609,7 @@ CP.content = (function () {
       todo2: { sell: (req, when, x) => `Sell ${req} a month ${when} — ${x} the current pace`, forDays: n => `for the last ${n} day${s(n)}`, forMonths: n => `for the next ${n} months`, sellNoPace: (req, when) => `Sell ${req} a month ${when}`,
         over: v => `${v} over — stop the open lines or request budget`, none: 'On pace and within budget', seeSku: 'See SKUs behind ›', request: 'Request budget' },
       /* CR-09 §4.3 (D80 · D81 · D82 · D83) — Sales: the Channel of the tab · the status = the Pace at every level */
-      s9: { channelL: 'Channel', all: 'All', unitL: 'Unit', total: 'Total', byCh: 'By channel', viewL: 'Total or by channel', byChNote: 'One channel chosen — the bars are that channel' },
+      s9: { noCh: 'This campaign does not sell in this channel', allCh: 'All channels', channelL: 'Channel', all: 'All', unitL: 'Unit', total: 'Total', byCh: 'By channel', viewL: 'Total or by channel', byChNote: 'One channel chosen — the bars are that channel' },
       mix: { title: 'Sales mix by channel', tip: { h: 'Sales mix by channel', d: 'The share of each channel in the actual net revenue (the donut) · under it the mix of the target against the mix of the actual.' }, target: 'Target mix', actual: 'Actual mix', cols: ['Channel', 'Actual', '%'] },
       chT: { title: 'Channel attainment', tip: { h: 'Channel attainment', d: 'Each channel: actual · its share · the full target · Ach % of the full target (the black tick = Time gone) · Gap to pace · Remaining · the status = the Pace (D67, as the campaign) · open a row for its sub-channels (actual and share only — D63).' },
         cols: { channel: 'Channel', actual: 'Actual', share: 'Share %', full: 'Full target', ach: 'Ach %', gap: 'Gap to pace', remaining: 'Remaining', status: 'Status' },
@@ -657,6 +663,7 @@ CP.content = (function () {
     /* ===================== CR-07 §7 · §8 — a plan in 6 steps (D64 · D70 · D71) ===================== */
     /* ===================== CR-13 — the Campaign page of Planning (Overview · Plan · Requests · History) · Period change · Close · the 7 steps' helpers ===================== */
     cpg: {
+      cancelledRO: 'Cancelled — read only. Restore it to edit.',
       tabs: { overview: 'Overview', plan: 'Plan', requests: 'Requests', history: 'History' },
       st: { not_started: n => `Not started · in ${n} day${s(n)}`, ongoing: n => (n === 0 ? 'On going · ends today' : `On going · ${n} day${s(n)} left`), toclose: 'Ended · to close',
         late: n => `${n} day${s(n)} late`, closed: d => `Closed ${d}`, closedBy: (d, who) => `Closed ${d} · ${who}`, cancelled: 'Cancelled', endedOn: d => `Ended ${d}` },
@@ -667,7 +674,7 @@ CP.content = (function () {
       d: { title: 'Campaign details', edit: 'Edit', save: 'Save', cancel: 'Cancel', period: 'Period', reqPeriod: 'Request period change', readOnly: 'Closed — read only',
         saved: n => `${n} saved`, dates: (a, m, b) => `Start ${a}${m ? ` · End marketing ${m}` : ''} · End ${b}`,
         f: { name: 'Name', brand: 'Brand', category: 'Category', objective: 'Objective', channels: 'Channels', owner: 'Owner' } },
-      use: { title: 'Plan in use', approved: (v, d, who) => `v${v} · Approved ${d} · ${who}`, target: 'Target', budget: 'Budget (current)', budgetSub: (o, ch) => `original ${o} · approved changes ${ch}`,
+      use: { planWas: v => `plan ${v}`, title: 'Plan in use', approved: (v, d, who) => `v${v} · Approved ${d} · ${who}`, target: 'Target', budget: 'Budget (current)', budgetSub: (o, ch) => `original ${o} · approved changes ${ch}`,
         profit: 'Plan profit', ap: 'A&P', line: (a, u) => `Ach ${a} · Used ${u}`, open: 'Open plan ›' },
       items: { title: 'Open items', none: 'No open item', close: 'Close campaign', closeSub: (d, late) => `Due ${d}${late ? ` · ${late}` : ''}`, closeBtn: 'Close campaign…', open: 'Open' },
       latest: { title: 'Latest activity', all: 'All history ›' },
@@ -695,6 +702,8 @@ CP.content = (function () {
     /* CR-13 §6 — the history helper (Tracking › History · the Campaign page › History) */
     hist: { f: { all: 'All', approvals: 'Approvals', changes: 'Changes', budget: 'Budget', steps: 'Steps' }, none: 'Nothing here yet', openReq: n => `Open request #${n}`, compare: (a, b) => `Compare v${a} ↔ v${b}` },
     step: {
+      retBand: (by, d, cmt, steps) => `Returned by ${by} · ${d} · "${cmt}" · Steps to fix: ${steps}`,
+      squeezed: n => `The campaign starts in ${n} day${s(n)} — the due dates are squeezed into the time left`,
       title: 'Campaign Planning', stepsL: 'The steps of the plan',
       /* CR-13 §7.1 (D121) — 7 steps on the page: the envelope (env) · the lines (5a 5b 5c = 4a 4b 4c) · Forecast & summary (5) · Review & submit (6) */
       names: { 1: 'Campaign details', 2: 'Products', 3: 'Sales target', env: 'Budget envelope', '4a': 'Marketing exp', '4b': 'Sales exp', '4c': 'Other exp', 5: 'Forecast & summary', 6: 'Review & submit' },

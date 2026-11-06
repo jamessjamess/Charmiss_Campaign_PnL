@@ -35,12 +35,12 @@ CP.tabs.expenses = (function () {
 
   /* the requests waiting for a decision in scope: Σ amount (the months of the period) · how many · the oldest (days) */
   function pending() {
-    const seed = U.seed(), Sc = R.scope(seed, rng()), ids = new Set(Sc.ids), inP = new Set(Sc.months), keys = new Set(); let amount = 0;
-    (seed.pending || []).forEach(q => { if (!ids.has(q.campaign_id) || !inP.has(q.month)) return; amount += q.amount; keys.add(`${q.campaign_id}|${q.no}`); });
+    const seed = U.seed(), Sc = R.scope(seed, rng()), ids = new Set(Sc.ids), inP = new Set(Sc.months), keys = new Set(); let amount = 0, moved = 0;
+    (seed.pending || []).forEach(q => { if (!ids.has(q.campaign_id) || !inP.has(q.month)) return; amount += q.amount; moved += Math.max(0, q.amount); keys.add(`${q.campaign_id}|${q.no}`); });
     let oldest = null;
     keys.forEach(k => { const [cid, no] = k.split('|'), p = (seed.plans || {})[cid], q = p && (p.requests || []).find(r => String(r.no) === no);
       if (q && q.at) { const age = Math.max(0, R.dayDiff(td(), q.at.slice(0, 10))); oldest = oldest == null ? age : Math.max(oldest, age); } });
-    return { amount: keys.size ? amount : null, n: keys.size, oldest };
+    return { amount: keys.size ? amount : null, n: keys.size, oldest, moved };
   }
   /* the budget problems of R.issues (the Budget to watch of Overview) */
   const BKEYS = ['over', 'near', 'ahead', 'ended_over'];
@@ -63,7 +63,7 @@ CP.tabs.expenses = (function () {
       cap: wr.length ? esc(['over', 'near', 'ahead'].filter(x => by[x]).map(x => K.by[x](by[x])).join(' · ')) : esc(K.watchNone) });
     /* Pending requests — what waits for a decision (not counted in the budget yet) */
     const pd = pending();
-    const pend = kc({ key: 'pending', label: labelInfo(K.pend, K.pendTip), value: pd.amount == null ? C.common.none : R.signedShort(pd.amount), none: pd.amount == null, valueTip: pd.amount == null ? '' : R.baht(pd.amount),
+    const pend = kc({ key: 'pending', label: labelInfo(K.pend, K.pendTip), value: pd.amount == null ? C.common.none : Math.abs(pd.amount) < 0.5 && pd.moved > 0.5 ? C.req.move(R.shortBaht(pd.moved)) : R.signedShort(pd.amount), none: pd.amount == null, valueTip: pd.amount == null ? '' : R.baht(pd.amount),
       bar: pd.amount && left > 0 ? bs(Math.min(1, pd.amount / left) * 100, 'warnb') : '', barTip: pd.amount && left > 0 ? K.pendBar(R.pct(pd.amount / left), R.shortBaht(left)) : '',
       cap: pd.n ? `<a class="link" href="#planning/approvals" title="${esc(C.track.toApprovals)}">${esc(K.pendCap(pd.n, pd.oldest || 0))}</a>` : esc(K.pendNone) });
     $('b_kpis').innerHTML = P.budgetKpi(k) + rem + watch + pend;

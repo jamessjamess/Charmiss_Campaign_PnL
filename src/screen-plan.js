@@ -47,7 +47,9 @@ CP.cpage = (function () {
   /* the version as it is typed (for the side panel and the checks) */
   const liveVer = () => Object.assign({}, st.F.ver || {}, serialize(st.F));
   const livePlan = plan => Object.assign({}, plan, { versions: (plan.versions || []).slice(0, -1).concat([liveVer()]) });
-  const canStep = (plan, k) => R.canDoStep(me(), plan, k);
+  /* QA-v0.13 B5 — a cancelled Campaign: every step read only (⋯ / the head: Restore) */
+  const isCancelled = c => !!c && R.statusOf(c, U.today()) === R.CANCELLED;
+  const canStep = (plan, k) => (isCancelled(campOf(st.id)) ? { ok: false, why: CG.cancelledRO } : R.canDoStep(me(), plan, k));
   const months = c => R.monthsIn(c.start, c.end);
   const bmonths = c => R.monthsIn(R.monthFirst(R.addMonths(R.ym(c.start), -1)), c.end);
   const monthCols = list => { const cur = R.ym(U.today()); return list.map((m, i) => ({ key: m, label: R.monthShort(m), year: i === 0 || m.slice(0, 4) !== list[i - 1].slice(0, 4) ? m.slice(0, 4) : '', cur: m === cur })); };
@@ -77,11 +79,22 @@ CP.cpage = (function () {
     $('cp_tabs').innerHTML = tabs.map(t => `<a role="tab" href="#planning/${esc(id)}/${t}" data-cptab="${t}" class="${t === st.tab ? 'on' : ''}" aria-selected="${t === st.tab}">${esc(CG.tabs[t])}</a>`).join('');
     const main = $('cp_main');
     if (st.tab === 'plan' && !live) {
-      main.innerHTML = `<nav class="stepper s7" id="cp_steps" aria-label="${esc(SP.stepsL)}">${stepperHTML(plan)}</nav><div class="plan-wrap"><div id="cp_body" class="cp-body"></div><aside class="plan-side" id="cp_side" aria-label="${esc(SP.side.title)}"></aside></div>`;
+      main.innerHTML = planBands(c, plan) + `<nav class="stepper s7" id="cp_steps" aria-label="${esc(SP.stepsL)}">${stepperHTML(plan)}</nav><div class="plan-wrap"><div id="cp_body" class="cp-body"></div><aside class="plan-side" id="cp_side" aria-label="${esc(SP.side.title)}"></aside></div>`;
       ({ details: renderDetails, products: renderProducts, target: renderTarget, envelope: renderEnvelope, budget: renderBudget, forecast: renderForecast, review: renderReview })[st.page](c, plan);
       renderSide();
     } else ({ overview: renderOverview, plan: renderPlanRO, requests: renderRequests, history: renderHistoryTab })[st.tab](c, plan);
     document.title = `${c.name} · ${SP.title} · ${C.app.title}`;
+  }
+  /* QA-v0.13 — the bands of a plan not approved: B4 Returned by Ann · 06/11 · "comment" · Steps to fix: 4 · 5a (on every step) · B5 Cancelled — read only ·
+     B29 the campaign starts in n days — the due dates are squeezed */
+  function planBands(c, plan) {
+    const out = [], w = R.working(plan), band = (cls, t) => `<div class="nsband ${cls}"><span class="nsb-t">${t}</span></div>`;
+    if (isCancelled(c)) out.push(band('cancb', esc(CG.cancelledRO)));
+    if (plan.approval === 'returned' && w) { const fix = R.STEP_KEYS.filter(k => plan.steps && plan.steps[k] && plan.steps[k].status === 'returned').map(k => R.STEP_NUM[k]);
+      out.push(band('warnb retband', esc(SP.retBand(w.decided_by || '—', w.decided_at ? R.dmy(String(w.decided_at).slice(0, 10)) : '—', w.comment || '—', fix.join(' · ') || '—')))); }
+    const left = R.dayDiff(c.start, U.today());
+    if (plan.steps && left > 0 && R.STEP_KEYS.some(k => plan.steps[k] && plan.steps[k].squeezed)) out.push(band('', esc(SP.squeezed(left))));
+    return out.join('');
   }
   /* the first page that waits on the one acting · else the first step not done (an approved plan has no stepper) */
   function firstPage(plan) {
@@ -121,6 +134,7 @@ CP.cpage = (function () {
       if (appr === 'submitted') { const d = can('approve'); if (d.ok) b.push(`<button type="button" class="btn primary" data-cpact="review">${esc(SP.reviewBtn)}</button>`); else if (d.why) b.push(`<button type="button" class="btn primary" disabled title="${esc(d.why)}">${esc(P.btn.approve)}</button>`); }
       if (can('withdraw').ok) b.push(`<button type="button" class="btn" data-cpact="withdraw">${esc(P.btn.withdraw)}</button>`);
       if (can('duplicate').ok && appr === 'rejected') b.push(`<button type="button" class="btn" data-cpact="duplicate">${esc(P.btn.duplicate)}</button>`);
+      if (isCancelled(c) && a && R.canDo('details', a, plan).ok) b.push(`<button type="button" class="btn primary" data-cpact="restore">${esc(C.camps.menu.restore)}</button>`);
     } else {
       /* §3 — Request change ▾ (Budget change · Period change · Close campaign / Close early) while not closed · Campaign Tracking › */
       if (cs.key !== 'closed' && cs.key !== 'cancelled' && ['budget', 'period', 'close'].some(k => R.canDo('change', a, plan, changeX(c, plan, k)).ok))
@@ -135,7 +149,7 @@ CP.cpage = (function () {
   function changeMenu(btn, id) {
     const c = campOf(id), plan = planOf(id), a = me(); if (!c || !plan) return;
     const old = $('cp_chg'); if (old) { old.remove(); return; }
-    const cs = stateNow(c, plan), T = CG.types, items = [['budget', T.budget], ['period', T.period], ['close', cs.key === 'toclose' ? T.close : T.closeEarly]]
+    const cs = stateNow(c, plan), T = CG.types, items = [['budget', T.budget], ['period', T.period], ['close', cs.key === 'toclose' ? T.close : T.closeEarly]].filter(([k]) => !(k === 'close' && cs.key === 'not_started'))
       .map(([k, l]) => { const d = R.canDo('change', a, plan, changeX(c, plan, k)); return `<button type="button" role="menuitem" data-chg="${k}"${d.ok ? '' : ` disabled title="${esc(d.why || '')}"`}>${esc(l)}</button>`; }).join('');
     const m = document.createElement('div'); m.id = 'cp_chg'; m.className = 'menu-pop'; m.setAttribute('role', 'menu'); m.innerHTML = items; document.body.appendChild(m);
     const r = btn.getBoundingClientRect(); m.style.top = Math.min(innerHeight - m.offsetHeight - 8, r.bottom + 4) + 'px'; m.style.left = Math.max(8, Math.min(innerWidth - m.offsetWidth - 8, r.left)) + 'px';
@@ -163,9 +177,11 @@ CP.cpage = (function () {
     const det = `<div class="card ov-det"><div class="card-head"><h3>${esc(W.title)}</h3><div class="ctl">${cs.key === 'closed' ? `<span class="muted small">${esc(W.readOnly)}</span>` : canEd.ok && !edit ? `<button type="button" class="btn small" data-ovedit>${esc(W.edit)}</button>` : ''}</div></div>${edit ? form : view}${per}</div>`;
     /* Plan in use: v · approved · Target · Budget now (original + approved changes) · Plan profit · A&P · Ach · Used · Campaign Tracking › · Open plan › */
     const T = R.planTotals(ver), U2 = CG.use, t = R.budgetTrack(U.seed(), { from: '2000-01-01', to: '2099-12-31', statuses: R.STATUSES, includeCancelled: true, only: [c.id], today: U.today() }).rows[0] || null;
+    const cur = t ? t.current : T.budget, chg = Math.abs(cur - T.budget) > 0.5;
     const sp = R.campaignPace(U.seed(), c.id, U.today()), row = (l, v, sub) => `<div class="ov-r"><span>${esc(l)}</span><b>${esc(v)}</b>${sub ? `<div class="muted small">${esc(sub)}</div>` : ''}</div>`;
     const use = `<div class="card ov-use"><div class="card-head"><h3>${esc(U2.title)}</h3></div><div class="muted small">${esc(U2.approved(ver.v, R.dmy(String(ver.decided_at || '').slice(0, 10)), ver.decided_by || '—'))}</div>` +
-      row(U2.target, R.baht(T.target)) + row(U2.budget, R.baht(t ? t.current : T.budget), t ? U2.budgetSub(R.shortBaht(t.original), R.signedShort(t.changes)) : '') + row(U2.profit, R.baht(T.profit)) + row(U2.ap, R.pct(T.ap, 1)) +
+      row(U2.target, R.baht(T.target)) + row(U2.budget, R.baht(cur), t ? U2.budgetSub(R.shortBaht(t.original), R.signedShort(t.changes)) : '') +
+      row(U2.profit, R.baht(T.gp - cur), chg ? U2.planWas(R.baht(T.profit)) : '') + row(U2.ap, R.pct(R.ratio(cur, T.target), 1), chg ? U2.planWas(R.pct(T.ap, 1)) : '') +
       `<div class="ov-line">${esc(U2.line(R.pct(sp && sp.ach), R.pct(t && t.used)))} · <a class="link" href="#tracking/${esc(c.id)}">${esc(CG.toTracking)}</a></div><a class="link" href="#planning/${esc(c.id)}/plan" data-cptab="plan">${esc(U2.open)}</a></div>`;
     /* Open items: the requests waiting (pending · returned) · Close campaign when it ended and is not closed */
     const I = CG.items, open = ((plan.requests) || []).filter(q => q.status === 'pending' || q.status === 'returned');
@@ -181,7 +197,12 @@ CP.cpage = (function () {
   function reqSummary(q) {
     if (q.type === 'period' || q.type === 'close') return R.reqWords(q);
     const t = R.sumLines(q.lines), l0 = (q.lines || [])[0];
+    if (R.requestType(q.lines) === 'reallocation') { const from = (q.lines || []).find(l => +l.amount < 0), to = (q.lines || []).find(l => +l.amount > 0);
+      return `${reqAmount(q)}${from && to ? ` · ${from.line} → ${to.line}` : ''}`; }
     return `${R.signedShort(t)}${l0 ? ` · ${l0.line} · ${R.monthShort(l0.month)}` : ''}${(q.lines || []).length > 1 ? ` +${q.lines.length - 1}` : ''}`;
+  }
+  /* QA-v0.13 B21 — the amount of a budget request: +฿600K · −฿200K · a reallocation = Move ฿250K (what it moves, not ฿0) */
+  function reqAmount(q) { const t = R.sumLines(q.lines); return R.requestType(q.lines) === 'reallocation' ? C.req.move(R.shortBaht(R.movedOf(q.lines))) : R.signedShort(t);
   }
   /* ---------- §2.5 — Requests: every request of the Campaign · a row opens it (the review drawer) · New request ▾ ---------- */
   function renderRequests(c, plan) {
@@ -248,11 +269,16 @@ CP.cpage = (function () {
      Channel split (the channels of step 1, 100%) · SKU split (Hero 2 · Core 1 · GWP 0 parts · a SKU not sold in a channel = 0 there) · Month curve
      (Even · Launch · Follow marketing · Custom) → Fill the grid: qty = round(฿ ÷ the net price of the channel) · kept with the version (ver.builder) ---------- */
   const B3 = () => SP.tb, ROLE_W = { hero: 2, core: 1, gwp: 0 };
-  function skuDefault(skus) { const w = skus.map(s => ROLE_W[s.role || 'core'] ?? 1), t = w.reduce((a, b) => a + b, 0) || 1; return Object.fromEntries(skus.map((s, i) => [s.code, Math.round(w[i] / t * 1000) / 10])); }
+  /* QA-v0.13 B2 — shares of 100.0 in tenths that add up (the largest remainders take the last tenths): 3 channels = 33.4 · 33.3 · 33.3 */
+  function to100(keys, w) { const t = w.reduce((a, b) => a + b, 0); if (!(t > 0)) return Object.fromEntries(keys.map(k => [k, 0]));
+    const raw = w.map(x => x / t * 1000), out = raw.map(Math.floor); let left = 1000 - out.reduce((a, b) => a + b, 0);
+    raw.map((x, i) => [x - out[i], i]).sort((a, b) => b[0] - a[0] || a[1] - b[1]).forEach(([, i]) => { if (left > 0) { out[i]++; left--; } });
+    return Object.fromEntries(keys.map((k, i) => [k, out[i] / 10])); }
+  function skuDefault(skus) { return to100(skus.map(s => s.code), skus.map(s => ROLE_W[s.role || 'core'] ?? 1)); }
   function builderOf(F) {
     const chs = F.details.channels, b = F.builder || {}, d = {};
     d.from = b.from || 'blank'; d.copy = b.copy || ''; d.full = b.full != null ? b.full : ''; d.curve = b.curve || 'even'; d.custom = b.custom || {}; d.filled = b.filled || null; d.edited = !!b.edited;
-    d.ch = Object.fromEntries(chs.map(k => [k, b.ch && b.ch[k] != null ? b.ch[k] : Math.round(1000 / chs.length) / 10]));
+    const ev = to100(chs, chs.map(() => 1)); d.ch = Object.fromEntries(chs.map(k => [k, b.ch && b.ch[k] != null ? b.ch[k] : ev[k]]));
     const def = skuDefault(F.skus); d.sku = Object.fromEntries(F.skus.map(s => [s.code, b.sku && b.sku[s.code] != null ? b.sku[s.code] : def[s.code]]));
     return d;
   }
@@ -357,10 +383,11 @@ CP.cpage = (function () {
 
   /* ---------- CR-13 §7.4 — 5 · Budget lines: the head of a group = Envelope · Allocated · Left (a bar · over in orange) · the envelope guides (D122): over / under =
      a warning, Mark step done still works · + Line from list · Spread (a total on a line: Even · Until End marketing · Follow sales target) · Fill the rest ---------- */
+  const ENV_TOL = 100;   /* QA-v0.13 B15 — ฿100: an envelope typed as a % rounds to the baht */
   function envHead(g) {
     const W = SP.env, E = envLive()[g], alloc = E.lines, env = E.amount, over = alloc - env, pct = env > 0 ? Math.min(1, alloc / env) : alloc > 0 ? 1 : 0;
-    const warn = env > 0 && Math.abs(over) > 0.5 ? `<span class="chip warn" data-envwarn="${g}">${esc(over > 0 ? W.over(R.baht(over)) : W.under(R.baht(-over)))}</span>` : '';
-    return `<div class="envh" data-envh="${g}"><span>${esc(W.head(R.baht(env), R.baht(alloc), R.baht(Math.max(0, env - alloc))))}</span><span class="envbar" aria-hidden="true"><i class="ok" style="width:${(pct * 100).toFixed(1)}%"></i>${over > 0.5 && env > 0 ? `<i class="ov" style="width:${Math.min(100, over / env * 100).toFixed(1)}%"></i>` : ''}</span>${warn}</div>`;
+    const warn = env > 0 && Math.abs(over) > ENV_TOL ? `<span class="chip warn" data-envwarn="${g}">${esc(over > 0 ? W.over(R.baht(over)) : W.under(R.baht(-over)))}</span>` : '';
+    return `<div class="envh" data-envh="${g}"><span>${esc(W.head(R.baht(env), R.baht(alloc), R.baht(Math.max(0, env - alloc))))}</span><span class="envbar" aria-hidden="true"><i class="ok" style="width:${(pct * 100).toFixed(1)}%"></i>${over > ENV_TOL && env > 0 ? `<i class="ov" style="width:${Math.min(100, over / env * 100).toFixed(1)}%"></i>` : ''}</span>${warn}</div>`;
   }
   function lineTools(k) {
     const type = GROUP_OF[k], ls = st.F.lines.filter(l => l.type === type), W = SP.env; if (!ls.length) return '';
@@ -430,7 +457,7 @@ CP.cpage = (function () {
     const lp = livePlan(plan), checks = PAGE_STEPS[st.page].flatMap(k => R.stepChecks(lp, k, c).list.map(x => Object.assign({ step: k }, x)));
     box.innerHTML = `<div class="ps-h">${esc(S.title)}</div>` + row(S.target, R.baht(T.target)) + row(S.gp, R.pct(T.gpPct, 1)) + row(S.mkt, R.baht(T.mkt)) + row(S.sls, R.baht(T.sls)) + row(S.oth, R.baht(T.oth)) +
       row(S.ap, R.pct(T.ap, 1), T.ap > 0.2 ? 'warn' : '') + row(S.profit, R.baht(T.profit), T.profit < 0 ? 'neg' : 'major') + row(S.margin, R.pct(T.margin, 1)) + row(S.roi, R.times(T.roi)) +
-      `<div class="ps-h">${esc(S.checks)}</div><ul class="checks2">${checks.map(x => `<li class="${x.ok ? 'ok' : 'err'}"><span class="ci">${x.ok ? '✓' : '✕'}</span>${PAGE_STEPS[st.page].length > 1 ? `<span class="muted small">${esc(x.step)}</span> ` : ''}${esc(x.text)}${x.detail ? ` <span class="muted">— ${esc(x.detail)}</span>` : ''}</li>`).join('')}</ul>`;
+      `<div class="ps-h">${esc(S.checks)}</div><ul class="checks2">${checks.map(x => `<li class="${x.ok ? 'ok' : 'err'}"><span class="ci">${x.ok ? '✓' : '✕'}</span>${PAGE_STEPS[st.page].length > 1 ? `<span class="muted small">${esc(R.STEP_NUM[x.step] || x.step)}</span> ` : ''}${esc(x.text)}${x.detail ? ` <span class="muted">— ${esc(x.detail)}</span>` : ''}</li>`).join('')}</ul>`;
   }
   function dirtyNote() {
     const d = $('cp_dirty'), b = el && el.querySelector('[data-cpact="save"]'); if (d) d.textContent = st.F.dirty ? P.grid.unsaved(st.F.dirty) : ''; if (b) b.disabled = !st.F.dirty;
@@ -498,7 +525,7 @@ CP.cpage = (function () {
   /* ---------- 3 · Sales target: SKU × Channel × month (D62) ---------- */
   function renderTarget(c, plan) {
     const G = P.grid, F = st.F, ed = !ro(plan, '3'), chs = F.details.channels, sm = new Map(F.skus.map(s => [s.code, s])), T = R.planTotals(liveVer());
-    const byCh = chs.map(k => { const x = T.byChannel[k] || { qty: 0, amount: 0 }; return `<span><b>${esc(C.channel[k])}</b> ${esc(R.shortBaht(x.amount))} · ${esc(R.fmtNum(Math.round(x.qty)))} pcs</span>`; }).join('<span class="sep">·</span>');
+    const byCh = chs.map(k => { const x = T.byChannel[k] || { qty: 0, amount: 0 }; return `<span><b>${esc(C.channel[k])}</b> ${esc(R.shortBaht(x.amount))} · ${esc(C.common.pcs(R.fmtNum(Math.round(x.qty))))}</span>`; }).join('<span class="sep">·</span>');
     $('cp_body').innerHTML = roNote(plan, '3') + (F.skus.length && ed ? builderHTML(c, plan, ed) : '') + `<div class="card"><div class="card-head"><h3>${esc(SP.names[3])}</h3><div class="ctl">${U.segHTML('data-cpmode', [{ v: 'qty', label: G.qty }, { v: 'baht', label: G.baht }], st.mode)}</div></div>` +
       (ed ? toolbarHTML('t') : '') + `<div class="sumline">${byCh}<span class="sep">·</span><span><b>${esc(C.common.total)}</b> ${esc(R.baht(T.target))}</span></div>` +
       (F.skus.length ? `<div id="cp_gridT" class="cp-grid"></div>` : `<div class="c3-empty">${esc(SP.t.noSku)} <a class="link" href="#planning/${esc(c.id)}/products">${esc(SP.names[2])}</a></div>`) +
@@ -591,7 +618,7 @@ CP.cpage = (function () {
   const tile = (l, v, sub, cls) => `<div class="tile${cls ? ' ' + cls : ''}"><div class="tl">${esc(l)}</div><div class="tv">${esc(v)}</div>${sub ? `<div class="ts">${esc(sub)}</div>` : ''}</div>`;
   function planTiles(T) {
     const S = P.sum;
-    return `<div class="tiles">${tile(S.target, R.baht(T.target), `${R.fmtNum(Math.round(T.qty))} pcs`)}${tile(S.cogs, R.baht(T.cogs), `${S.gp} ${R.baht(T.gp)}`)}${tile(S.gp, R.pct(T.gpPct, 1), '')}` +
+    return `<div class="tiles">${tile(S.target, R.baht(T.target), C.common.pcs(R.fmtNum(Math.round(T.qty))))}${tile(S.cogs, R.baht(T.cogs), `${S.gp} ${R.baht(T.gp)}`)}${tile(S.gpPct, R.pct(T.gpPct, 1), '')}` +
       `${tile(S.budget, R.baht(T.budget), `${S.mkt} ${R.shortBaht(T.mkt)} · ${S.sls} ${R.shortBaht(T.sls)} · ${SP.side.oth} ${R.shortBaht(T.oth)}`)}${tile(S.ap, R.pct(T.ap, 1), '', T.ap > 0.2 ? 'warn' : '')}${tile(S.profit, R.baht(T.profit), `${S.margin} ${R.pct(T.margin, 1)} · ${S.roi} ${R.times(T.roi)}`, T.profit < 0 ? 'neg' : '')}</div>` +
       `<div class="muted small cp-counts">${esc(S.counts(T.skus, T.subs, T.months))}</div>`;
   }
@@ -624,11 +651,13 @@ CP.cpage = (function () {
     return `<div class="card"><div class="card-head"><h3>${labelInfo(K.block.title, K.block.tip)}</h3></div><div class="bblk"><div class="bbv"><b>${esc(R.baht(t.committed))}</b> <span class="muted">${esc(K.of(R.baht(t.current)))}</span></div>${U.budgetBar(t)}<div class="muted small">${esc(U.budgetCap(t))}</div></div></div>`;
   }
   /* v a ↔ v b: totals · SKUs · lines (the review) */
+  /* QA-v0.13 B17 — the Δ of a % in points (A&P down = good) */
+  const apD = (x, y) => { if (x == null || y == null) return ''; const z = (y - x) * 100; return Math.abs(z) < 0.05 ? '<span class="muted">—</span>' : `<span class="${z < 0 ? 'good' : 'bad'}">${esc(P.history.pts(z))}</span>`; };
   function diffHTML(d, a, b) {
     const H = P.history, T = d.totals, dv = (x, y, f) => { const z = y - x; return `<span class="${Math.abs(z) < 0.5 ? 'muted' : z > 0 ? 'good' : 'bad'}">${Math.abs(z) < 0.5 ? '—' : (z > 0 ? '+' : '') + f(z)}</span>`; };
     const tot = `<table class="tbl simple dtbl"><thead><tr><th>${esc(H.totals)}</th><th class="num">v${a}</th><th class="num">v${b}</th><th class="num">${esc(H.diff)}</th></tr></thead><tbody>` +
       [[P.sum.target, T.target, R.baht], [P.sum.budget, T.budget, R.baht], [P.sum.profit, T.profit, R.baht]].map(([l, v, f]) => `<tr><td>${esc(l)}</td><td class="num">${esc(f(v[0]))}</td><td class="num">${esc(f(v[1]))}</td><td class="num">${dv(v[0], v[1], f)}</td></tr>`).join('') +
-      `<tr><td>${esc(P.sum.ap)}</td><td class="num">${esc(R.pct(T.ap[0], 1))}</td><td class="num">${esc(R.pct(T.ap[1], 1))}</td><td></td></tr></tbody></table>`;
+      `<tr><td>${esc(P.sum.ap)}</td><td class="num">${esc(R.pct(T.ap[0], 1))}</td><td class="num">${esc(R.pct(T.ap[1], 1))}</td><td class="num">${apD(T.ap[0], T.ap[1])}</td></tr></tbody></table>`;
     const sk = d.skus.length ? `<table class="tbl simple dtbl"><thead><tr><th>${esc(H.sku)}</th><th class="num">${esc(H.qty)} v${a}</th><th class="num">${esc(H.qty)} v${b}</th><th class="num">฿ ${esc(H.diff)}</th></tr></thead><tbody>${d.skus.map(r => `<tr><td>${esc(r.name)} <span class="muted small">${esc(r.code)}</span></td><td class="num">${esc(R.fmtNum(r.qtyA))}</td><td class="num">${esc(R.fmtNum(r.qtyB))}</td><td class="num">${dv(r.amtA, r.amtB, R.baht)}</td></tr>`).join('')}</tbody></table>` : '';
     const ln = d.lines.length ? `<table class="tbl simple dtbl"><thead><tr><th>${esc(H.line)}</th><th class="num">v${a}</th><th class="num">v${b}</th><th class="num">${esc(H.diff)}</th></tr></thead><tbody>${d.lines.map(r => `<tr><td>${esc(r.line)}</td><td class="num">${esc(R.baht(r.a))}</td><td class="num">${esc(R.baht(r.b))}</td><td class="num">${dv(r.a, r.b, R.baht)}</td></tr>`).join('')}</tbody></table>` : '';
     return `<div class="diffw">${tot}${sk}${ln}${!sk && !ln ? `<div class="muted small">${esc(H.same)}</div>` : ''}</div>`;
@@ -678,8 +707,10 @@ CP.cpage = (function () {
     const plan = planOf(st.id), c = campOf(st.id), ck = R.stepChecks(plan, k, c);
     if (!none && !ck.ok) { U.toast(SP.checksFirst(ck.list.filter(x => !x.ok).map(x => x.text).join(' · '))); return; }
     const p = await save(st.id, x => R.planAct(x, { type: 'step.done', step: k, none: !!none, by: me().name, at: at() }), SP.doneToast(SP.names[k]), { rev: plan.rev || 0 });
-    if (p) { st.F = draftOf(st.id); CP.app.refresh(); }
+    if (p) { st.F = draftOf(st.id); const nx = nextMine(planOf(st.id)); if (nx && nx !== st.page) location.hash = `#planning/${st.id}/plan/${nx}`; else CP.app.refresh(); }
   }
+  /* QA-v0.13 B22 — the page of the next open step of the one acting (none = stay) */
+  function nextMine(plan) { const a = me(); if (!plan || !a) return null; const s = R.STEP_KEYS.map(x => R.stepState(plan, x, U.today())).find(x => x.status !== 'done' && x.open && x.assignee === a.name); return s ? R.STEP_PAGE[s.key] : null; }
   async function submit() {
     const r = $('r_cmt'); if (r) { st.F.review.comment = r.value; st.F.dirty++; st.F.dirtySteps.add('6'); }
     if (st.F.dirty && !(await doSave(true))) return;
@@ -714,6 +745,7 @@ CP.cpage = (function () {
       if (w === 'withdraw') { const p = await save(st.id, x => R.planAct(x, { type: 'withdraw', by: a.name, at: at() }), A.toast.withdrawn(c.name)); if (p) { st.F = draftOf(st.id); CP.app.refresh(); } return; }
       if (w === 'request') return CP.reqdraw.open(st.id);
       if (w === 'duplicate') return CP.screens.planning.duplicate(st.id);
+      if (w === 'restore') { await CP.screens.planning.run({ action: 'restore', id: st.id, values: {} }, c.name); st.F = null; CP.app.refresh(); return; }
     }
     const dn = t.closest('[data-cpdone]'); if (dn) return markDone(dn.dataset.cpdone, false);
     const no = t.closest('[data-cpnone]'); if (no) return markDone(no.dataset.cpnone, true);
@@ -754,7 +786,7 @@ CP.cpage = (function () {
   document.addEventListener('input', e => { if (el && el.contains(e.target) && el.offsetParent && !e.target.matches('[data-asgdue] , .dtext')) onInput(e); });
   document.addEventListener('change', e => { if (el && el.contains(e.target) && el.offsetParent) onInput(e); });
   return { render, isDirty, confirmLeave, current: () => st.id, reset: () => { st.F = null; }, diffHTML, planTiles, legendHTML, budgetTrackHTML, grids: () => ({ t: st.gT, b: st.gB }), draft: () => st.F, serialize, PAGES,
-    summaryHTML, drawSummary, openCompare, stateChip: (c, plan, o) => stateChip(R.campState(c, plan, U.today()), c, o), reqSummary, curveW, builderOf, envRef, envLive, mixFrom };
+    summaryHTML, drawSummary, openCompare, stateChip: (c, plan, o) => stateChip(R.campState(c, plan, U.today()), c, o), reqSummary, reqAmount, changeMenu, curveW, builderOf, envRef, envLive, mixFrom };
 })();
 
 /* ===================== §6 — the review (KOL: one big container · What changed · Campaign · Plan / Request · Checks · History · Decision at the end) ===================== */
@@ -814,10 +846,10 @@ CP.review = (function () {
         out.push(sec(W.rv.period, `<div class="rv-reason"><b>${esc(Q.reason)}:</b> ${esc(q.reason)}</div><table class="tbl simple pctbl"><thead><tr><th></th><th class="num">${esc(W.rv.from)}</th><th class="num">${esc(W.rv.to)}</th></tr></thead><tbody>` +
           [['start', W.per.start], ['end_marketing', W.per.endMkt], ['end', W.per.end]].map(([k, l]) => `<tr class="${(a0[k] || '') !== (b0[k] || '') ? 'chg' : ''}"><td>${esc(l)}</td><td class="num">${esc(d(a0[k]))}</td><td class="num"><b>${esc(d(b0[k]))}</b></td></tr>`).join('') + '</tbody></table>' +
           (q.status === 'pending' ? `<div class="rv-imp">${CP.chgdraw.impactHTML(R.periodImpact(U.seed(), c.id, b0, U.today()))}</div>` : '')));
-      } else { const k = (q.close && q.close.checks) || {}, li = t => `<li class="info"><span class="ci">·</span>${esc(t)}</li>`;
+      } else { const k = Object.assign({}, R.closeChecks(U.seed(), c.id, it.plan, U.today()) || {}, (q.close && q.close.checks) || {}), li = t => `<li class="info"><span class="ci">·</span>${esc(t)}</li>`;
         out.push(sec(W.rv.close, `<div class="rv-reason"><b>${esc(W.rv.note)}:</b> ${esc(q.close ? q.close.note : q.reason)}</div><ul class="checks2">` +
           (q.close && q.close.early ? li(`${W.cl.date} ${R.dmy(q.close.close_date)}`) : '') + (k.spent != null ? li(W.cl.spent(R.baht(k.spent), R.baht(k.current), R.pct(k.used))) : '') +
-          (k.rev != null ? li(W.cl.rev(R.baht(k.rev), R.pct(k.ach))) : '') + li(W.cl.unused(R.baht(k.unused))) + '</ul>')); }
+          (k.rev != null ? li(W.cl.rev(R.baht(k.rev), R.pct(k.ach))) : '') + (k.profit != null ? li(W.cl.profit(R.baht(k.profit), R.baht(k.planProfit))) : '') + li(W.cl.unused(R.baht(k.unused))) + '</ul>')); }
     } else {
       const q = it.req, im = R.requestImpact(U.seed(), c.id, q.lines), Q = C.req;
       out.push(sec(A.rv.request, `<div class="rv-reason"><b>${esc(Q.reason)}:</b> ${esc(q.reason)}</div><div class="tablewrap"><table class="tbl simple"><thead><tr><th>${esc(Q.line)}</th><th>${esc(Q.month)}</th><th class="num">${esc(Q.amount)}</th><th class="num">${esc(Q.com)}</th><th class="num">${esc(Q.rem)}</th></tr></thead><tbody>` +
@@ -1042,7 +1074,7 @@ CP.chgdraw = (function () {
       act = { kind: 'period', reason: F.reason.trim(), period: { from: im.from, to: { start: F.to.start, end_marketing: F.to.end_marketing || null, end: F.to.end }, moves: im.moves.map(x => ({ from: x.from, toT: x.toT, toB: x.toB })) } };
     } else { const k = F.k, to = F.early ? { start: c.start, end: F.date, end_marketing: c.end_marketing && c.end_marketing > F.date ? F.date : c.end_marketing || null } : null;
       const mv = to ? R.periodMoves(seedNow(), cid, to).moves.map(x => ({ from: x.from, toT: x.toT, toB: x.toB })) : [];
-      act = { kind: 'close', reason: F.note.trim(), close: { early: F.early, close_date: F.early ? F.date : null, note: F.note.trim(), moves: mv, checks: { unused: k.unused, spent: k.spent, current: k.current, used: k.used, rev: k.rev, ach: k.ach, profit: k.profit, sure: true } } }; }
+      act = { kind: 'close', reason: F.note.trim(), close: { early: F.early, close_date: F.early ? F.date : null, note: F.note.trim(), moves: mv, checks: { unused: k.unused, spent: k.spent, current: k.current, used: k.used, rev: k.rev, ach: k.ach, profit: k.profit, planProfit: k.planProfit, sure: true } } }; }
     const btn = $(F.kind === 'period' ? 'pc_send' : 'cl_send'); btn.disabled = true;
     try {
       const p = await CP.store.savePlan(cid, x => R.planAct(x, Object.assign(F.no ? { type: 'req.edit', no: F.no } : { type: 'req.new' }, act, { by: a.name, at: R.nowLocal() })), { rev: F.rev });
