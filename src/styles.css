@@ -1,0 +1,1370 @@
+/* styles.css — Campaign P&L visual system = KOL Management v0.1.19 (CR-01 §2). Colours are tokens on :root; dark = data-theme="dark".
+   The two token blocks below are KOL's styles.css (15/10) as they are · the v0.1.19 additions (banner · card shadow · top bar · data colours)
+   follow in their own block for Light and Dark. Sizes are measured from docs/ref (3525px shots at 2× → CSS px). Spacing 4/8/12/16/24. */
+/* CR-02 F5 — Noto Sans Thai (SIL OFL 1.1, src/fonts/OFL.txt) from the project folder, no CDN: three variable-weight files (Thai · Latin-ext · Latin) */
+@font-face{font-family:"Noto Sans Thai";font-style:normal;font-weight:100 900;font-display:swap;src:url("fonts/NotoSansThai-thai.woff2") format("woff2");unicode-range:U+02D7,U+0303,U+0331,U+0E01-0E5B,U+200C-200D,U+25CC}
+@font-face{font-family:"Noto Sans Thai";font-style:normal;font-weight:100 900;font-display:swap;src:url("fonts/NotoSansThai-latin-ext.woff2") format("woff2");unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C4,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:"Noto Sans Thai";font-style:normal;font-weight:100 900;font-display:swap;src:url("fonts/NotoSansThai-latin.woff2") format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+:root{
+  color-scheme:light;
+  /* CR-13 §4.3 — Phase = an ordinal grey ramp (step 1 light … 6 strong) · never a data colour (Tier / Pillar / Campaign) */
+  --phs1:#a3a19a; --phs2:#8a8881; --phs3:#72716b; --phs4:#5b5a55; --phs5:#4a4945; --phs6:#3a3936;
+  --bg:#f6f7f9; --surface:#ffffff; --surface-2:#f2f4f7; --surface-3:#e9ecf1; --border:#e4e7ec; --border-strong:#d0d5dd; --grid:#eaecf0;
+  --text:#101828; --text-2:#344054; --muted:#667085;
+  --accent:#c2185b; --accent-hover:#a3144c; --accent-soft:#fdeef4; --accent-text:#ffffff;
+  --mark:#fde68a;   /* CR-14 §4.3: the search found in a name */
+  --ok:#067647; --ok-soft:#ecfdf3; --warn:#b54708; --warn-soft:#fffaeb; --err:#b42318; --err-soft:#fef3f2; --info:#175cd3; --info-soft:#eff8ff;
+  --st-list-bg:#f2f4f7; --st-list:#344054; --st-prog-bg:#eff8ff; --st-prog:#175cd3; --st-done-bg:#ecfdf3; --st-done:#067647; --st-cancel-bg:#fef3f2; --st-cancel:#b42318;
+  /* --ph1…8 = the categorical order for Campaigns (CR-13: Phases use --phs1…6) */
+  --ph1:#2a78d6; --ph2:#eb6834; --ph3:#1baf7a; --ph4:#eda100; --ph5:#e87ba4; --ph6:#008300; --ph7:#4a3aa7; --ph8:#e34948;
+  --pl-aw:#2a78d6; --pl-ac:#008300; --pl-co:#e87ba4; --pl-cv:#eda100; --series-grey:#B4B2A9;
+  --band:#8d95a3; --g-list:#5F5E5A; --g-list-bg:#F1EFE8; --g-prog:#2a78d6; --g-prog-bg:#E6F0FB; --g-done:#0f7a52; --g-done-bg:#E3F5EC; --g-cancel:#c23b3a; --g-cancel-bg:#FCE9E9;
+  --tier-mega:#4a3aa7;  --tier-macro:#2a78d6; --tier-mid:#1baf7a; --tier-micro:#eb6834; --tier-nano:#eda100;
+  --st-wrap:#e8732c; --st-wrap-bg:#fff1e7; --st-wrap-text:#b93815;   /* CR-29 Wrap-up (light orange) */
+  --pf-1:#101828; --pf-2:#2b3546; --pf-3:#475165; --pf-4:#636d81; --pf-5:#7f899b; --pf-6:#9aa3b2; --pf-7:#b0b7c3;   /* CR-29 Platform mix: one ink ramp (the Tier card beside it has the colours) */
+  --series-kol:#2a78d6; --overlay:rgba(16,24,40,.32); --shadow-lg:0 12px 32px rgba(16,24,40,.16); --row-hover:#f9fafb; --row-sel:#fdf2f6;
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --phs1:#5f5e58; --phs2:#75736d; --phs3:#8b8982; --phs4:#a2a098; --phs5:#bbb9b1; --phs6:#d6d4cc;
+  --bg:#0f1217; --surface:#171b22; --surface-2:#1f242d; --surface-3:#2a303b; --border:#2c333f; --border-strong:#3b4452; --grid:#262c36;
+  --text:#eef0f3; --text-2:#c9ced6; --muted:#98a2b3;
+  --accent:#f06292; --accent-hover:#f48fb1; --accent-soft:#3a1f2b; --accent-text:#171b22;
+  --mark:#6b5310;
+  --ok:#47cd89; --ok-soft:#0d2b1d; --warn:#fdb022; --warn-soft:#33240c; --err:#f97066; --err-soft:#3b1714; --info:#84caff; --info-soft:#122a45;
+  --st-list-bg:#2a303b; --st-list:#d0d5dd; --st-prog-bg:#122a45; --st-prog:#84caff; --st-done-bg:#0d2b1d; --st-done:#75e0a7; --st-cancel-bg:#3b1714; --st-cancel:#fda29b;
+  --ph1:#3987e5; --ph2:#d95926; --ph3:#199e70; --ph4:#c98500; --ph5:#d55181; --ph6:#008300; --ph7:#9085e9; --ph8:#e66767;
+  --pl-aw:#3987e5; --pl-ac:#008300; --pl-co:#d55181; --pl-cv:#c98500; --series-grey:#5F5E5A;
+  --band:#6b7383; --g-list:#B4B2A9; --g-list-bg:#2C2C2A; --g-prog:#3987e5; --g-prog-bg:#14263D; --g-done:#199e70; --g-done-bg:#12291F; --g-cancel:#e66767; --g-cancel-bg:#3A1A1A;
+  --tier-mega:#9085e9;  --tier-macro:#3987e5; --tier-mid:#199e70; --tier-micro:#d95926; --tier-nano:#c98500;
+  --st-wrap:#f08a4b; --st-wrap-bg:#3a2214; --st-wrap-text:#fdba8c;
+  --pf-1:#f2f4f7; --pf-2:#d3d8e0; --pf-3:#b4bbc7; --pf-4:#97a0ae; --pf-5:#7b8495; --pf-6:#626b7b; --pf-7:#4c5463;
+  --series-kol:#3987e5; --overlay:rgba(0,0,0,.55); --shadow-lg:0 12px 32px rgba(0,0,0,.5); --row-hover:#1c2129; --row-sel:#2b1d25;
+}
+/* ---------- v0.1.19 + CR-01 tokens (Light · Dark) ---------- */
+:root{
+  --sidebar-w:236px; --rail-w:52px; --topbar-h:52px;
+  --topbar-bg:#f6f7f9; --sidebar-bg:#ffffff;
+  --banner-bg:#fdeef4; --banner-glow:#f7cadd; --banner-border:#f8dce8;
+  --shadow-card:0 1px 2px rgba(16,24,40,.05),0 1px 4px rgba(16,24,40,.04);
+  --seg-on-bg:#101828; --seg-on-text:#ffffff; --preset-bg:#f2f4f7;
+  --st-ns:#b8d0f2;   /* Not started in the bars (light blue, the KPI Campaigns of the reference) */
+  --today:#b42318; --row-child:#fcfcfd; --kbd-bg:#f2f4f7; --backdrop:rgba(102,112,133,.42);
+  /* data colours (CR-01 §2.4) — never a colour for a Campaign (UI_PATTERNS §16) */
+  --rev:var(--series-kol); --mkt:var(--ph2); --sls:var(--ph4); --ch-mt:var(--ph7); --ch-tt:var(--ph3); --ch-ecom:var(--ph5);
+}
+:root[data-theme="dark"]{
+  --topbar-bg:#0f1217; --sidebar-bg:#141820;
+  --banner-bg:#2a1822; --banner-glow:#55203a; --banner-border:#3a2330;
+  --shadow-card:0 1px 2px rgba(0,0,0,.45);
+  --seg-on-bg:#eef0f3; --seg-on-text:#101828; --preset-bg:#1f242d;
+  --st-ns:#2d4f7a; --today:#f97066; --row-child:#1a1f27; --kbd-bg:#2a303b; --backdrop:rgba(0,0,0,.55);
+}
+
+*{box-sizing:border-box}
+html,body{max-width:100%;overflow-x:clip}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 "Noto Sans Thai","Noto Sans",system-ui,-apple-system,"Segoe UI","Leelawadee UI",Tahoma,sans-serif;-webkit-font-smoothing:antialiased}
+
+.hidden{display:none!important}
+.muted{color:var(--muted)} .small{font-size:12px}
+.spacer{flex:1}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+svg{flex:0 0 auto}
+button{font:inherit}
+.btn svg,.icon-btn svg,.tb-search svg,.sn-search svg,.ms-qw svg,.drange-t svg,.ms-caret svg,.chev svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+
+/* ===================== shell: side menu 236px · folded 52px · top bar 52px ===================== */
+.shell{display:flex;min-height:100vh}
+.app-main{flex:1;min-width:0}
+.sidenav{position:sticky;top:0;align-self:flex-start;height:100vh;width:var(--sidebar-w);flex:0 0 var(--sidebar-w);background:var(--sidebar-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:30}
+.sidenav svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.sn-top{display:flex;align-items:center;gap:8px;padding:16px 12px 0 15px;min-height:46px}
+.sn-logo{width:29px;height:29px;flex:0 0 29px;display:block}
+.sn-logo svg{width:29px;height:29px;display:block}
+.sn-brand{flex:1;min-width:0;display:flex;align-items:center;gap:8px}
+.sn-bt{display:flex;flex-direction:column;line-height:1.2;min-width:0}
+.sn-bn{font-size:15.5px;color:var(--text);white-space:nowrap}
+.sn-bn b{font-weight:700}
+.sn-bs{font-size:12px;color:var(--muted)}
+.sn-collapse{color:var(--muted)}
+.sn-collapse svg{width:18px;height:18px}
+.sn-search{position:relative;margin:12px 15px 4px;display:flex;align-items:center}
+.sn-search svg{position:absolute;left:10px;width:15px;height:15px;color:var(--muted);pointer-events:none}
+.sn-search input{width:100%;height:30px;border:1px solid var(--border-strong);border-radius:10px;background:var(--surface);color:var(--text);font:inherit;font-size:13.5px;padding:0 10px 0 31px;outline:none}
+.sn-search input::placeholder{color:var(--muted)}
+.sn-search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.sn-nav{flex:1;overflow-y:auto;padding:0 0 8px}
+.sn-group{display:flex;flex-direction:column;gap:1px}
+.sn-gl{font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:3px 21px 3px}
+.sn-group+.sn-group .sn-gl{padding-top:20px}
+.sn-item{display:flex;align-items:center;gap:8px;height:34px;margin:0 11px;padding:0 10px;border:0;border-radius:9px;background:none;color:var(--text-2);font-size:14.5px;font-weight:500;cursor:pointer;text-align:left;white-space:nowrap;text-decoration:none}
+.sn-item .ic{width:18px;height:18px;flex:0 0 18px;display:inline-flex;align-items:center;justify-content:center;color:var(--muted)}
+.sn-item:hover{background:var(--surface-2);color:var(--text)}
+.sn-item.active{background:var(--accent-soft);color:var(--accent)}
+.sn-item.active .ic{color:var(--accent)}
+.sn-item:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.sn-none{padding:6px 21px;font-size:13px;color:var(--muted)}
+.sn-bottom{border-top:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+.devb{display:inline-flex;align-items:center;height:20px;padding:0 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent);font-size:12.5px;font-weight:500;letter-spacing:.02em;white-space:nowrap}
+.sn-overlay{position:fixed;inset:0;background:var(--overlay);z-index:35}
+/* the folded menu: icons only · logo on top · the open button under it · a short line between groups · active = a pink box around the icon */
+@media (min-width:768px){
+  .shell.collapsed .sidenav{width:var(--rail-w);flex-basis:var(--rail-w)}
+  .shell.collapsed .sn-top{flex-direction:column;padding:10px 0 0;gap:12px}
+  .shell.collapsed .sn-bt,.shell.collapsed .sn-search,.shell.collapsed .sn-gl,.shell.collapsed .sn-item .lb,.shell.collapsed .sn-ver{display:none}
+  .shell.collapsed .sn-brand{flex:0 0 auto}
+  .shell.collapsed .sn-collapse svg{transform:scaleX(-1)}
+  .shell.collapsed .sn-nav{padding-top:8px}
+  .shell.collapsed .sn-group{align-items:center}
+  .shell.collapsed .sn-group+.sn-group::before{content:"";display:block;width:24px;border-top:1px solid var(--border);margin:8px 0}
+  .shell.collapsed .sn-group:first-child{border-top:1px solid var(--border);margin:0 14px;padding-top:9px}
+  .shell.collapsed .sn-item{width:35px;height:35px;margin:0;padding:0;justify-content:center}
+  .shell.collapsed .sn-bottom{justify-content:center;padding:12px 4px;border-top:0}
+}
+@media (max-width:767px){
+  .sidenav{position:fixed;left:0;top:0;bottom:0;height:auto;align-self:auto;width:264px;transform:translateX(-100%);transition:transform .18s ease;z-index:36}
+  .shell.navopen .sidenav{transform:none;box-shadow:var(--shadow-lg)}
+  .sidenav .sn-collapse{display:none}
+}
+@media (prefers-reduced-motion:reduce){.sidenav{transition:none}}
+
+/* top bar (sticky above the content): Search or jump to… Ctrl+K · DEV ··· theme */
+.topbar{position:sticky;top:0;z-index:20;height:var(--topbar-h);display:flex;align-items:center;gap:14px;padding:0 24px 0 20px;background:var(--topbar-bg);border-bottom:1px solid var(--border)}
+.topbar svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.topbar .tb-menu{display:none}
+.tb-search{display:inline-flex;align-items:center;gap:8px;width:236px;max-width:100%;height:30px;padding:0 6px 0 10px;border:1px solid var(--border-strong);border-radius:8px;background:var(--surface);color:var(--muted);font-size:13.5px;cursor:pointer;text-align:left}
+.tb-search svg{width:15px;height:15px}
+.tb-search .tx{flex:1;white-space:nowrap}
+.tb-search:hover{border-color:var(--muted)}
+kbd{font:500 10.5px/1 ui-monospace,"Cascadia Mono",Consolas,monospace;color:var(--muted);background:var(--kbd-bg);border:1px solid var(--border);border-radius:4px;padding:3px 6px;white-space:nowrap}
+.tb-theme{color:var(--text-2)}
+@media (max-width:767px){
+  .topbar .tb-menu{display:inline-grid}
+  .topbar{gap:8px;padding:0 12px 0 8px}
+  .tb-search{width:auto;flex:1;max-width:260px}
+  .tb-search kbd{display:none}
+}
+
+/* ===================== controls ===================== */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-weight:500;font-size:14px;line-height:20px;border-radius:8px;padding:0 13px;height:32px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);cursor:pointer;white-space:nowrap;text-decoration:none}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-text)}
+.btn.primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn.ghost{border-color:transparent;background:none}
+.btn.ghost:hover{background:var(--surface-2)}
+.btn.small{height:28px;padding:0 10px;font-size:13px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.on{background:var(--surface-2)}
+.icon-btn{border:0;background:none;color:var(--muted);width:32px;height:32px;border-radius:8px;display:inline-grid;place-items:center;cursor:pointer;flex:0 0 auto}
+.icon-btn:hover,.icon-btn.on{background:var(--surface-2);color:var(--text)}
+.icon-btn:disabled{opacity:.35;cursor:not-allowed;background:none}
+.icon-btn:focus-visible,.btn:focus-visible,.seg button:focus-visible,.ptabs button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+/* chart segs (Monthly | Cumulative · Revenue · Spend · Profit): the one on = dark ink, white words (v0.1.19) */
+.seg{display:inline-flex;align-items:center;border:1px solid var(--border-strong);border-radius:9px;background:var(--surface);padding:1px;gap:1px;flex:0 0 auto}
+.seg button{border:0;background:none;color:var(--text-2);font-size:13.5px;font-weight:500;height:26px;padding:0 10px;border-radius:7px;cursor:pointer;white-space:nowrap}
+.seg button:hover{background:var(--surface-2)}
+.seg button.on{background:var(--seg-on-bg);color:var(--seg-on-text)}
+/* the date presets: a grey group, the one on = white and bold */
+.seg.preset{background:var(--preset-bg);border-color:var(--border);border-radius:9px;padding:0;gap:0;overflow:hidden}
+.seg.preset button{height:30px;padding:0 12px;font-size:14.5px;font-weight:400;color:var(--muted);border-radius:0}
+.seg.preset button:hover{background:none;color:var(--text)}
+.seg.preset button.on{background:var(--surface);color:var(--text);font-weight:700;box-shadow:1px 0 0 var(--border)}
+.seg.preset button.on:not(:first-child){box-shadow:-1px 0 0 var(--border),1px 0 0 var(--border)}
+@media (max-width:767px){.seg.preset{flex-wrap:wrap;max-width:100%}.seg.preset button{padding:0 10px}}
+.none{color:var(--muted)}
+.neg{color:var(--err)}
+.good{color:var(--ok)} .bad{color:var(--err)}
+b.good,b.bad{font-weight:700}
+
+/* ===================== page: banner · tabs · toolbar ===================== */
+main{padding:19px 24px 48px}
+@media (max-width:767px){main{padding:16px 16px 40px}}
+.pbanner{position:relative;border:1px solid var(--banner-border);border-radius:14px;min-height:53px;padding:12px 21px;display:flex;flex-direction:column;justify-content:center;
+  background:radial-gradient(ellipse 22% 160% at 97% 50%,var(--banner-glow) 0%,transparent 72%),linear-gradient(90deg,var(--banner-bg) 0%,var(--banner-bg) 70%,color-mix(in srgb,var(--banner-glow) 45%,var(--banner-bg)) 100%)}
+.pbanner .crumb{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-2);margin-bottom:2px}
+.pbanner h1{margin:0;font-size:17.5px;font-weight:700;line-height:1.3;color:var(--text)}
+.ptabs{display:flex;gap:4px;margin-top:14px;border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none}
+.ptabs button{border:0;background:none;height:39px;padding:0 11px;font-size:14.5px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;white-space:nowrap}
+.ptabs button:hover{color:var(--text)}
+.ptabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:23px}
+.toolbar .rtext{font-size:14.5px;color:var(--muted);white-space:nowrap;margin:0 0 0 1px}
+.toolbar .exp{margin-left:auto}
+.srcline{margin-top:9px;font-size:12.5px;color:var(--muted)}
+.srcline span{cursor:help}
+
+/* ===================== multi-select (KOL CR-14 §4.2) ===================== */
+.ms{position:relative;display:inline-block}
+.ms-trigger{display:inline-flex;align-items:center;justify-content:space-between;gap:12px;min-width:236px;height:30px;padding:0 9px 0 11px;border:1px solid var(--border-strong);border-radius:7px;background:var(--surface);color:var(--text);font-size:13.5px;cursor:pointer;white-space:nowrap}
+.ms-trigger:hover{border-color:var(--muted)}
+.ms-caret{display:inline-flex;color:var(--text-2)}
+.ms-pop{display:none;position:absolute;left:0;top:calc(100% + 4px);z-index:40;min-width:max(100%,280px);max-width:380px;max-height:400px;flex-direction:column;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);padding:6px}
+.ms-pop.open{display:flex}
+.ms-pop.right{left:auto;right:0}
+.ms-qw{position:relative;display:flex;align-items:center;margin:2px 2px 6px}
+.ms-qw svg{position:absolute;left:9px;color:var(--muted)}
+.ms-q{width:100%;height:32px;border:1px solid var(--border-strong);border-radius:8px;padding:0 10px 0 30px;font:inherit;background:var(--surface);color:var(--text)}
+.ms-list{overflow:auto;display:flex;flex-direction:column}
+.ms-opt{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:14px}
+.ms-opt:hover{background:var(--surface-2)}
+.ms-opt input{accent-color:var(--accent);width:15px;height:15px;margin:0}
+.ms-dot{width:10px;height:10px;border-radius:3px;flex:0 0 10px}
+.ms-name{flex:1}
+.ms-sub{color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
+.ms-none{padding:8px;color:var(--muted);font-size:13px}
+.ms-foot{display:flex;justify-content:space-between;border-top:1px solid var(--border);margin-top:6px;padding-top:6px}
+/* a single choice (Sort: …) — a native select dressed as the dropdown of the reference */
+select.sel{appearance:none;-webkit-appearance:none;min-width:200px;padding-right:32px;font:inherit;font-size:13.5px;
+  background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='%23667085' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 9px center/16px}
+select.sel option{color:var(--text);background:var(--surface)}
+@media (max-width:767px){.ms-trigger{min-width:0}.ms-pop{position:fixed;left:16px!important;right:16px!important;top:auto;max-width:none}}
+
+/* ===================== cards ===================== */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-card);padding:16px 18px;margin-top:16px;min-width:0}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap}
+.card-head h3{margin:0;font-size:16px;font-weight:700;display:flex;align-items:center;gap:6px;color:var(--text)}
+.card-head .ctl{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;justify-content:flex-end}
+.tiph{cursor:help}
+.info{border:0;background:none;padding:0 2px;margin:0;color:var(--muted);cursor:pointer;line-height:1;font-size:13px;vertical-align:baseline}
+.info:hover,.info[aria-expanded="true"]{color:var(--accent)}
+.info:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:4px}
+.infopop{position:fixed;z-index:70;width:max-content;max-width:min(320px,calc(100vw - 16px));background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);padding:10px 12px;font-size:13px;text-align:left;white-space:normal}
+.infopop b{display:block;margin-bottom:4px}
+.infopop p{margin:0;color:var(--text-2)}
+.infopop p.f{margin-top:6px;font-size:12px;color:var(--muted)}
+.infopop:focus{outline:none}
+.legend{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;font-size:13.5px;color:var(--text-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.legend i{display:inline-block;width:12px;height:12px}
+.legend i.tick{width:14px;height:0;border-top:2.5px solid var(--text)}
+.legend i.hatch{background:repeating-linear-gradient(135deg,var(--sw) 0 1.6px,var(--surface) 1.6px 4px);box-shadow:inset 0 0 0 1px var(--sw)}
+.legend i.bar{background:var(--sw)}
+
+/* ===================== Row 1 — KPI ===================== */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:13px}
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.kpis{grid-template-columns:minmax(0,1fr)}}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-card);padding:14px 15px 13px;min-height:133px;display:flex;flex-direction:column;min-width:0}
+.kpi .l{color:var(--muted);font-size:14.5px;display:flex;align-items:center;gap:3px;line-height:1.35}
+.kpi .v{margin-top:3px;font-size:23px;font-weight:700;line-height:1.25;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;flex-wrap:wrap;gap:0 7px}
+.kpi .v .vn.none{color:var(--muted);font-weight:600}
+.kpi .v small{font-size:14.5px;font-weight:400;color:var(--muted)}
+.kpi .kbar{display:flex;height:7px;margin-top:10px;background:var(--surface-3);overflow:hidden}
+.kpi .kbar i{display:block;height:100%}
+.kpi .kbar i.ongoing{background:var(--g-prog)} .kpi .kbar i.not_started{background:var(--st-ns)} .kpi .kbar i.complete{background:var(--ok)}
+.kpi .kbar i.ok{background:var(--ok)} .kpi .kbar i.over{background:var(--err)} .kpi .kbar i.neg{background:var(--err)}
+.kpi .cap{margin-top:7px;font-size:13.5px;line-height:1.3;color:var(--muted)}
+.kpi .cap b{font-weight:600}
+
+/* ===================== Row 2 — P&L by month (the Budget vs Actual card of the reference) ===================== */
+.sumline{margin-top:7px;font-size:14.5px;color:var(--text-2);display:flex;flex-wrap:wrap;gap:0 6px;align-items:baseline}
+.sumline .tdl{text-decoration:underline dotted;text-underline-offset:3px;cursor:help;color:var(--text)}
+.sumline .noa{color:var(--muted)}
+.chartbox{position:relative;margin-top:8px;min-width:0}
+.chartbox svg{display:block;width:100%;height:auto;overflow:visible}
+.chartbox .axis{font-size:15.5px;fill:var(--muted);font-variant-numeric:tabular-nums}
+.chartbox .mon{font-size:17px;fill:var(--text-2)}
+.chartbox .mon.cur{font-weight:700;fill:var(--text)}
+.chartbox .yr{font-size:11.5px;fill:var(--muted)}
+.chartbox .var{font-size:13px;font-weight:700}
+.chartbox .var.good{fill:var(--ok)} .chartbox .var.bad{fill:var(--err)}
+.chartbox .today-l{font-size:14px;fill:var(--today)}
+.chartbox .hit{fill:transparent;outline:none;cursor:default}
+.chartbox .hit:hover,.chartbox .hit:focus{fill:var(--surface-2);fill-opacity:.55}
+.chartbox .empty{font-size:14px;fill:var(--muted)}
+.tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow-lg);border-radius:8px;padding:8px 10px;font-size:12.5px;min-width:170px;max-width:280px;opacity:0;transition:opacity .1s;z-index:5}
+.tip.show{opacity:1}
+.tip .d{color:var(--muted);margin-bottom:4px}
+.tip .h{font-weight:700;margin-bottom:4px;color:var(--text)}
+.tip .r{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.tip .r span{color:var(--muted)}
+.tip .r b{color:var(--text);font-variant-numeric:tabular-nums;font-weight:600}
+.tip .r.tot{border-top:1px solid var(--border);margin-top:4px;padding-top:4px}
+.tip .good{color:var(--ok)} .tip .bad{color:var(--err)}
+.ctable{margin-top:12px}
+.ctable .tbar{display:flex;justify-content:flex-end;margin-bottom:8px}
+
+/* ===================== tables (Campaign & Phase) ===================== */
+.tablewrap{overflow:auto;max-width:100%}
+.tbl{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+.tbl th{font-weight:400;color:var(--muted);font-size:13.5px;text-align:left;height:37px;padding:0 10px;border-bottom:1px solid var(--border);white-space:nowrap;background:var(--surface);position:sticky;top:0;z-index:2}
+.tbl th .info{margin-right:2px}
+.tbl td{padding:7px 10px;border-bottom:1px solid var(--border);white-space:nowrap;vertical-align:middle}
+.tbl .num{text-align:right}
+.tbl tr.total td{font-weight:700;border-bottom:0;border-top:1px solid var(--border-strong);background:var(--surface)}
+.tbl tr.click{cursor:pointer}
+.tbl tr.click:hover td{background:var(--row-hover)}
+.tbl tr:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.tbl.simple td{padding:6px 10px;height:36px}
+.tbl.simple tr:last-child td{border-bottom:0}
+.tbl td.wrap{white-space:normal}
+/* Portfolio: a group = the Campaign row (chevron · bold name · chip under it) + its channel rows (grey dot · dashed lines · faint ground) */
+.port td{height:47px;padding-left:8px;padding-right:8px}
+.port th{padding:0 8px}
+.port tr.child td{height:33px;background:var(--row-child);border-bottom:1px dashed var(--border)}
+.port tr.child.last td{border-bottom:1px solid var(--border)}
+.port td.nm{min-width:220px;white-space:normal}
+.nmw{display:flex;align-items:flex-start;gap:6px}
+.nmw .nmt{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.nmw b{font-weight:700;font-size:14.5px;line-height:1.35}
+.chev{border:0;background:none;width:22px;height:22px;margin:0 2px 0 -4px;border-radius:6px;display:inline-grid;place-items:center;color:var(--muted);cursor:pointer;flex:0 0 22px}
+.chev:hover{background:var(--surface-2);color:var(--text)}
+.chev svg{transition:transform .12s}
+.chev[aria-expanded="false"] svg{transform:rotate(-90deg)}
+.chev.ph{visibility:hidden}
+.chname{display:flex;align-items:center;gap:10px;padding-left:26px;color:var(--text)}
+.chname::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--phs3);flex:0 0 7px}
+.chips{display:flex;gap:4px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:6px;font-size:12.5px;white-space:nowrap}
+.chip.err{background:var(--err-soft);color:var(--err)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.st{display:inline-flex;align-items:center;height:23px;padding:0 8px;border-radius:7px;font-size:13.5px;font-weight:500;white-space:nowrap}
+.st.ongoing{background:var(--accent-soft);color:var(--accent)}
+.st.complete{background:color-mix(in srgb,var(--ok) 14%,var(--surface));color:var(--ok)}
+.st.not_started{background:var(--surface-2);color:var(--text-2)}
+.dleft.soon{color:var(--warn)}
+.used{display:inline-flex;align-items:center;gap:10px;white-space:nowrap}
+.used .ub{display:inline-block;width:56px;height:8px;background:var(--surface-2);overflow:hidden}
+.used .ub i{display:block;height:100%;background:var(--ok)}
+.used .ub i.over{background:var(--err)}
+.used .pc{min-width:38px;text-align:left}
+.used .pc.over{color:var(--err);font-weight:700}
+.port td.mny .neg{font-weight:700}
+.tbl .cnote{color:var(--muted)}
+
+/* ===================== Row 4 — Campaign timeline (KOL gantt pieces) ===================== */
+.tl-sub{display:flex;flex-wrap:wrap;gap:4px 16px;align-items:center;margin-top:6px;font-size:13px;color:var(--muted)}
+.tl-sub .legend{font-size:13px}
+.tl-sub .legend i.gbar{position:static;width:14px;height:10px;cursor:default}
+.tl-sub .legend i.gline{position:static;display:inline-block;width:16px;height:0;border-top:2px solid var(--text-2);opacity:.55}
+.tl-box{position:relative;margin-top:10px}
+.tl-scroll{overflow:auto;max-height:calc(37px + 10 * 41px);border-top:1px solid var(--border)}
+.tl-scroll.all{max-height:none}
+.gantt{width:100%;border-collapse:collapse;font-size:14px}
+.gantt th{position:sticky;top:0;z-index:3;background:var(--surface);font-weight:400;color:var(--muted);font-size:13px;height:36px;padding:0;border-bottom:1px solid var(--border);text-align:left}
+.gantt td{padding:0;border-bottom:1px solid var(--border);vertical-align:middle;height:40px}
+.gantt th.gn,.gantt td.gn{position:sticky;left:0;z-index:4;background:var(--surface);width:230px;min-width:200px;max-width:230px;padding:0 10px;white-space:normal}
+.gantt thead th.gn{z-index:5}
+.gantt td.gn b{font-weight:600;font-size:14px;line-height:1.3}
+.gantt th.gs,.gantt td.gs{width:200px;min-width:170px;padding:0 10px 0 14px;white-space:normal;font-size:13px;color:var(--text-2)}
+.gantt td.gs.none{color:var(--muted)}
+.gantt td.gtl{position:relative;min-width:420px}
+.gantt tr.click{cursor:pointer}
+.gantt tr.click:hover td{background:var(--row-hover)}
+@media (max-width:767px){.gantt th.gn,.gantt td.gn{width:132px;min-width:132px;max-width:132px}.gantt td.gtl{min-width:360px}}
+.gt-head{position:relative;height:36px}
+.gt-tick{position:absolute;top:0;bottom:0;padding:0 6px;font-size:12.5px;color:var(--muted);line-height:1.15;display:flex;flex-direction:column;justify-content:center;border-left:1px solid var(--grid);white-space:nowrap}
+.gt-tick.cur{color:var(--text);font-weight:700}
+.gt-tick small{font-size:11px;color:var(--muted);font-weight:400}
+.gt-row{position:relative;height:40px}
+.gt-grid{position:absolute;top:0;bottom:0;width:0;border-left:1px solid var(--grid)}
+.gt-today{position:absolute;top:0;bottom:0;width:0;border-left:1.5px dashed var(--today);z-index:3}
+.gt-todayl{position:absolute;top:2px;font-size:12px;color:var(--today);padding-right:4px;transform:translateX(-100%);z-index:3;line-height:1;background:var(--surface)}
+.gbar{position:absolute;top:9px;height:8px;border:0;padding:0;z-index:2;background:var(--g-prog)}
+.gbar.ongoing{background:var(--g-prog)} .gbar.not_started{background:var(--st-ns)} .gbar.complete{background:var(--ok)}
+.gline{position:absolute;top:12px;height:0;border-top:2px solid var(--text-2);opacity:.55;z-index:2}
+.gact{position:absolute;bottom:4px;z-index:2;background:var(--tlc,var(--rev));min-height:1px}
+.gt-hit{position:absolute;top:0;bottom:0;z-index:4}
+.tl-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;color:var(--muted)}
+
+/* ===================== Row 5 — three equal cards ===================== */
+.r3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:16px;align-items:stretch}
+.r3 .card{margin-top:0;display:flex;flex-direction:column}
+@media (max-width:1180px){.r3{grid-template-columns:minmax(0,1fr)}}
+.c3-body{flex:1;display:flex;flex-direction:column;justify-content:flex-start;margin-top:14px;min-height:230px}
+.c3-body > .c3-empty,.c3-body > .donut-wrap{margin:auto 0}
+.c3-seg{margin-top:10px}
+.donut-wrap{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:16px}
+.donut{position:relative;flex:0 0 auto}
+.donut svg{display:block}
+.donut .dc{font-size:16px;font-weight:700;fill:var(--text);font-variant-numeric:tabular-nums}
+.donut .ds{font-size:11.5px;fill:var(--muted)}
+.leg{flex:1 1 200px;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}
+.leg th{font-size:12.5px;font-weight:400;color:var(--muted);text-align:left;padding:2px 6px 5px}
+.leg td{padding:5px 6px;border-top:1px solid var(--border)}
+.leg .sw{display:inline-block;width:11px;height:11px;margin-right:7px;vertical-align:-1px}
+.hbars{display:flex;flex-direction:column;gap:9px;width:100%}
+.hb{display:grid;grid-template-columns:minmax(90px,38%) minmax(0,1fr) auto;align-items:center;gap:10px;font-size:13.5px}
+.hb .hl{line-height:1.25;color:var(--text-2);overflow-wrap:anywhere}
+.hb .hl small{display:block;color:var(--muted);font-size:11.5px}
+.hb .ht{position:relative;height:16px}
+.hb .hf{position:absolute;left:0;top:2px;bottom:2px;background:var(--hc,var(--rev))}
+.hb .hk{position:absolute;top:-2px;bottom:-2px;width:0;border-left:2.5px solid var(--text)}
+.hb .hv{font-variant-numeric:tabular-nums;text-align:right;min-width:62px;white-space:nowrap}
+.hb .hv small{display:block;color:var(--muted);font-size:11.5px}
+.c3-note{margin-top:10px;font-size:12.5px;color:var(--muted)}
+.c3-empty{color:var(--muted);text-align:center;font-size:14px;padding:24px 8px}
+
+/* ===================== CR-02 — Data Real | Mock · Mock band · tabs · status · empty state ===================== */
+.ptabs a{display:inline-flex;align-items:center;height:39px;padding:0 11px;font-size:14.5px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;white-space:nowrap;text-decoration:none}
+.ptabs a:hover{color:var(--text)}
+.ptabs a.on{color:var(--accent);border-bottom-color:var(--accent)}
+.ptabs a:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+/* D14 — status: the words always there, the colour helps */
+.att{display:inline-flex;align-items:center;height:23px;padding:0 8px;border-radius:7px;font-size:13px;font-weight:500;white-space:nowrap}
+.att.on_target{background:color-mix(in srgb,var(--ok) 14%,var(--surface));color:var(--ok)}
+.att.at_risk{background:var(--warn-soft);color:var(--warn)}
+.att.behind{background:var(--err-soft);color:var(--err)}
+.att.no_target{background:var(--surface-2);color:var(--text-2)}
+.attx.on_target{color:var(--ok)} .attx.at_risk{color:var(--warn)} .attx.behind{color:var(--err)}
+.used .ub i.on_target,.kpi .kbar i.on_target{background:var(--ok)} .used .ub i.at_risk,.kpi .kbar i.at_risk{background:var(--warn)} .used .ub i.behind,.kpi .kbar i.behind{background:var(--err)}
+.used .pc.behind{color:var(--err)} .used .pc.at_risk{color:var(--warn)}
+.kpi .kbar i.time{background:var(--text-2)}
+.est{display:inline-flex;align-items:center;height:18px;padding:0 6px;border-radius:5px;background:var(--surface-2);color:var(--text-2);border:1px dashed var(--border-strong);font-size:11.5px;font-weight:600;vertical-align:1px;cursor:help}
+/* F4 — the one empty state */
+.empty-st{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:200px;padding:24px 12px;text-align:center;color:var(--muted);font-size:14px}
+.empty-st b{color:var(--text-2);font-weight:600;font-size:15px}
+.empty-st .links{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center}
+.empty-st .sep,.subline .sep{color:var(--muted)}
+button.link{border:0;background:none;color:var(--info);font:inherit;cursor:pointer;padding:0;text-align:left}
+button.link:hover{text-decoration:underline}
+.sumline button.link{font-size:14px}
+/* By campaign — toolbar · sub line · status tabs · SKU table */
+.subline{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.subline .st{height:21px;font-size:12.5px}
+select.sel.yr{min-width:92px}
+.ms.single .ms-trigger{min-width:280px}
+.ms.single .ms-l{display:inline-flex;align-items:center;gap:8px}
+.ms.single .ms-l .st{height:20px;font-size:12px}
+.ms-opt.pick{border:0;background:none;width:100%;text-align:left;font:inherit;color:var(--text)}
+.ms-opt.pick.on{background:var(--accent-soft);color:var(--accent)}
+.ms-opt.pick .st{height:20px;font-size:12px}
+.navbtns{display:inline-flex;gap:2px}
+.sttabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-top:10px;overflow-x:auto;scrollbar-width:none}
+.sttabs button{border:0;background:none;height:36px;padding:0 10px;font-size:14px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;white-space:nowrap}
+.sttabs button .n{font-weight:400;margin-left:4px;font-variant-numeric:tabular-nums}
+.sttabs button.on{color:var(--text);border-bottom-color:var(--text);font-weight:700}
+.sttabs button.on.behind{border-bottom-color:var(--err)} .sttabs button.on.at_risk{border-bottom-color:var(--warn)} .sttabs button.on.on_target{border-bottom-color:var(--ok)}
+.tbl.sku td.sku{min-width:180px;white-space:normal}
+.tbl.sku td.sku b{display:block;font-weight:700;font-size:14px;line-height:1.3}
+.tbl.sku .sk2{display:block;font-size:12.5px;color:var(--muted);line-height:1.3}
+.tbl.sku td.chc .used{gap:6px}
+.sku-wrap{max-height:640px}
+/* P&L Waterfall */
+.r2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:16px;align-items:stretch}
+.r2 .card{margin-top:0;display:flex;flex-direction:column}
+@media (max-width:1180px){.r2{grid-template-columns:minmax(0,1fr)}}
+select.sel.scope{min-width:260px}
+.legend i.subt{width:12px;height:12px;background:var(--text-2);box-shadow:inset 0 0 0 2px var(--text)}
+.chartbox .wf-g{font-size:12.5px;fill:var(--muted);font-weight:600}
+.chartbox .wf-v{font-size:13.5px;fill:var(--text-2);font-weight:600}
+.chartbox .wf-v.b{fill:var(--text);font-weight:700}
+.chartbox .wf-p{font-size:11.5px;fill:var(--muted)}
+.chartbox .wf-l{font-size:13px;fill:var(--text-2)}
+.chartbox .wf-l.b{font-weight:700;fill:var(--text)}
+.chartbox .wf-l.sm{font-size:11.5px} .chartbox .wf-v.sm{font-size:11.5px} .chartbox .wf-l.xs,.chartbox .wf-v.xs{font-size:10.5px}
+.stmt td.lbl{min-width:220px;white-space:normal}
+.stmt tr.major td{font-weight:700}
+.stmt tr.sub td{height:33px;background:var(--row-child);border-bottom:1px dashed var(--border);font-size:13.5px}
+.stmt tr.sub td.lbl{padding-left:40px}
+.stmt td .pp{font-weight:400;color:var(--muted);font-size:13px;margin-left:6px}
+.stmt .lblw{display:flex;align-items:center;gap:4px}
+
+/* ===================== Ctrl+K — Search or jump to… ===================== */
+dialog.cmdk{padding:0;border:1px solid var(--border);border-radius:14px;background:var(--surface);color:var(--text);box-shadow:var(--shadow-lg);width:min(532px,calc(100vw - 32px));margin:max(56px,10vh) auto auto;max-height:calc(100vh - 120px);overflow:hidden}
+dialog.cmdk[open]{display:flex;flex-direction:column}
+dialog.cmdk::backdrop{background:var(--backdrop);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+.ck-in{display:flex;align-items:center;gap:10px;height:51px;padding:0 13px 0 15px;border-bottom:1px solid var(--border)}
+.ck-in svg{width:16px;height:16px;fill:none;stroke:var(--muted);stroke-width:1.6;stroke-linecap:round}
+.ck-in input{flex:1;border:0;outline:none;background:none;color:var(--text);font:inherit;font-size:15.5px;min-width:0}
+.ck-in input::placeholder{color:var(--muted)}
+.ck-list{overflow:auto;padding:4px 7px 8px}
+.ck-g{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);padding:12px 6px 6px}
+.ck-o{display:flex;align-items:center;gap:10px;height:34px;padding:0 6px;border-radius:9px;cursor:pointer;font-size:15px;color:var(--text)}
+.ck-o .ic{width:18px;height:18px;display:inline-grid;place-items:center;color:var(--text-2)}
+.ck-o .ic svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.ck-o .lb{flex:1;min-width:0}
+.ck-o .rt{font-size:13.5px;color:var(--muted);white-space:nowrap}
+.ck-o.on{background:var(--accent-soft);color:var(--accent)}
+.ck-o.on .ic{color:var(--accent)}
+.ck-o mark{background:var(--mark);color:inherit;border-radius:2px}
+.ck-none{padding:16px 8px;color:var(--muted);font-size:14px}
+.ck-f{display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--border);padding:10px 14px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+
+/* ===================== the month range picker (ui-range.js) ===================== */
+dialog.drp{position:fixed;margin:0;padding:0;border:1px solid var(--border);border-radius:14px;background:var(--surface);color:var(--text);box-shadow:var(--shadow-lg);width:min(560px,calc(100vw - 16px))}
+dialog.drp::backdrop{background:transparent}
+dialog.drp.sheet{inset:0;width:100%;max-width:none;height:100%;max-height:none;border-radius:0}
+.drp-h{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:14px 16px 10px;border-bottom:1px solid var(--border)}
+.drp-l{font-size:12px;color:var(--muted)}
+.drp-big{font-size:18px;font-weight:700}
+.drp-edit.on{background:var(--surface-2);color:var(--text)}
+.drp-type{display:flex;gap:12px;padding:12px 16px 0;flex-wrap:wrap}
+.drp-type .field{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)}
+.drp-type input{height:32px;border:1px solid var(--border-strong);border-radius:8px;padding:0 10px;font:inherit;background:var(--surface);color:var(--text);width:140px}
+.checks{padding:4px 16px 0}
+.check.err{color:var(--err);font-size:13px}
+.drp-body{position:relative;padding:12px 16px}
+.drp-nav{position:absolute;left:8px;right:8px;top:8px;display:flex;justify-content:space-between;pointer-events:none}
+.drp-nav .icon-btn{pointer-events:auto}
+.drp-ms{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.drp-ms.vert{grid-template-columns:1fr;max-height:calc(100vh - 220px);overflow:auto}
+.drp-mt{text-align:center;font-weight:700;margin:4px 0 10px}
+.drp-g.mg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.drp-d{height:36px;border:0;border-radius:8px;background:none;color:var(--text);cursor:pointer;font-size:14px}
+.drp-d:hover{background:var(--surface-2)}
+.drp-d.today span{border-bottom:2px solid var(--accent)}
+.drp-d.in{background:var(--accent-soft);border-radius:0}
+.drp-d.start,.drp-d.end{background:var(--accent);color:var(--accent-text);font-weight:700}
+.drp-d.prev{opacity:.85}
+.drp-d:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.drp-f{display:flex;justify-content:flex-end;gap:8px;padding:10px 16px 14px;border-top:1px solid var(--border)}
+
+/* ===================== toast ===================== */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--surface);padding:10px 16px;border-radius:8px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:80;max-width:calc(100vw - 32px)}
+.toast.show{opacity:1}
+/* a phone: the search is its icon only, so DEV · Real | Mock · theme fit (nothing cut) */
+@media (max-width:520px){.tb-search{flex:0 0 auto;width:34px;padding:0;justify-content:center}.tb-search .tx{display:none}.topbar{gap:6px}}
+
+/* ===================== CR-03 — Campaigns: Add · Edit · Cancel (KOL v0.1.19 Campaign & Phase · its drawer, dialog and menu) ===================== */
+/* Cancelled and Pending build are grey everywhere: status chip · chips · KPI bar · Timeline bar (struck through, as KOL) */
+.st.cancelled{background:var(--surface-2);color:var(--muted);text-decoration:line-through;text-decoration-thickness:1px}
+.chip.grey{background:var(--surface-2);color:var(--text-2)}
+.kpi .kbar i.cancelled{background:var(--series-grey)}
+.gbar.cancelled{background:var(--series-grey);opacity:.8}
+.gbar.cancelled::after{content:"";position:absolute;left:0;right:0;top:50%;border-top:1.5px solid var(--text-2)}
+i.gbar.cancelled{position:relative}
+/* a checkbox with its words (Include cancelled) */
+label.chk{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 4px;font-size:13.5px;color:var(--text-2);cursor:pointer;white-space:nowrap;user-select:none}
+label.chk input{width:16px;height:16px;margin:0;accent-color:var(--accent);cursor:pointer}
+/* the group heading of a single-choice list (By campaign: Cancelled last) */
+.ms-grp{padding:8px 10px 4px;margin-top:4px;border-top:1px solid var(--border);font-size:12px;font-weight:600;color:var(--muted)}
+.btn.danger{background:var(--err);border-color:var(--err);color:#fff}
+.btn.danger:hover{background:color-mix(in srgb,var(--err) 86%,#000);border-color:color-mix(in srgb,var(--err) 86%,#000)}
+.btn.primary svg,.btn.danger svg{stroke:currentColor}
+.okm{color:var(--ok);font-weight:700}
+.nowrap{white-space:nowrap}
+
+/* ---------- the Campaigns page ---------- */
+.ctools .spacer{flex:1 1 0}
+.ksearch{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 10px;border:1px solid var(--border-strong);border-radius:8px;background:var(--surface);color:var(--muted);min-width:220px;flex:0 1 260px}
+.ksearch svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;flex:0 0 auto}
+.ksearch input{border:0;outline:0;background:none;font:inherit;font-size:13.5px;color:var(--text);width:100%;min-width:0;height:30px;padding:0}
+.ksearch:focus-within{border-color:var(--info);box-shadow:0 0 0 1px var(--info)}
+#k_saves{display:flex;flex-wrap:wrap;align-items:center;gap:2px 0}
+#k_saves span{cursor:default}
+#k_saves .sep{margin:0 6px}
+#k_saves .kchg button.link{font-size:12.5px;margin-left:6px}
+.ktabs{margin-top:14px}
+.ktable{margin-top:12px;padding:0;overflow:hidden}
+.ktable .tablewrap{overflow-x:auto}
+.ktable .c3-empty{padding:28px 16px;text-align:center;color:var(--muted)}
+table.klist{width:100%;border-collapse:collapse;font-size:13.5px}
+table.klist th{text-align:left;font-weight:600;font-size:12.5px;color:var(--muted);padding:10px 8px;border-bottom:1px solid var(--border);white-space:nowrap;background:var(--surface)}
+table.klist td{padding:10px 8px;border-bottom:1px solid var(--border);vertical-align:middle}
+table.klist tbody tr:last-child td{border-bottom:0}
+table.klist tr.click{cursor:pointer}
+table.klist tr.click:hover td{background:var(--row-hover)}
+table.klist tr.click:focus-visible{outline:2px solid var(--info);outline-offset:-2px}
+table.klist .nm{min-width:160px}
+table.klist td:first-child,table.klist th:first-child{padding-left:14px}
+table.klist .nmt{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+table.klist .nmt b{font-weight:700}
+table.klist .kfile{min-width:150px;max-width:190px;overflow-wrap:anywhere;color:var(--text-2);font-size:13px}
+table.klist .kmore{width:44px;text-align:right;padding:4px 8px;position:sticky;right:0;background:var(--surface)}
+table.klist th:last-child{position:sticky;right:0}
+table.klist tr.click:hover .kmore{background:var(--row-hover)}
+table.klist .kmore svg{width:16px;height:16px}
+.dmarks{display:inline-grid;grid-template-columns:auto auto;gap:3px}
+.dm{display:inline-flex;align-items:center;height:19px;padding:0 5px;border-radius:6px;font-size:11.5px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.dm.on{background:var(--ok-soft);color:var(--ok)}
+/* the ⋯ menu (floating, as KOL .menu-list) */
+.menu-pop{position:fixed;z-index:45;min-width:200px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);padding:6px;display:flex;flex-direction:column}
+.menu-pop button{border:0;background:none;font:inherit;font-size:14px;color:var(--text);text-align:left;padding:8px 10px;border-radius:8px;cursor:pointer;white-space:nowrap}
+.menu-pop button:hover,.menu-pop button:focus-visible{background:var(--surface-2);outline:0}
+.menu-pop button.danger{color:var(--err)}
+.menu-pop button:disabled{opacity:.45;cursor:not-allowed}
+@media (max-width:767px){.ksearch{flex:1 1 100%;min-width:0}.ctools .spacer{display:none}}
+
+/* ---------- the drawer (New / Edit) — KOL .drawer, 480px · full width on a phone ---------- */
+body.drawer-open{overflow:hidden}
+.drawer-wrap{position:fixed;inset:0;z-index:50}
+.drawer-overlay{position:absolute;inset:0;background:var(--overlay)}
+.drawer{position:absolute;top:0;right:0;bottom:0;width:480px;max-width:100%;background:var(--bg);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;outline:0}
+@media (max-width:767px){.drawer{width:100%}}
+.dr-head{position:sticky;top:0;z-index:3;background:var(--surface);border-bottom:1px solid var(--border);padding:16px 20px;display:flex;align-items:flex-start;gap:12px}
+.dr-title{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.dr-title h2{margin:0;font-size:18px;font-weight:700;line-height:1.3;overflow-wrap:anywhere}
+.dr-sub{font-size:12px;color:var(--muted)}
+.dr-head .icon-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round}
+.dr-body{flex:1;overflow:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px;margin:0}
+.dr-foot{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:12px 20px;display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
+.dr-foot .fmsg{flex:1 1 100%;margin:0}
+.dr-foot .fmsg:empty{display:none}
+/* the form: fields as KOL (label above · 36px inputs · red help under) */
+.kform .field,.dlg .field{display:flex;flex-direction:column;gap:4px;min-width:0;margin:0;border:0;padding:0}
+.kform .field.sub{margin-top:8px}
+.kform label,.kform legend,.dlg .field label{font-weight:500;font-size:13px;color:var(--text-2);padding:0}
+.kform legend{margin-bottom:6px}
+.req{color:var(--err)}
+.inp,.dlg textarea{font:inherit;font-size:14px;color:var(--text);background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;padding:7px 10px;width:100%;min-width:0;height:36px}
+textarea.inp,.dlg textarea{height:auto;min-height:64px;resize:vertical}
+select.inp{appearance:auto;padding-right:6px}
+.inp:focus,.dlg textarea:focus{outline:2px solid var(--info);outline-offset:-1px;border-color:var(--info)}
+.inp:disabled{background:var(--surface-2);color:var(--muted)}
+.frow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:420px){.frow{grid-template-columns:minmax(0,1fr)}}
+.help{font-size:12px;color:var(--muted)}
+.help:empty,.ferr:empty{display:none}
+.ferr{font-size:12px;color:var(--err)}
+.fmsg{display:flex;align-items:center;gap:8px}
+.radios{display:flex;flex-direction:column;gap:6px}
+.rad{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text);cursor:pointer;padding:2px 0}
+.rad input{width:16px;height:16px;margin:0;accent-color:var(--accent);cursor:pointer;flex:0 0 auto}
+.rad.off{color:var(--muted);cursor:not-allowed}
+.radios .sub{margin:0 0 4px 24px;display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--text-2)}
+.radios .sub:empty{display:none}
+.radios .sub button.link{font-size:12.5px;align-self:flex-start}
+.kcur{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-height:36px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);font-size:13.5px;overflow-wrap:anywhere}
+.kcur > span{flex:1;min-width:0}
+
+/* ---------- the dialog in the page (Cancel <name>? · Discard changes?) — never the browser's confirm ---------- */
+dialog.dlg{border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);padding:0;width:min(480px,calc(100vw - 32px));max-height:calc(100vh - 48px);box-shadow:var(--shadow-lg)}
+dialog.dlg::backdrop{background:var(--overlay)}
+.dlg-h{padding:14px 16px;border-bottom:1px solid var(--border);font-weight:700;font-size:15px;overflow-wrap:anywhere}
+.dlg-b{padding:16px;overflow:auto;max-height:calc(100vh - 180px);display:flex;flex-direction:column;gap:12px;font-size:14px;color:var(--text-2)}
+.dlg-b p{margin:0;line-height:1.5}
+.dlg-f{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+/* a date as KOL: dd/mm/yyyy typed · the calendar button opens the browser's picker */
+.dfield{display:flex;align-items:center;position:relative;min-width:0}
+.dfield .dtext{padding-right:36px}
+.dfield .dpick{position:absolute;right:2px;top:2px;width:32px;height:32px;border:0;background:none;color:var(--muted);cursor:pointer;display:grid;place-items:center;border-radius:6px}
+.dfield .dpick:hover{background:var(--surface-2)}
+.dfield .dpick svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}
+.dfield .dnative{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
+/* the P&L file name wraps (the Portfolio table keeps its cells on one line) */
+table.klist td.kfile{white-space:normal}
+table.klist td:nth-child(4){white-space:normal;min-width:80px}
+/* E1 → E: Est. next to a COGS / GP / profit that holds an estimated COGS · the note under the waterfall */
+td .est,.kpi .v .est{margin:0 6px;vertical-align:middle;cursor:help}
+.estnote{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;color:var(--muted)}
+.estnote .est{cursor:help}
+
+/* ===================== CR-04 — Mock | Real · four tabs · one empty state a tab · Overview · Sales · Spend & Profit · By campaign ===================== */
+/* P12 — the question of the tab, a grey line under the tabs */
+.tabq{margin-top:8px;font-size:13px;color:var(--muted)}
+.tabq:empty{display:none}
+/* §7.3 — the one band of a tab with no Sales actual · a folded card = its head + one grey line */
+.nsband{display:flex;align-items:center;justify-content:space-between;gap:6px 16px;flex-wrap:wrap;margin-top:12px;padding:9px 14px;border:1px dashed var(--border-strong);border-radius:10px;background:var(--surface-2);color:var(--text-2);font-size:13.5px}
+.nsband .nsb-t{font-weight:600}
+.nsband .links{display:flex;align-items:center;gap:8px}
+.nsband .sep{color:var(--muted)}
+.foldl{margin-top:10px;padding:2px 0 0;font-size:13.5px;color:var(--muted)}
+/* a folded card on one row (~56px): Title · No sales actual yet ··· its controls (they stay, so the measure can be changed) */
+div.card:has(> .foldl){display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;column-gap:14px;row-gap:6px;padding-top:12px;padding-bottom:12px}
+div.card:has(> .foldl) > .card-head{display:contents}
+div.card:has(> .foldl) > .card-head h3{order:0}
+div.card:has(> .foldl) > .foldl{order:1;margin:0;padding:0}
+div.card:has(> .foldl) > .card-head .ctl{order:2}
+.r3b div.card:has(> .foldl),.r2 div.card:has(> .foldl){align-self:start}
+@media (max-width:900px){div.card:has(> .foldl){grid-template-columns:minmax(0,1fr) auto}div.card:has(> .foldl) > .card-head .ctl{grid-column:1 / -1;justify-content:flex-start}}
+/* §7.2 (P4) — a KPI with no actual: the target / budget / plan in grey + its tag · the bar empty */
+.kpi .v .vn.gv{color:var(--muted);font-weight:600}
+.kpi .v .gtag{display:inline-flex;align-items:center;height:19px;padding:0 7px;border-radius:6px;background:var(--surface-2);color:var(--text-2);border:1px solid var(--border);font-size:12px;font-weight:600;align-self:center}
+.kpi .cap .capn{display:block;margin-top:2px;font-size:12.5px}
+.kpi .cap b.bad{color:var(--err)}
+/* §6 — the Status menu as wide as its words · a line above Cancelled */
+.ms.fit .ms-trigger{min-width:0}
+.ms-sep{border-top:1px solid var(--border);margin:4px 2px}
+select.sel.scope{min-width:0}
+.toolbar{gap:8px}
+.seg.preset button{padding:0 10px}
+.ms.fit .ms-trigger,.ms.single.fit .ms-trigger{min-width:0;gap:8px}
+.toolbar .rtext{font-size:14px}
+/* §7.4 — Time: a short elapsed bar + n days left · Ended dd/mm · Starts in n days */
+.tcell{display:inline-flex;flex-direction:column;gap:4px;min-width:96px;white-space:nowrap}
+.tcell .tb{display:block;width:44px;height:4px;background:var(--surface-3);overflow:hidden}
+.tcell .tb i{display:block;height:100%;background:var(--text-2)}
+.tcell .tw{font-size:12.5px;color:var(--text-2);line-height:1.2}
+.tcell .tw.soon{color:var(--warn);font-weight:600}
+.tcell .tw.muted{color:var(--muted)}
+/* Overview › Row 3 — Needs attention (1/3) · Campaign timeline (2/3) · stacked under 1200px */
+.r3b{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:14px;margin-top:16px;align-items:stretch}
+.r3b .card{margin-top:0;display:flex;flex-direction:column}
+@media (max-width:1199px){.r3b{grid-template-columns:minmax(0,1fr)}}
+.nalist{display:flex;flex-direction:column;margin-top:10px;border-top:1px solid var(--border)}
+.nar{display:grid;grid-template-columns:10px minmax(0,1fr) auto 14px;align-items:center;gap:10px;width:100%;padding:10px 4px;border:0;border-bottom:1px solid var(--border);background:none;color:var(--text);font:inherit;text-align:left;cursor:pointer}
+.nar:hover{background:var(--row-hover)}
+.nar:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.nar .dot{width:9px;height:9px;border-radius:50%;background:var(--warn)}
+.nar.err .dot{background:var(--err)}
+.nar .nab{display:flex;flex-direction:column;gap:4px;min-width:0}
+.nar .nab b{font-weight:700;font-size:14px;line-height:1.3}
+.nar .nav{font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.nar .nav.none{color:var(--muted);font-weight:400}
+.nar .nchev{color:var(--muted);display:inline-grid}
+.nar .nchev svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.na-none{flex:1;display:flex;align-items:center;gap:8px;justify-content:center;text-align:left;padding:28px 12px;color:var(--text-2);font-size:14px}
+.na-foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:auto;padding-top:10px;font-size:13px;color:var(--muted)}
+.na-foot a.link{color:var(--info);text-decoration:none}
+.na-foot a.link:hover{text-decoration:underline}
+/* the timeline in its 2/3 card: fixed columns (P7), no sideways scroll at 1440px */
+.r3b .gantt th.gn,.r3b .gantt td.gn{width:160px;min-width:140px;max-width:160px}
+.r3b .gantt th.gs,.r3b .gantt td.gs{width:136px;min-width:136px;white-space:nowrap;padding-left:10px}
+.r3b .gantt td.gtl{min-width:300px}
+.gantt th.gs,.gantt td.gs{white-space:nowrap}
+/* Sales › Campaign attainment · Spend & Profit › Spend & profit by campaign (≤ 10 columns · the Campaign column fixed, its name wraps) */
+.stbl td,.stbl th,.wtbl td,.wtbl th{padding-left:7px;padding-right:7px}
+.stbl td.nm{width:172px;min-width:172px;max-width:172px}
+.stbl td,.stbl th{padding-left:6px;padding-right:6px}
+.stbl .tcell{min-width:88px}
+.wtbl td.nm{width:230px;min-width:200px;max-width:240px}
+.stbl .used .ub,.wtbl .used .ub{width:44px}
+.stbl .used,.wtbl .used{gap:7px}
+.tbl tr.sel td{background:var(--row-sel)}
+.chip.sel{background:var(--accent-soft);color:var(--accent)}
+.wtbl td.nm .nmt{display:flex;flex-direction:column;gap:3px;align-items:flex-start}
+.wtbl td.nm .nmt b{font-weight:700}
+/* Sales › By channel (hbars with the sub-channels under) · SKU watchlist */
+.hb .hl{display:flex;align-items:center;gap:2px;min-width:0}
+.hb .hlt{line-height:1.25}
+.hb .hlt small{color:var(--muted);font-size:11.5px}
+.hb.grp .hlt{font-weight:600;color:var(--text)}
+.hb.child .hl{padding-left:24px}
+.hb.child{font-size:13px}
+.hb.child .ht{height:12px}
+.tbl.skuw td{height:44px}
+.tbl.skuw td.sku{min-width:150px}
+/* Spend & Profit · By campaign › Row 5 — two cards side by side from 1440px (P8: no sideways scroll in the statement) */
+@media (max-width:1439px){.r2.st2{grid-template-columns:minmax(0,1fr)}}
+.stmt td,.stmt th{padding-left:6px;padding-right:6px}
+.stmt td.lbl{min-width:120px;white-space:normal}
+.stmt .lbt{display:flex;flex-direction:column;line-height:1.25}
+.stmt td .pp{display:block;margin:2px 0 0;font-size:12px}
+.stmt tr.sub td.lbl{padding-left:36px}
+.b-open{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+.b-open button.link{font-size:14px}
+.card-head h3 .hnote{font-size:13px;font-weight:400;color:var(--muted);margin-left:6px}
+/* Campaigns (P10) — ✓ Target in green · – Sales grey with the words clear */
+.dm.off{background:var(--surface-2);color:var(--text-2)}
+.dmarks{cursor:help}
+
+/* ===================== CR-05 — Acting as · Campaign page · grid · Budget bar · approvals (KOL) · Expenses ===================== */
+:root{ --b-paid:#175cd3; --b-com:#84adff; --b-pnl:#7d89b0; --b-rem:#e4e7ec; --b-over:#d92d20; --b-pend:#fdb022; }
+:root[data-theme="dark"]{ --b-paid:#528bff; --b-com:#2e4f8f; --b-pnl:#56607d; --b-rem:#2a303b; --b-over:#f97066; --b-pend:#c98500; }
+/* the top bar: who the page acts as · the prototype band */
+.actorbtn{display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 8px 0 4px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);cursor:pointer;max-width:280px}
+.actorbtn:hover{background:var(--surface-2)} .actorbtn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.actorbtn .ab-t{display:flex;flex-direction:column;line-height:1.1;text-align:left;min-width:0}
+.actorbtn .ab-l{font-size:10.5px;color:var(--muted)} .actorbtn .ab-n{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.actorbtn .ab-c{font-size:10px;color:var(--muted)}
+@media (max-width:767px){.actorbtn .ab-t,.actorbtn .rchip{display:none}}
+.av{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:12.5px;font-weight:700;flex:0 0 auto}
+.av.sm{width:20px;height:20px;font-size:10.5px}
+.rchip{display:inline-flex;align-items:center;height:19px;padding:0 6px;border-radius:5px;font-size:11.5px;font-weight:600;white-space:nowrap;background:var(--surface-2);color:var(--text-2)}
+.rchip.admin{background:var(--err-soft);color:var(--err)} .rchip.manager{background:var(--info-soft);color:var(--info)} .rchip.staff{background:var(--ok-soft);color:var(--ok)}
+.rchip.accounting{background:var(--warn-soft);color:var(--warn)} .rchip.viewer{background:var(--surface-2);color:var(--muted)}
+.amenu{position:fixed;z-index:46;min-width:240px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);padding:6px;display:flex;flex-direction:column}
+.amenu .am-h{font-size:12px;color:var(--muted);padding:4px 10px 6px}
+.amenu .am-o{display:flex;align-items:center;gap:8px;border:0;background:none;font:inherit;font-size:14px;color:var(--text);text-align:left;padding:7px 10px;border-radius:8px;cursor:pointer}
+.amenu .am-o:hover,.amenu .am-o:focus-visible{background:var(--surface-2);outline:0} .amenu .am-o.on{font-weight:600}
+.amenu .am-n{flex:1} .amenu .am-k{width:14px;color:var(--accent)} .amenu .am-sep{height:1px;background:var(--border);margin:4px 2px} .amenu .am-none{padding:8px 10px;color:var(--muted)}
+.ptbl td{padding:4px 6px} .ptbl .c{text-align:center}
+/* chips: approval · expenses · the kind of a request */
+.st.adraft{background:var(--surface-2);color:var(--text-2)} .st.asubmitted,.st.apending{background:var(--warn-soft);color:var(--warn)}
+.st.aapproved{background:var(--ok-soft);color:var(--ok)} .st.areturned{background:color-mix(in srgb,var(--st-wrap) 16%,var(--surface));color:var(--st-wrap-text)}
+.st.arejected{background:var(--err-soft);color:var(--err)} .st.awithdrawn{background:var(--surface-2);color:var(--muted)}
+.st.ecommitted{background:var(--info-soft);color:var(--info)} .st.epaid{background:var(--ok-soft);color:var(--ok)} .st.evoid{background:var(--surface-2);color:var(--muted);text-decoration:line-through}
+.apt{display:inline-flex;align-items:center;height:21px;padding:0 7px;border-radius:6px;font-size:12px;font-weight:600;background:var(--surface-2);color:var(--text-2);white-space:nowrap}
+.apt.plan{background:var(--accent-soft);color:var(--accent)} .apt.increase{background:var(--warn-soft);color:var(--warn)} .apt.release{background:var(--ok-soft);color:var(--ok)} .apt.reallocation{background:var(--info-soft);color:var(--info)}
+.nbadge{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:var(--accent-text);font-size:11px;font-weight:700;margin-left:6px;line-height:1}
+.sn-item{position:relative} .sn-item .nbadge{margin-left:auto}
+.shell.collapsed .sn-item .nbadge{position:absolute;top:2px;right:2px;margin:0;min-width:15px;height:15px;font-size:9.5px}
+/* the Budget bar (§9.1): Paid · Committed · (P&L spent) · Remaining · Over · Pending · ▲ budget to date */
+.bbar{position:relative;display:block;height:10px;margin:6px 0 4px;min-width:60px}
+.bbar .bb-t{display:flex;height:100%;border-radius:5px;overflow:hidden;background:var(--b-rem)}
+.bbar .bb-t i{display:block;height:100%}
+.bbar i.paid{background:var(--b-paid)} .bbar i.com{background:var(--b-com)} .bbar i.pnl{background:var(--b-pnl)} .bbar i.rem{background:var(--b-rem)}
+.bbar i.over{background:var(--b-over)} .bbar i.pend{background:repeating-linear-gradient(135deg,var(--b-pend) 0 2px,transparent 2px 5px)}
+.bbar .bb-tick{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:var(--text);border-radius:1px}
+.bbar.short{height:7px;margin:3px 0;min-width:44px}
+.bbleg{margin-top:6px;font-size:12.5px}
+.bbleg i.sw{width:12px;height:10px;border-radius:2px} .bbleg i.sw.paid{background:var(--b-paid)} .bbleg i.sw.com{background:var(--b-com)} .bbleg i.sw.pnl{background:var(--b-pnl)}
+.bbleg i.sw.rem{background:var(--b-rem);box-shadow:inset 0 0 0 1px var(--border-strong)} .bbleg i.sw.pend{background:repeating-linear-gradient(135deg,var(--b-pend) 0 2px,transparent 2px 5px);box-shadow:inset 0 0 0 1px var(--b-pend)}
+.bbleg i.sw.tick{width:2px;height:12px;background:var(--text)}
+.bblk{margin-top:10px;max-width:640px} .bblk .bbv{font-size:15px}
+.bcell{display:flex;flex-direction:column;min-width:96px} .bcell .bbar{margin:2px 0}
+td.bud{min-width:110px}
+.owner{display:inline-flex;align-items:center;gap:6px}
+/* the views of Campaigns: Table · Approvals (n) */
+.vtabs{display:flex;gap:4px;margin-top:14px;border-bottom:1px solid var(--border)}
+.vtabs a{display:inline-flex;align-items:center;height:38px;padding:0 12px;font-size:14.5px;font-weight:500;color:var(--muted);text-decoration:none;border-bottom:2px solid transparent;margin-bottom:-1px}
+.vtabs a:hover{color:var(--text)} .vtabs a.on{color:var(--accent);border-bottom-color:var(--accent)}
+.apcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:14px;margin-top:14px}
+@media (max-width:520px){.apcards{grid-template-columns:minmax(0,1fr)}}
+.apcard{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-card);padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.apcard.pending{border-left:3px solid var(--warn)} .apcard.returned{border-left:3px solid var(--st-wrap)} .apcard.rejected{border-left:3px solid var(--err)} .apcard.approved{border-left:3px solid var(--ok)}
+.apcard header{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.apcard h3{margin:0;font-size:16px;font-weight:700} .apcard h3 a{color:var(--text);text-decoration:none} .apcard h3 a:hover{text-decoration:underline}
+.apsub{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+.apbody{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 14px;padding:8px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.apkv{display:flex;flex-direction:column;min-width:0} .apkv span{font-size:12px;color:var(--muted)} .apkv b{font-size:14px;font-weight:600;overflow-wrap:anywhere}
+.apkv.warn b{color:var(--warn)} .apkv.neg b{color:var(--err)}
+.apdec{font-size:13px;color:var(--text-2)}
+.apcard footer{display:flex;gap:8px;justify-content:flex-end;margin-top:auto}
+/* the Campaign page */
+.cp-head{display:flex;align-items:center;justify-content:space-between;gap:10px 16px;flex-wrap:wrap;margin-top:14px}
+.cp-ttl{display:flex;flex-direction:column;gap:4px;min-width:0} .cp-chips{display:flex;gap:6px;flex-wrap:wrap}
+.cp-meta{font-size:13px;color:var(--text-2)} .cp-meta .sep{margin:0 6px;color:var(--muted)}
+.cp-act{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ptabs a .n{font-weight:400;margin-left:4px;color:var(--muted)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-top:12px}
+.tiles.t4{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+.tile{border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:var(--surface);min-width:0}
+.tile.wide{grid-column:span 2} @media (max-width:600px){.tile.wide{grid-column:auto}}
+.tile .tl{font-size:12.5px;color:var(--muted)} .tile .tv{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums} .tile .tv small{font-size:12px;font-weight:400;color:var(--muted)}
+.tile .ts{font-size:12px;color:var(--text-2)} .tile.warn .tv{color:var(--warn)} .tile.neg .tv{color:var(--err)}
+.cp-counts{margin-top:8px}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 16px;margin:10px 0 0;font-size:13.5px} .kv dt{color:var(--muted)} .kv dd{margin:0;overflow-wrap:anywhere}
+.kv dd.neg{color:var(--err)}
+.checks2{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:13.5px}
+.checks2 li{display:flex;gap:8px;align-items:baseline} .checks2 .ci{width:16px;text-align:center;font-weight:700}
+.checks2 li.ok .ci{color:var(--ok)} .checks2 li.err .ci,.checks2 li.err{color:var(--err)} .checks2 li.warn .ci{color:var(--warn)}
+.card-sub{margin-top:12px;font-size:13px;font-weight:600;color:var(--text-2)}
+.hist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column} .hist li{padding:7px 0;border-bottom:1px solid var(--border);font-size:13.5px}
+.hist li:last-child{border-bottom:0} .hist .hw{font-weight:600} .hist .hd{color:var(--text-2);font-size:13px;margin-top:2px}
+.diffw{display:flex;flex-direction:column;gap:12px;margin-top:10px} .dtbl{max-width:720px} .good{color:var(--ok)} .bad{color:var(--err)}
+.prodtbl .inp.sm{height:30px;padding:4px 8px;font-size:13px;min-width:80px} .prodtbl .inp.sm.num{min-width:76px;text-align:right}
+.inp.sm{height:30px;padding:4px 8px;font-size:13px;width:auto}
+.skuadd{min-width:240px} .subadd{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}
+.cp-keys{margin-top:6px} .cp-apline{margin-top:10px;font-size:13.5px;color:var(--text-2);font-weight:500}
+.reqtbl td.wrap,.exptbl td.wrap{white-space:normal;min-width:160px;max-width:320px}
+.reqtbl td,.exptbl td{vertical-align:top} tr.errrow td{background:var(--err-soft)}
+/* the grid (Excel-like): sticky first column and header · the cell in focus · edited not saved */
+.gridbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:12px 0 8px} .gridbar .dirtyn{margin:0 4px}
+.cp-grid{margin-top:4px}
+.grid-wrap{overflow:auto;max-height:calc(100vh - 260px);border:1px solid var(--border);border-radius:10px;outline:0;position:relative}
+.grid-wrap:focus-visible{box-shadow:0 0 0 2px var(--info)}
+table.grid{border-collapse:separate;border-spacing:0;font-size:13px;font-variant-numeric:tabular-nums;min-width:100%}
+table.grid th,table.grid td{border-bottom:1px solid var(--grid);border-right:1px solid var(--grid);padding:0 8px;height:30px;white-space:nowrap;background:var(--surface)}
+table.grid thead th{position:sticky;top:0;z-index:2;background:var(--surface-2);font-weight:500;color:var(--text-2);text-align:right;line-height:1.1}
+table.grid thead th small{display:block;font-size:10px;color:var(--muted);font-weight:400}
+table.grid thead th.cur{color:var(--accent)}
+table.grid th.gl{position:sticky;left:0;z-index:1;text-align:left;min-width:220px;max-width:300px;font-weight:400;color:var(--text)}
+table.grid thead th.gl{z-index:3}
+table.grid .glw{display:flex;align-items:center;gap:4px} .glt{overflow:hidden;text-overflow:ellipsis} .glt small{color:var(--muted);margin-left:6px;font-size:11px}
+table.grid tr.lv0 th.gl{font-weight:700} table.grid tr.lv1 th.gl{padding-left:24px;color:var(--text-2)} table.grid tr.lv2 th.gl{padding-left:44px}
+table.grid tr.grp td{background:var(--row-child);color:var(--text-2)}
+table.grid .chev{border:0;background:none;width:18px;height:18px;display:inline-grid;place-items:center;cursor:pointer;color:var(--muted);padding:0}
+table.grid .chev svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;transition:transform .15s} table.grid .chev[aria-expanded="false"] svg{transform:rotate(-90deg)}
+table.grid .chev.ph{cursor:default}
+table.grid td{text-align:right;min-width:74px;cursor:cell}
+table.grid td.ro{color:var(--text-2)} table.grid.ro td{cursor:default}
+table.grid td.gt{font-weight:600;background:var(--surface-2)} table.grid tr.grp td.gt{background:var(--surface-3)}
+table.grid td.dirty{background:color-mix(in srgb,var(--warn) 12%,var(--surface))}
+table.grid td.on{outline:2px solid var(--info);outline-offset:-2px;position:relative;z-index:1}
+table.grid td.neg{color:var(--err)}
+table.grid td.editing{padding:0} table.grid .gin{width:100%;height:28px;border:0;outline:2px solid var(--info);outline-offset:-2px;text-align:right;font:inherit;padding:0 6px;background:var(--surface);color:var(--text)}
+table.grid tfoot th,table.grid tfoot td{position:sticky;bottom:0;background:var(--surface-2);font-weight:700;border-top:1px solid var(--border-strong)}
+table.grid tfoot th.gl{z-index:2}
+/* the review: one big container (KOL size L 90vw · max 1400px · 85vh) */
+dialog.mdl{border:1px solid var(--border);border-radius:14px;background:var(--bg);color:var(--text);padding:0;box-shadow:var(--shadow-lg);flex-direction:column;overflow:hidden}
+dialog.mdl[open]{display:flex} dialog.mdl::backdrop{background:var(--overlay)}
+dialog.mdl.L{width:min(90vw,1400px);height:85vh;max-width:none;max-height:none} dialog.mdl.M{width:min(720px,calc(100vw - 32px));max-height:85vh}
+@media (max-width:767px){dialog.mdl.L{width:100vw;height:100vh;max-width:100vw;max-height:100vh;border-radius:0}}
+.rv-h{display:flex;align-items:flex-start;gap:12px;padding:14px 18px;background:var(--surface);border-bottom:1px solid var(--border)}
+.rv-t{flex:1;min-width:0} .rv-t h2{margin:0;font-size:18px;font-weight:700} .rv-sub{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px;font-size:13px}
+.rv-nav{display:inline-flex;align-items:center;gap:4px}
+.rv-h .icon-btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round}
+.rv-b{flex:1;overflow:auto;padding:4px 18px 18px}
+.rv-sec{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-top:14px}
+.rv-sec h4{margin:0 0 6px;font-size:14.5px;font-weight:700}
+.rv-note{padding:8px 10px;border-radius:8px;background:color-mix(in srgb,var(--st-wrap) 12%,var(--surface));color:var(--st-wrap-text);font-size:13.5px;margin-bottom:8px}
+.rv-reason{font-size:14px;margin-bottom:8px}
+.rv-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:10px;flex-wrap:wrap}
+#rv_dec{border-color:var(--accent)} #rv_dec .field{display:flex;flex-direction:column;gap:4px} #rv_dec textarea{min-height:72px;height:auto}
+.rv-f{display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:10px 18px;background:var(--surface);border-top:1px solid var(--border)}
+a.link{color:var(--info);text-decoration:none;cursor:pointer} a.link:hover{text-decoration:underline}
+.pbanner .crumb a{color:inherit;text-decoration:none} .pbanner .crumb a:hover{text-decoration:underline}
+table.prodtbl{table-layout:fixed;width:100%;min-width:900px}
+.prodtbl th:nth-child(1){width:72px} .prodtbl th:nth-child(2){width:22%} .prodtbl th:nth-child(3){width:14%} .prodtbl th:nth-child(4),.prodtbl th:nth-child(5){width:11%}
+.prodtbl th:last-child{width:40px} .prodtbl td{padding:4px 6px} .prodtbl .inp.sm,.prodtbl .inp.sm.num{width:100%;min-width:0}
+/* a toast with an action (Undo) */
+.toast.act{pointer-events:auto;display:flex;align-items:center;gap:14px}
+.toast .tbtn{border:0;background:none;color:var(--accent-soft);font:inherit;font-weight:700;cursor:pointer;padding:2px 4px;text-decoration:underline}
+/* the wide drawer (Request budget · New expense with its Line budget) */
+.drawer.wide{width:720px}
+.xform{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:16px;align-items:start}
+.xf-main{display:flex;flex-direction:column;gap:14px;min-width:0}
+.xform .field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.xform label{font-weight:500;font-size:13px;color:var(--text-2)}
+.xf-side{position:sticky;top:0;border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:10px 12px;font-size:13px}
+.xf-side:empty{display:none} .xs-h{font-weight:700;font-size:13px;margin-top:6px} .xs-h:first-child{margin-top:0} .xs-l{color:var(--muted);font-size:12px}
+.kv.xs{grid-template-columns:1fr;gap:0 8px;font-size:12.5px} .kv.xs dt{margin-top:4px}
+@media (max-width:767px){.xform{grid-template-columns:minmax(0,1fr)}.xf-side{position:static}}
+.fwarn{font-size:12.5px;color:var(--warn)}
+.rqrow{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1.2fr) minmax(0,1fr) 32px;gap:6px;align-items:center;margin-bottom:6px}
+.rqrow .rqinfo{grid-column:1 / -1;font-size:12px;color:var(--muted);margin:-2px 0 4px} .rqrow .rqinfo:empty{display:none} .rqrow .rqinfo.err{color:var(--err)}
+.rqrow .icon-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.6}
+.rqimp{border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:6px 12px 10px}
+/* Expenses */
+.exptbl tr.void td{color:var(--muted)} .exptbl tr.void td:nth-child(n+4){text-decoration:line-through;text-decoration-thickness:1px}
+.exptbl tfoot td{border-top:1px solid var(--border-strong);border-bottom:0}
+dialog.dlg.wide{width:min(720px,calc(100vw - 32px))}
+dialog.dlg textarea#ps_text,dialog.dlg textarea#xp_text{font-family:ui-monospace,Consolas,monospace;font-size:12px;min-height:140px;white-space:pre;overflow:auto}
+
+/* CR-05 §9 — the Dashboard: the Budget KPI · Needs attention in 3 groups (V11: as tall as what it says) · the Campaign tracker · the KOL Budget table */
+.kpi .kbar:has(.bbar){height:auto;background:none;border-radius:0;overflow:visible;display:block}
+.kpi .kbar .bbar{margin:4px 0 2px} .kpi .kbar .bbar .bb-t i{height:100%}
+.estc{color:var(--muted)}
+.r3b{align-items:start}
+.nag{margin-top:10px} .nag + .nag{border-top:1px solid var(--border);padding-top:8px}
+.nagh{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--text-2);text-transform:none;margin-bottom:4px}
+.nagh .n{font-weight:400;color:var(--muted)}
+.nag .na-none{padding:4px 2px;color:var(--muted)} .na-more{padding:2px 4px}
+.na-foot .nafl{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap} .na-foot .sep{color:var(--muted)}
+.nav.bad{color:var(--err)}
+.warnx{color:var(--warn);font-weight:600} .okx{color:var(--text-2)}
+#o_trk .tbl td{vertical-align:middle} .trk .bcell{min-width:120px}
+.btbl tr.sub td{background:var(--row-child);font-size:13px} .btbl tr.sub td.lbl{padding-left:40px} .btbl tr.sub.grp td.lbl{padding-left:30px;color:var(--text-2)}
+.btbl .chev{border:0;background:none;width:20px;height:20px;display:inline-grid;place-items:center;cursor:pointer;color:var(--muted);padding:0;margin-right:2px}
+.btbl .chev svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;transition:transform .15s} .btbl .chev[aria-expanded="false"] svg{transform:rotate(-90deg)}
+.btbl tr.nob td{font-style:italic}
+#b_bud .bblk{max-width:none}
+.btbl .bnm{display:inline-flex;align-items:center;gap:2px}
+
+/* CR-05 TC05 — the grid laid out with fixed widths (fast with 2,000+ cells) */
+table.grid{table-layout:fixed;min-width:0}
+table.grid th.gl{width:240px;min-width:0;max-width:none;overflow:hidden;text-overflow:ellipsis}
+table.grid td,table.grid thead th.num{width:90px;min-width:0;overflow:hidden}
+
+/* CR-05 TC13 — no "…": the names in the grid wrap instead of being cut */
+table.grid th.gl{white-space:normal;text-overflow:clip} table.grid .glt{overflow:visible;text-overflow:clip;white-space:normal;line-height:1.25;padding:3px 0}
+.actorbtn .ab-n{overflow:visible;text-overflow:clip}
+
+.prodtbl td{white-space:normal;overflow-wrap:anywhere}
+
+/* ===================== CR-06 — Mock only · Campaigns › Timeline · Dashboard › Operations · Product Master ===================== */
+/* Campaigns › Timeline (the look of KOL Campaign & Phase › Timeline · the gantt pieces of Overview) */
+.ktl .card-head .ctl{flex-wrap:wrap}
+.ktlg-l{font-size:12.5px;color:var(--muted);margin-left:4px}
+.ktl-scroll{overflow-x:auto;border-top:1px solid var(--border)}
+.ktlg th.gs,.ktlg td.gs{position:sticky;right:0;z-index:4;background:var(--surface);width:190px;min-width:170px;box-shadow:-1px 0 0 var(--border)}
+.ktlg thead th.gs{z-index:5}
+.ktlg th.gn,.ktlg td.gn{box-shadow:1px 0 0 var(--border)}
+.ktlg td.gtl{min-width:0}
+.ktlg tr.click:hover td.gs,.ktlg tr.click:hover td.gn{background:var(--row-hover)}
+.ktlg tr.click:focus-visible td{background:var(--row-hover)} .ktlg tr.click:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.kgn{display:flex;align-items:center;gap:7px} .kgn b{font-weight:600}
+.kgc{margin:3px 0 0 27px} .kgc .st{height:20px;font-size:12px;padding:0 6px}
+.ktlg tbody .gt-row{height:46px}
+.ktlg tbody td{height:48px}
+.ktlg .gbar.ktb{top:22px;height:12px;border-radius:3px;cursor:pointer}
+.ktlg .gline.ktl{top:27px}
+.kst{position:absolute;top:5px;font-size:11.5px;color:var(--text-2);white-space:nowrap;z-index:2;line-height:1.2}
+.kst.before{color:var(--muted)}
+.gbar.kdraft{background:transparent;box-shadow:inset 0 0 0 1.5px var(--muted);background-image:none;border:0;outline:1.5px dashed var(--muted);outline-offset:-1.5px}
+.gbar.kpend{background:repeating-linear-gradient(135deg,var(--warn) 0 2px,color-mix(in srgb,var(--warn) 18%,var(--surface)) 2px 5px)}
+.gbar.kret{background:var(--warn-soft);box-shadow:inset 0 0 0 1.5px var(--warn)}
+.gbar.krej{background:var(--err-soft);outline:1.5px dashed var(--err);outline-offset:-1.5px}
+.gbar.kcan{background:repeating-linear-gradient(135deg,var(--series-grey) 0 2px,var(--surface-2) 2px 5px);opacity:.9}
+.gline.kdraft,.gline.kpend,.gline.kret,.gline.krej,.gline.kcan{border-top-style:dashed}
+.krun td{height:36px;background:var(--surface-2)}
+.krun td.gn{font-size:12.5px;color:var(--text-2);font-weight:600}
+.krun .gt-row{height:36px}
+.krn{position:absolute;top:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;z-index:2}
+.krn b{font-size:12.5px;font-weight:600;color:var(--text-2);line-height:1}
+.krn i{display:block;height:4px;border-radius:2px;background:var(--series-grey)}
+.kgrp td{height:30px;background:var(--surface-2);font-size:12.5px;font-weight:700;color:var(--text-2);padding:0 10px}
+.kgrp td.gn{max-width:none;width:auto;position:sticky;left:0}
+.kgrp .n{font-weight:400;color:var(--muted)}
+@media (max-width:767px){.ktlg th.gs,.ktlg td.gs{position:static;box-shadow:none}}
+/* Dashboard › Operations (the look of KOL Dashboard › Operations) */
+.kpi.kclick{cursor:pointer} .kpi.kclick:hover{border-color:var(--border-strong)} .kpi.kclick:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.kpi .kbar i.warnb{background:var(--warn)}
+.nagrid{display:grid;grid-template-columns:minmax(0,1fr)}
+@media (min-width:1200px){.nagrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.nagrid .nag + .nag{border-top:0;padding-top:0}}
+.opr3{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
+@media (max-width:1199px){.opr3{grid-template-columns:minmax(0,1fr)}}
+.opq .nm b{font-weight:600}
+.upg{margin-top:12px} .upg + .upg{border-top:1px solid var(--border);padding-top:10px}
+.uph{font-size:12.5px;font-weight:700;color:var(--text-2);margin-bottom:4px} .uph .n{font-weight:400;color:var(--muted)}
+.upl{list-style:none;margin:0;padding:0}
+.upr{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 6px;border-bottom:1px solid var(--border);color:inherit;text-decoration:none;border-radius:6px}
+.upr:hover{background:var(--row-hover)}
+.upn{display:flex;flex-direction:column;min-width:0} .upn b{font-weight:600}
+.upk{display:flex;flex-direction:column;align-items:flex-end;gap:2px;white-space:nowrap}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+/* MASTER DATA › Product Master (the look of KOL Master) */
+.pbsub{font-size:13px;font-weight:400;color:var(--muted);margin-left:8px}
+.ptbl .pnm b,.prodtbl .pnm b{font-weight:600}
+.ptbl tr.pdisc td{color:var(--muted)}
+.st.pnpd{background:var(--info-soft);color:var(--info)} .st.pactive{background:var(--ok-soft);color:var(--ok)} .st.pclearance{background:var(--warn-soft);color:var(--warn)} .st.pdiscontinued{background:var(--surface-2);color:var(--muted)}
+.frow.f4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:520px){.frow.f4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.inp.num{text-align:right}
+.fwarn:empty{display:none}
+.psec{margin-top:18px;border-top:1px solid var(--border);padding-top:12px} .psec h4{margin:0 0 6px;font-size:14px} .psec .n{color:var(--muted);font-weight:400}
+.puse{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px} .puse li{display:flex;align-items:center;gap:8px;justify-content:space-between}
+/* the Campaign page — SKUs from the Product Master */
+.cdrift{display:flex;flex-direction:column;align-items:flex-end;gap:2px;margin-top:3px}
+.cp-pmnote{margin:2px 0 6px}
+.ptbl td.pnm{white-space:normal;min-width:190px;max-width:300px}
+.ptbl td.pnm b{display:block;line-height:1.3}
+.ptbl th,.ptbl td{padding-left:8px;padding-right:8px}
+.opq td:nth-child(5){white-space:normal;min-width:150px;max-width:230px}
+.skuadd{width:290px;max-width:100%}
+.prodtbl td.num:has(.cdrift){min-width:150px;white-space:normal}
+.cdrift .chip{white-space:normal;height:auto;line-height:1.3;padding:2px 6px;text-align:right;max-width:150px}
+.cdrift .link{white-space:nowrap}
+.opq th,.opq td{padding-left:8px;padding-right:8px}
+.opq td.nm{white-space:normal;min-width:130px}
+.opq td:nth-child(5){min-width:120px;max-width:170px}
+
+/* ===================== CR-07 (v0.7.0) — Dashboard by year · Campaign Monitor · Campaign Planning in 6 steps ===================== */
+/* Other expenses = the 3rd group (D69) — a neutral slate, never a Campaign colour */
+:root{ --oth:#7a86ad; }
+:root[data-theme="dark"]{ --oth:#93a0c8; }
+.kpi .kbar i.mkt{background:var(--mkt)} .kpi .kbar i.sls{background:var(--sls)} .kpi .kbar i.oth{background:var(--oth)}
+/* §3 — the black tick of Time gone on a KPI bar and on a bar of a share */
+.kpi .kbar{position:relative;overflow:visible}
+.ktick{position:absolute;top:-4px;bottom:-4px;width:2px;margin-left:-1px;background:var(--text);z-index:1}
+.used.pbw .ub{position:relative;overflow:visible}
+.used .ub b.tg{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:var(--text)}
+.used .ub i.time{background:var(--text-2)} .used .ub i.ok{background:var(--ok)}
+.used .ub i.on_track{background:var(--ok)} .used .pc.on_track{color:var(--ok)}
+.pchip,.ichip{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:7px;font-size:12.5px;font-weight:500;white-space:nowrap;background:var(--surface-2);color:var(--text-2)}
+.pchip.on_track,.ichip.on_track,.ichip.ok{background:var(--ok-soft);color:var(--ok)}
+.pchip.at_risk,.ichip.watch{background:var(--warn-soft);color:var(--warn)}
+.pchip.behind,.ichip.urgent{background:var(--err-soft);color:var(--err)}
+/* R7 — 1–50 of 312 ‹ › */
+.pager{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:12px 4px 2px}
+/* Overview — the year bar (R10) · Sales vs Time gone · Watchlist */
+.yrbar{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin-top:12px;padding:10px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface);box-shadow:var(--shadow-card)}
+.yrbar b{font-size:15px} .yrbar .sep{color:var(--muted)}
+.pacetbl .used .ub{width:120px} .pacetbl td{vertical-align:middle}
+.owatch{align-items:start}
+/* P&L — the statement | the waterfall · Profit by campaign */
+.pl2{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}
+@media (max-width:1180px){.pl2{grid-template-columns:minmax(0,1fr)}}
+.stmt .fcv{color:var(--text-2)}
+.pbars{display:flex;flex-direction:column;gap:2px;margin-top:10px}
+.pbrow{display:grid;grid-template-columns:minmax(120px,220px) minmax(0,1fr) 128px;align-items:center;gap:12px;padding:7px 6px;border-radius:8px;cursor:pointer}
+.pbrow:hover{background:var(--row-hover)} .pbrow:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.pb-n{font-weight:600;min-width:0;overflow-wrap:anywhere}
+.pbar{position:relative;height:12px;background:var(--surface-2)}
+.pb-mid{position:absolute;left:50%;top:-3px;bottom:-3px;border-left:1px solid var(--border-strong)}
+.pb-f{position:absolute;top:0;bottom:0;background:var(--ok)} .pb-f.neg{background:var(--err)}
+.pb-k{position:absolute;top:-4px;bottom:-4px;width:2px;margin-left:-1px;background:var(--text)}
+.pb-v{text-align:right;font-variant-numeric:tabular-nums;font-weight:600} .pb-v.neg{color:var(--err)} .pb-v small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+@media (max-width:767px){.pbrow{grid-template-columns:minmax(0,1fr) 104px}.pbrow .pbar{grid-column:1 / -1;grid-row:2}}
+/* Campaign Monitor — the head · Burn-up · What to do · the budget lines */
+.mhead{display:flex;align-items:center;justify-content:space-between;gap:12px 20px;flex-wrap:wrap}
+.mh-l{display:flex;flex-direction:column;gap:6px;min-width:0}
+.mh-n{display:flex;align-items:center;gap:8px;flex-wrap:wrap} .mh-n b{font-size:18px}
+.mh-m{color:var(--text-2);font-size:13px} .mh-m .sep{margin:0 6px;color:var(--muted)}
+.mh-t{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mh-r{display:flex;gap:8px;flex-wrap:wrap}
+@media (max-width:560px){.mh-t .used .ub{width:150px!important}}
+.cs-l{margin-right:6px;font-weight:600}
+.legend i.ln{display:inline-block;width:16px;height:0;border-top:2.5px solid var(--sw);vertical-align:middle;margin-right:6px} .legend i.ln.dash{border-top-style:dashed}
+.chartbox.burn{min-height:260px} .blab{font-size:12px;fill:var(--text-2)}
+.todo{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.todo li{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border-radius:10px;background:var(--surface-2)}
+.todo li.urgent{background:var(--err-soft)} .todo li.watch{background:var(--warn-soft)}
+.mbud tr.grp td{background:var(--surface-2)} .mbud .chname{padding-left:18px}
+/* Campaign Planning — Progress (6 dots) · Waiting on · My tasks */
+.pdots{display:inline-flex;gap:4px;align-items:center}
+.pd{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--border-strong);font-size:11px;font-style:normal;font-weight:700;line-height:1;background:var(--surface);color:#fff}
+.pd.done{background:var(--ok);border-color:var(--ok)} .pd.prog{background:var(--info);border-color:var(--info)} .pd.ret{background:var(--warn);border-color:var(--warn)}
+.pd.late{box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--err)}
+.wtn{display:flex;align-items:flex-start;gap:8px} .wtn .av{flex:none;margin-top:2px}
+.plist td{vertical-align:top} .plist .nmt{display:flex;flex-direction:column;gap:4px}
+.tasktbl td{vertical-align:middle}
+/* the plan — the stepper · the side panel · the forms of each step */
+.stepper{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin-top:14px}
+.stepper .step{display:flex;gap:8px;align-items:flex-start;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);text-decoration:none;min-width:0}
+.stepper .step:hover{background:var(--row-hover)} .stepper .step.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.stepper .step:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sd{flex:none;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:12px;font-weight:700;border:1.5px solid var(--border-strong);color:var(--text-2);background:var(--surface)}
+.sd.done{background:var(--ok);border-color:var(--ok);color:#fff} .sd.prog{border-color:var(--info);color:var(--info)} .sd.ret{background:var(--warn);border-color:var(--warn);color:#fff}
+.sd.open{border-color:var(--text);color:var(--text)} .sd.wait{opacity:.55}
+.sx{display:flex;flex-direction:column;gap:2px;min-width:0;font-size:12.5px} .sx b{font-size:13.5px} .sx .ss{font-size:12px;color:var(--text-2)} .sx .chip{align-self:flex-start;margin-top:2px}
+.sgrp{display:flex;flex-direction:column;gap:8px;width:100%} .sgrp .sn{font-weight:700;font-size:13px} .srow{display:flex;gap:8px;align-items:flex-start}
+@media (max-width:1180px){.stepper{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:767px){.stepper{grid-template-columns:minmax(0,1fr)}}
+.plan-wrap{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:14px;align-items:start;margin-top:2px}
+.cp-body > .card:first-child,.cp-body > .nsband + .card{margin-top:14px}
+.plan-side{position:sticky;top:calc(var(--topbar-h) + 12px);margin-top:14px;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-card);padding:12px 14px}
+.ps-h{font-weight:700;font-size:13px;margin:2px 0 6px} .ps-h:not(:first-child){margin-top:12px;padding-top:10px;border-top:1px solid var(--border)}
+.ps-r{display:flex;justify-content:space-between;gap:10px;padding:3px 0;font-size:13px} .ps-r span{color:var(--text-2)} .ps-r b{font-variant-numeric:tabular-nums}
+.ps-r.warn b{color:var(--warn)} .ps-r.neg b{color:var(--err)} .ps-r.major{border-top:1px solid var(--border);margin-top:4px;padding-top:6px}
+@media (max-width:1180px){.plan-wrap{grid-template-columns:minmax(0,1fr)}.plan-side{position:static}}
+.pform{display:flex;flex-direction:column;gap:12px;margin-top:10px}
+.pform .frow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px} .pform .frow.f3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.pform fieldset.field{border:0;padding:0;margin:0} .pform fieldset legend{font-size:13px;font-weight:600;margin-bottom:6px;padding:0}
+@media (max-width:767px){.pform .frow,.pform .frow.f3{grid-template-columns:minmax(0,1fr)}}
+.chkrow{display:flex;flex-wrap:wrap;gap:8px 16px}
+.asgtbl td{vertical-align:middle} .asgtbl select{min-width:120px}
+.bgrp .bstep{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;margin:8px 0}
+.fcins{display:flex;flex-wrap:wrap;gap:10px 18px;margin-top:10px}
+.fcin{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--text-2)} .pinw{display:inline-flex;align-items:center;gap:4px} .pinw .inp{width:84px}
+.fctbl tr.major td{font-weight:700;border-top:1px solid var(--border)}
+.bepl{display:flex;gap:24px;flex-wrap:wrap;margin-top:12px} .bepl > div{display:flex;flex-direction:column;gap:2px} .bepl b{font-size:16px}
+.fc2{grid-template-columns:minmax(0,1fr)}
+.rvsteps{border:1px solid var(--border);border-radius:10px;padding:8px 12px;margin:10px 0}
+.rvsteps legend{font-weight:600;font-size:13px;padding:0 4px}
+.nsband.warnb{border-color:var(--warn);background:var(--warn-soft)} .nsband.warnb .nsb-t{color:var(--warn)}
+/* R6 — the Timeline axis has room on the left · a start date on the Today line goes to the other side · "Today" at the left edge turns right */
+.ktlg th.gtl,.ktlg td.gtl{padding-left:18px;padding-right:18px}
+.kst.flip{transform:translateX(-100%);padding-right:4px}
+.gt-todayl.r{transform:none;padding-right:0;padding-left:4px}
+.stepper{align-items:start}
+.pl2 .stmt td.lbl{min-width:150px}
+.sx .sw .av.sm{width:16px;height:16px;font-size:10px;margin:0 3px -3px 0;display:inline-flex;vertical-align:baseline}
+
+/* ===================== CR-08 (v0.8.0) — the Dashboard clean, the insight on the first screen ===================== */
+/* §2.1 · §2.2 — no question line under the tabs · the toolbar in one line: Year · Status …… As of dd/mm/yyyy ⓘ · Export */
+.dtab .toolbar{margin-top:12px;flex-wrap:nowrap}
+.toolbar .asof{margin-left:auto;font-size:12.5px;color:var(--muted);white-space:nowrap;display:inline-flex;align-items:center}
+.toolbar .asof ~ .exp{margin-left:0}
+@media (max-width:767px){.dtab .toolbar{flex-wrap:wrap}.toolbar .asof{order:3;margin-left:0;width:100%}}
+/* §2.4 (D75) — ⓘ always after the words, 4 px between them (headers of numbers: "Ach % ⓘ" to the right as one block) */
+.info{padding:0;margin-left:4px}
+.lbi .nw{white-space:nowrap}
+.kpi .l{gap:0}
+.tbl th .info{margin-right:0;margin-left:4px}
+/* §2.3 — the KPI cards of the Dashboard: one anatomy · a caption of one line from 1280 px */
+.dtab .kpis{margin-top:12px}
+.dtab .kpi{min-height:0;padding:13px 14px 12px}
+.dtab .kpi .v{margin-top:2px}
+.dtab .kpi .v{margin-bottom:9px}
+.dtab .kpi .kbar{margin-top:auto}   /* the bars of a row on one line, whether the suffix wraps or not */
+.dtab .kpi .cap{font-size:13px;margin-top:6px}
+.dtab .kpi .cap a.link{font-size:13px}
+.kpi .kbar i.on_track{background:var(--ok)} .kpi .kbar i.time{background:var(--series-grey)}
+/* §2.5 — the cards of the Dashboard a little tighter (the first screen) */
+.dtab .card{padding:14px 18px}
+.dtab .r2,.dtab .r13{margin-top:14px} .dtab > .card,.dtab .kpis + .card{margin-top:14px}
+/* §3 — Sales to watch | Budget to watch: the same height (the shorter one keeps its blank) · a row in one line */
+.owatch{align-items:stretch}
+.owatch .nalist{margin-top:6px}
+.owatch .nar{padding:6px 4px}
+.owatch .nar .nab{flex-direction:row;align-items:center;flex-wrap:wrap;gap:3px 10px}
+.owatch .nar .nav.bad{color:var(--err)}
+/* §7 (D78) — Campaign timeline: one row = one bar (12 px, square) · solid to today · faded after · colour = the sales status · the End marketing tick */
+.tll{max-height:calc(37px + 10 * 33px)}
+.tll.all{max-height:none}
+.tlg td{height:32px}
+.tlg .gt-row.tlr{height:32px}
+.tlb{position:absolute;top:10px;height:12px;z-index:2;border-radius:0;box-sizing:border-box}
+.tlb.on_track{background:var(--ok)} .tlb.at_risk{background:var(--warn)} .tlb.behind{background:var(--err)} .tlb.early{background:var(--g-prog)}
+.tlb.rest{opacity:.28}
+.tlb.ended{background:var(--g-list)}
+.tlb.not_started{background:transparent;border:1.5px solid var(--muted)}
+.tlb.cancelled{background:var(--series-grey);opacity:.55}
+.tlm{position:absolute;top:7px;height:18px;width:2px;margin-left:-1px;background:var(--text);z-index:3}
+.legend.tl-leg{font-size:13px}
+.legend i.tlb{position:static;display:inline-block;width:14px;height:10px;opacity:1}
+.legend i.tlm{position:static;display:inline-block;width:2px;height:12px;margin:0 2px 0 0}
+.tlg td.gs{font-size:13px}
+.tlg td.gs.on_track{color:var(--ok)} .tlg td.gs.at_risk{color:var(--warn)} .tlg td.gs.behind{color:var(--err)} .tlg td.gs.early{color:var(--text-2)}
+/* §4 · §5 — a row of 1/3 + 2/3 (a donut | a list) */
+.r13{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:14px;margin-top:16px;align-items:stretch}
+.r13 .card{margin-top:0;display:flex;flex-direction:column}
+@media (max-width:1180px){.r13{grid-template-columns:minmax(0,1fr)}}
+/* §6.5 — the donut (KOL CR-13 pieces): the total in the middle · the legend beside it (name · ฿ · %) */
+.c3-body.dbody{justify-content:center;min-height:0}
+.tm-wrap{display:flex;flex-wrap:wrap;gap:14px 18px;align-items:center;justify-content:center}
+.tm-donut{flex:0 0 auto;min-height:0}
+.tm-donut svg{display:block;width:auto}
+.tm-donut .sl{outline:none;cursor:default}
+.tm-donut .sl:focus,.tm-donut .sl:hover{opacity:.85}
+.tm-c{font-size:16px;font-weight:700;fill:var(--text);font-variant-numeric:tabular-nums}
+.tm-leg{flex:1 1 220px;max-width:380px;border-collapse:collapse;font-size:13px}
+.tm-leg th{font-size:11.5px;font-weight:600;color:var(--muted);text-align:left;padding:2px 6px 4px}
+.tm-leg td{padding:5px 6px;border-top:1px solid var(--border);vertical-align:middle;font-variant-numeric:tabular-nums}
+.tm-leg tfoot td{font-weight:700}
+.tm-leg .num{text-align:right;white-space:nowrap}
+.tm-leg .tn{display:inline-flex;align-items:center;gap:6px;font-weight:600}
+.tm-leg i.sw{width:10px;height:10px;display:inline-block;flex:0 0 auto}
+/* §4 — Sales vs Time gone: the bar + Ach % · then Time gone · SKU watchlist in 2 columns of 5 */
+.pcell{display:inline-flex;align-items:center;gap:10px;white-space:nowrap}
+.pcell .tgv{font-size:12.5px;color:var(--muted)}
+.sku2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px;margin-top:8px}
+@media (max-width:900px){.sku2{grid-template-columns:minmax(0,1fr)}}
+/* §6.1 — P&L: the waterfall | the statement, half and half · Profit by campaign | Marketing efficiency read across (subgrid: the same rows at the same y) */
+.pl2{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:1180px){.pl2{grid-template-columns:minmax(0,1fr)}}
+.pl4{grid-template-rows:auto auto 1fr}
+.pl4 > .card{display:grid;grid-row:span 3;grid-template-rows:subgrid;row-gap:0;align-content:start}
+@media (max-width:1180px){.pl4{grid-template-rows:none}.pl4 > .card{display:flex;grid-row:auto}}
+.pl4 .card-head{min-height:30px}
+.effleg{margin-top:6px}
+.effleg .legend{font-size:12.5px;gap:3px 12px}
+.legend i.avgd{width:0;height:12px;border-left:1.5px dashed var(--text-2)}
+.pbars.rb{gap:0;margin-top:8px}
+.pbars.rb .pbrow{height:32px;padding:0 6px;grid-template-columns:minmax(110px,170px) minmax(0,1fr) auto;gap:10px}
+.pbars.rb .pb-n{white-space:nowrap;overflow:hidden;text-overflow:clip;font-size:13.5px}
+.pbars.rb .pbar{height:10px}
+.pbars.rb .pb-v{white-space:nowrap;font-size:13px}
+.pbars.rb .pb-v.none{color:var(--muted);font-weight:400}
+.pb-f.ok{background:var(--ok)} .pb-f.warn{background:var(--warn)} .pb-f.err,.pb-f.neg{background:var(--err)}
+.pb-avg{position:absolute;top:-11px;bottom:-11px;width:0;border-left:1.5px dashed var(--text-2);z-index:1}
+@media (max-width:767px){.pbars.rb .pbrow{height:auto;padding:6px;grid-template-columns:minmax(0,1fr) auto}}
+/* §5 — Budget by campaign without Original / Changes */
+.btbl.bcomp td.nm{width:260px}
+/* §6.1 — the statement at half width: compact (13 px · the headers wrap · the label column narrower) so the 4 money columns fit from 1280 px */
+.pl2 .stmt{font-size:13px}
+.pl2 .stmt td,.pl2 .stmt th{padding-left:3px;padding-right:3px}
+.pl2 .stmt th{white-space:normal;line-height:1.25;vertical-align:bottom}
+.pl2 .stmt td.lbl{min-width:96px}
+.pl2 .stmt tr.sub td.lbl{padding-left:28px}
+.pl2 .stmt td.num{white-space:nowrap}
+/* §6.1 — P&L by campaign: the headers may wrap (Profit vs plan to date ⓘ) so the 10 columns fit from 1280 px */
+.ptbl th{white-space:normal;line-height:1.25;vertical-align:bottom}
+.ptbl th.num{min-width:64px}
+.ptbl td.nm{width:auto;min-width:140px;max-width:220px;white-space:normal}
+
+/* ===================== CR-09 (v0.9.0) — Campaign Monitor clean + deeper · Campaign Planning = the plans only ===================== */
+/* §4 — the KPI cards of Monitor and Planning: the anatomy of CR-08 §2.3 (one line of caption · the bars on one line) */
+#tab-monitor .kpis,#tab-planning .kpis{margin-top:12px}
+#tab-monitor .kpi,#tab-planning .kpi{min-height:0;padding:13px 14px 12px}
+#tab-monitor .kpi .v,#tab-planning .kpi .v{margin-top:2px;margin-bottom:9px}
+#tab-monitor .kpi .kbar,#tab-planning .kpi .kbar{margin-top:auto}
+#tab-monitor .kpi .cap,#tab-planning .kpi .cap{font-size:13px;margin-top:6px}
+#tab-monitor .card{padding:14px 18px}
+#tab-monitor .mhead{margin-top:12px}
+#tab-monitor .ptabs{margin-top:12px}
+/* §4.2 — Burn-up (2/3) | What to do (1/3) · the same height */
+.r21{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:14px;margin-top:14px;align-items:stretch}
+.r21 .card,.r31 .card{margin-top:0;display:flex;flex-direction:column}
+.r31{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:14px;margin-top:14px;align-items:stretch}
+@media (max-width:1180px){.r21,.r31{grid-template-columns:minmax(0,1fr)}}
+.burn .blab{font-size:12px;font-weight:600}
+.burn .axis.yr{font-size:11px;fill:var(--muted)}
+.todo.t9{display:flex;flex-direction:column;gap:8px;margin:10px 0 0;padding:0;list-style:none}
+.todo.t9 li{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:10px 12px;border-radius:10px;background:var(--surface-2);font-size:13.5px;line-height:1.35}
+.todo.t9 li.urgent{background:var(--err-soft)} .todo.t9 li.watch{background:var(--warn-soft)}
+.todo.t9 li > span:not(.ichip){flex:1 1 180px}
+.todo.t9 li .btn{margin-left:auto}
+/* §4.3 — Sales: the Channel and the unit of the tab · the matrix · the mix bars · the Pareto */
+.mtabbar{display:flex;flex-wrap:wrap;gap:8px 12px;justify-content:flex-end;margin-top:12px}
+#tab-monitor .mtabbar + .card{margin-top:10px}
+.mixbars{display:flex;flex-direction:column;gap:8px;width:100%;margin-top:14px}
+.mxr{display:grid;grid-template-columns:86px minmax(0,1fr);align-items:center;gap:8px;font-size:12.5px;color:var(--text-2)}
+.mxt{display:flex;height:18px;overflow:hidden;background:var(--surface-3)}
+.mxt i{display:flex;align-items:center;justify-content:center;height:100%;color:#fff;font-style:normal}
+.mxt i b{font-size:11px;font-weight:600}
+.chtbl td.nm{min-width:84px}
+.mxwrap{margin-top:6px}
+.mxtbl td.mxc{text-align:right;line-height:1.2;min-width:78px;font-variant-numeric:tabular-nums}
+.mxtbl td.mxc b{display:block;font-weight:600}
+.mxtbl td.mxc small{display:block;font-size:11.5px;color:var(--muted)}
+.mxtbl td.mxc.st-on_track{background:color-mix(in srgb,var(--ok-soft) 70%,transparent)}
+.mxtbl td.mxc.st-at_risk{background:color-mix(in srgb,var(--warn-soft) 90%,transparent)}
+.mxtbl td.mxc.st-behind{background:color-mix(in srgb,var(--err-soft) 90%,transparent)}
+.mxtbl td.mxc.empty{background:none}
+.mxtbl td.sku{min-width:150px}
+.pareto{position:relative;width:100%}
+.pr-rows{display:flex;flex-direction:column}
+.pr{display:grid;grid-template-columns:minmax(90px,34%) minmax(0,1fr) 64px 46px;align-items:center;gap:8px;height:28px;font-size:13px}
+.prl{white-space:nowrap;overflow:hidden;color:var(--text-2)} .prl small{color:var(--muted);font-size:11px}
+.prt{position:relative;height:12px;background:var(--surface-2)} .prt i{position:absolute;left:0;top:0;bottom:0;background:var(--rev)}
+.prv{text-align:right;font-variant-numeric:tabular-nums;font-weight:600} .prc{text-align:right;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pr-line{position:absolute;top:0;left:calc(min(34%, 100%) + 8px);width:calc(100% - min(34%, 100%) - 8px - 64px - 46px - 16px);pointer-events:none;overflow:visible}
+/* §4.4 — Budget by line: the groups folded · the status of a line */
+.mlines td.nm{min-width:180px}
+.lst{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:600}
+.lst.over{background:var(--err-soft);color:var(--err)} .lst.near{background:var(--warn-soft);color:var(--warn)} .lst.ok{background:var(--ok-soft);color:var(--ok)}
+/* §4.5 — the line of the combo chart · the label of a vertical line */
+.today-l.vl{fill:var(--text)}
+/* §4.6 — History: an icon a kind */
+.hist.h9 li{display:flex;gap:10px;align-items:flex-start}
+.hic{flex:0 0 22px;height:22px;border-radius:50%;display:inline-grid;place-items:center;font-size:12px;font-weight:700;background:var(--surface-2);color:var(--text-2)}
+.hic.ok{background:var(--ok-soft);color:var(--ok)} .hic.back{background:var(--warn-soft);color:var(--warn)} .hic.sub{background:var(--info-soft);color:var(--info)} .hic.req{background:var(--surface-3);color:var(--text)}
+.mxtbl .sk2{display:block;font-size:12px;color:var(--muted);font-weight:400}
+.chtbl th,.chtbl td{padding-left:6px;padding-right:6px}
+.chtbl th{white-space:normal;line-height:1.25;vertical-align:bottom}
+/* §5 — Campaign Planning: the KPI · Plans (the plan's budget, no results) · My tasks · the Decided table · the Timeline of the Dashboard's bar */
+#tab-planning .kpis{margin-top:12px}
+#tab-planning .kpis.hidden{display:none}
+#tab-planning .ktabs{margin-top:14px}
+.plist td .apok{color:var(--ok);font-weight:600;white-space:nowrap}
+.plist td.kmore{white-space:nowrap;text-align:right}
+.plist td.kmore .tomon{margin-right:6px;white-space:nowrap}
+.tsum{margin:4px 0 8px;font-size:13.5px}
+.tasktbl .blk{color:var(--warn);font-weight:600}
+.apkv.aplines b{display:flex;flex-direction:column;gap:2px;align-items:flex-end}
+.apkv.aplines .apl{font-weight:500}
+.chip.more{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:6px;background:var(--surface-2);border:1px solid var(--border);font-size:12px;font-weight:600;cursor:help}
+.dectbl tr.sub td{background:var(--row-child);font-size:13px}
+.dectbl .bnm{display:inline-flex;align-items:center;gap:4px}
+.dectbl .chev{border:0;background:none;width:20px;height:20px;display:inline-grid;place-items:center;cursor:pointer;color:var(--muted);padding:0}
+.dectbl .chev svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;transition:transform .15s} .dectbl .chev[aria-expanded="false"] svg{transform:rotate(-90deg)}
+.dectbl .chev.ph{display:inline-block}
+.tlb.p-run{background:var(--g-prog)}
+.tlb.p-ns{background:var(--st-ns)}
+.tlb.p-draft{background:transparent;border:1.5px dashed var(--muted)}
+.tlb.p-rev{background:repeating-linear-gradient(135deg,var(--g-prog) 0 2px,var(--surface) 2px 5px);box-shadow:inset 0 0 0 1px var(--g-prog)}
+.tlb.p-ret{background:transparent;border:1.5px solid var(--warn)}
+.tlb.p-rej{background:var(--series-grey);opacity:.45}
+.tlfold td{padding:6px 10px;font-size:13px;color:var(--muted);background:var(--surface-2);border-bottom:1px solid var(--border)}
+.tlfold .link{margin-left:6px}
+#k_tl .tlg .kgn{display:flex;align-items:center;gap:6px} #k_tl .tlg .kgc{margin-top:2px}
+#k_tl .tlg td{height:36px}
+#k_tl .tlg .gt-row.tlr{height:36px} #k_tl .tlb{top:12px} #k_tl .tlm{top:9px}
+#k_tl .krun td{height:34px}
+.dectbl td.nm a{color:var(--text);text-decoration:none} .dectbl td.nm a:hover{text-decoration:underline}
+
+/* ===================== CR-10 (v0.10.0) — Dashboard: Overview · P&L · Sales · Expenses · the tab bar that stays · All campaigns · ฿100 · by campaign ===================== */
+/* §2.2 (D98) — the tab bar sticks under the top bar (Dashboard · Monitor · Planning) · a shadow once stuck · from 1280 px the page's toolbar joins it on the right */
+.stk-s{display:block;height:0}
+.stickytabs{position:sticky;top:var(--topbar-h);z-index:15;background:var(--bg)}
+.is-stuck > .stickytabs{box-shadow:0 8px 12px -10px rgba(16,24,40,.28)}
+:root[data-theme="dark"] .is-stuck > .stickytabs{box-shadow:0 8px 12px -10px rgba(0,0,0,.7)}
+@media (min-width:1280px){
+  #tab-dashboard.is-stuck .dtab:not(.hidden) > .toolbar,#tab-monitor.is-stuck > .sticktools{position:sticky;top:calc(var(--topbar-h) + 3px);z-index:16;justify-content:flex-end;flex-wrap:nowrap;pointer-events:none;margin-top:0;height:34px}
+  #tab-dashboard.is-stuck .dtab:not(.hidden) > .toolbar > *,#tab-monitor.is-stuck > .sticktools > *{pointer-events:auto}
+  #tab-dashboard.is-stuck .dtab:not(.hidden) > .toolbar .asof{margin-left:0}
+  #tab-monitor.is-stuck > .sticktools .exp{margin-left:0}
+  #tab-dashboard.is-stuck .dtab:not(.hidden) > .kpis{margin-top:46px}
+}
+/* the cards a link scrolls to stay clear of the bar */
+#tab-dashboard .card,#tab-dashboard .r2,#tab-monitor .card,#tab-planning .card{scroll-margin-top:calc(var(--topbar-h) + 60px)}
+/* §3.1 — All campaigns: the timeline + the number columns · the groups fold · the total = the KPI */
+.tll.allc{overflow-x:auto}
+.acg th.gx,.acg td.gx{padding:0 8px;white-space:nowrap;font-size:13px;font-variant-numeric:tabular-nums}
+.acg th.gx{color:var(--muted);font-size:12.5px}
+.acg td.gx.num,.acg th.gx.num{text-align:right}
+.acg td.gx.chips{white-space:normal;min-width:120px}
+.acg td.gx.chips .ichip{margin:1px 4px 1px 0}
+.acg td.gtl{min-width:380px}
+.acg th.gn,.acg td.gn{width:200px;min-width:170px;max-width:210px}
+.acg tr.agrp td{background:var(--surface-2);height:34px}
+.acg tr.agrp .bnm{display:inline-flex;align-items:center;gap:4px}
+.acg tr.agrp .chev{border:0;background:none;width:20px;height:20px;display:inline-grid;place-items:center;cursor:pointer;color:var(--muted);padding:0}
+.acg tr.agrp .chev svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;transition:transform .15s} .acg tr.agrp .chev[aria-expanded="false"] svg{transform:rotate(-90deg)}
+.acg tr.agrp .n{color:var(--muted);font-weight:400}
+.acg tr.total td{border-top:2px solid var(--border-strong);height:36px;font-weight:700}
+.acg .used .ub{flex:0 0 auto}
+/* §3.2 — Where each ฿100 of sales goes: 2 rows of 100% (Actual · Plan faded) */
+.p100{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.p1r{display:grid;grid-template-columns:64px minmax(0,1fr);align-items:center;gap:6px 10px}
+.p1r.faded .p1t{opacity:.55}
+.p1l{font-size:13px;color:var(--text-2);font-weight:600}
+.p1t{display:flex;height:26px;overflow:hidden;background:var(--surface-3)}
+.p1t i{display:flex;align-items:center;justify-content:center;height:100%;font-style:normal;color:#fff}
+.p1t i.cogs{color:var(--text)}
+.p1t i b{font-size:12px;font-weight:700}
+.p1v{display:none}
+.p1u{grid-column:2;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted)}
+.p1u i{display:inline-block;width:9px;height:9px;margin-right:4px}
+.p1right{font-size:13.5px;font-weight:600;color:var(--text-2)}
+.acg td.gx.chips{white-space:nowrap}
+/* §4 (D96) — P&L by campaign: Total expenses ▸ opens Marketing · Sales · Other */
+.ptbl th.exp .exph{display:inline-flex;align-items:center;gap:2px}
+.ptbl .chev{border:0;background:none;width:20px;height:20px;display:inline-grid;place-items:center;cursor:pointer;color:var(--muted);padding:0}
+.ptbl .chev svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;transition:transform .15s} .ptbl .chev[aria-expanded="false"] svg{transform:rotate(-90deg)}
+.ptbl th.sub,.ptbl td.sub{background:var(--row-child);font-size:13px;color:var(--text-2)}
+/* §5 — Sales: the legend of By campaign (a button a Campaign · highlight) · the bars of Revenue by campaign · the channel mix under the matrix · 2 sides of SKUs */
+.legend.mleg{margin-top:6px}
+.legend .lgb{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:2px 4px;font:inherit;font-size:13px;color:var(--text-2);cursor:pointer;border-radius:6px}
+.legend .lgb:hover{background:var(--surface-2)} .legend .lgb.on{background:var(--surface-2);font-weight:600} .legend .lgb.off{opacity:.45}
+.legend .lgb i{display:inline-block;width:12px;height:12px}
+.pbars.rb.rbc .pbrow{height:28px}
+.pb-f.dim{opacity:.25}
+.cxmix{margin-top:12px;max-width:560px}
+.skuside .skuh{font-size:13.5px;font-weight:700;color:var(--text-2);margin:8px 0 2px;cursor:help}
+.pacetbl td.nm{white-space:nowrap}
+.pacetbl .pcell{white-space:nowrap}
