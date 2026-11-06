@@ -509,6 +509,38 @@ CP.rules = (function () {
       node: node('P|' + key), byCh: Object.fromEntries(CHANNELS.map(k => [k, node(`PC|${key}|${k}`)])) }));
     return { campaign: c, unit, channel: ch, months: A, total: node('T') || attNode(null, A.length ? 0 : null, A.length ? 0 : null), channels, skus };
   }
+  /* ===================== CR-11 §5.3 (D103) — SKU trend: Ach % of each SKU each month (actual ÷ the target of that month) ===================== */
+  /* months = Start … this month (or End) · a month with no actual of the Campaign yet stays empty · in a month with actual a SKU's missing actual is 0 ·
+     no target that month = no Ach (empty) · the month in progress = its actual so far ÷ its whole target · o = { channel, unit, today } →
+     { months, byKey: Map(product key → { 'yyyy-mm': { actual, target, ach } }) } · nothing new: the same sales rows as the matrix */
+  function skuTrend(seed, cid, o = {}) {
+    const M = model(seed), c = M.byId.get(cid), unit = o.unit === 'qty' ? 'qty' : 'amount', ch = CHANNELS.includes(o.channel) ? o.channel : null, today = o.today || todayISO();
+    if (!c || today < c.start) return { months: [], byKey: new Map() };
+    const months = monthsIn(c.start, today < c.end ? today : c.end), inM = new Set(months), inA = new Set(salesMonths(M, cid)), acc = new Map();
+    (M.salesRows.get(cid) || []).filter(r => (!ch || r.channel === ch) && inM.has(r.month) && r[unit] != null).forEach(r => {
+      let k = acc.get(r.product_key); if (!k) acc.set(r.product_key, k = {}); const x = k[r.month] || (k[r.month] = { t: null, a: null });
+      if (r.scenario === 'target') x.t = add(x.t, r[unit]); else if (r.scenario === 'actual') x.a = add(x.a, r[unit]); });
+    const byKey = new Map([...acc].map(([key, k]) => [key, Object.fromEntries(months.filter(m => inA.has(m) && k[m]).map(m => { const t = k[m].t, a = k[m].a || 0;
+      return [m, { actual: a, target: t, ach: isNum(t) && t > 0 ? a / t : null }]; }))]));
+    return { months, byKey, actualMonths: months.filter(m => inA.has(m)) };
+  }
+  /* ===================== CR-11 §5.2 (D104) — Cumulative profit: the profit of one Campaign a month and its running total (Actual · Plan) ===================== */
+  /* a month = Net revenue − COGS − Marketing − Sales − Other of that month (a month with spend and no sales counts its loss) · Actual: the months with any actual ·
+     the running Actual runs up to the last of them (its last value = the Campaign profit of the statement) · Plan: every month · break-even = the first month the
+     running total is ≥ 0 (Actual · Plan) · o = { months, today } */
+  function profitByMonth(seed, cid, o = {}) {
+    const M = model(seed), cm = cellsOf(M, cid), cur = ym(o.today || todayISO()), months = o.months || [...cm.keys()].sort();
+    const side = (x, i) => { if (!x || ![x.rev, x.mkt, x.sls, x.oth].some(p => p[i] != null)) return null; if (x.rev[i] != null && x.bad[i]) return null;
+      return (x.rev[i] || 0) - (x.cogs[i] || 0) - (x.mkt[i] || 0) - (x.sls[i] || 0) - (x.oth[i] || 0); };
+    const raw = months.map(m => ({ m, actual: side(cm.get(m), 1), plan: side(cm.get(m), 0), current: m === cur }));
+    const lastA = raw.map(r => r.actual != null).lastIndexOf(true);
+    let ca = null, cp = null, be = null, beP = null;
+    const rows = raw.map((r, i) => { if (r.actual != null) ca = add(ca, r.actual); if (r.plan != null) cp = add(cp, r.plan);
+      const cumActual = i <= lastA ? ca : null, cumPlan = cp;
+      if (!be && i <= lastA && isNum(cumActual) && cumActual >= -1e-6) be = r.m; if (!beP && isNum(cumPlan) && cumPlan >= -1e-6) beP = r.m;
+      return Object.assign(r, { cumActual, cumPlan }); });
+    return { rows, lastA, be, beP, total: lastA >= 0 ? ca : null, planTotal: cp };
+  }
   const ATT_SORTS = ['gap', 'ach', 'target', 'name'];
   /* Gap: furthest behind first · Ach %: lowest first · Target: largest first · Name: A→Z — null always last */
   function sortAtt(list, key, nameOf) {
@@ -736,7 +768,7 @@ CP.rules = (function () {
     isNum, fmtNum, baht, compact, signed, shortBaht, signedShort, pct, pctA, times, niceStep, ratio,
     foldText, msFilter, msToggle, msSelectAll, msLocked,
     STATUSES, CANCELLED, CHANNELS, SORTS, model, statusOf, daysLeft, scope, statusCounts, sumCells, pnlOf, pnl, actualTo, hasSalesActual, hasBudget,
-    kpis, mktEfficiency, per100, campaignRank, paceNode, salesMix, skuMatrix, afterMarketingDrop, spendPace, byMonth, portfolio, sortRows, timeline, summaryOf, byChannel, byLine, bySubChannel, statement, tone,
+    kpis, mktEfficiency, per100, campaignRank, skuTrend, profitByMonth, paceNode, salesMix, skuMatrix, afterMarketingDrop, spendPace, byMonth, portfolio, sortRows, timeline, summaryOf, byChannel, byLine, bySubChannel, statement, tone,
     AT_RISK, ATT, ATT_SORTS, ENDING_SOON, attStatus, salesMonths, campaignMonths, attainment, sortAtt, timeProgress, targetByMonth, runRate, waterfall,
     toDateShare, forecast, timeOf, attention, ATT_ISSUES, forecastPart, SALES_SORTS, salesTable, spendTable, budgetLeft, skuWatch, channelSubs,
   };

@@ -10,8 +10,8 @@ CP.export = (function () {
      b_kpi · b_group (screen-budget.js) · p_kpi · p_table · p_profit · p_eff (screen-pnl.js) */
   const TABS = { overview: ['kpi', 'pnlmonth', 'o_all', 'o_watch', 'o_p100'], sales: ['s_kpi', 's_month', 's_pace', 's_rbc', 's_cxm', 's_sku'],
     expenses: ['b_kpi', 'w_month', 'w_budget', 'b_group', 'spendline'], pnl: ['p_kpi', 'w_chart', 'statement', 'p_table', 'p_profit', 'p_eff'],
-    /* CR-09 — Monitor: c_kpi · c_mix · c_channel · c_matrix · c_lines · c_svm are registered by screen-monitor.js */
-    monitor: ['c_kpi', 'c_month', 'c_mix', 'c_channel', 'c_matrix', 'c_lines', 'w_month', 'w_chart', 'statement', 'c_svm'] };
+    /* CR-09 · CR-11 — Campaign Tracking: c_kpi · c_mix · c_channel · c_matrix · c_lines · c_svm … are registered by screen-tracking.js */
+    tracking: ['c_kpi', 'c_pkpi', 'w_chart', 'statement', 'c_p100', 'c_cum', 'c_svm', 'c_month', 'c_mix', 'c_channel', 'c_matrix', 'c_subs', 'c_trend', 'w_month', 'c_lines'] };
   const cell = (v, fmt, o) => Object.assign({ v, fmt }, o || {});
   const rangeOf = x => ({ from: x.from, to: x.to, statuses: x.statuses, includeCancelled: x.includeCancelled, only: x.only, today: x.today });
   const daysText = d => (d.kind === 'ended' ? C.common.none : d.kind === 'starts' ? (d.n === 0 ? D.p.startsToday : D.p.startsIn(d.n)) : d.n === 0 ? D.p.endsToday : D.p.daysLeft(d.n));
@@ -26,17 +26,17 @@ CP.export = (function () {
     const k = R.kpis(x.seed, rangeOf(x)), p = k.pnl, A = p.actual, P = p.plan, L = p.lfl, c = k.campaigns, look = R.issues(x.seed, rangeOf(x)).rows.length, Kk = D.k;
     const rows = [
       [Kk.campaigns, cell(c.n, 'num'), R.STATUSES.concat([R.CANCELLED]).filter(s => c.by[s]).map(s => `${c.by[s]} ${C.status[s]}`).concat(look ? [Kk.needLook(look)] : []).join(' · ')],
-      [aw(x, `${Kk.revenue} — actual`), cell(A.rev, 'money'), A.rev == null ? Kk.noSales : ''], [`${Kk.revenue} — target to date`, cell(L.rev, 'money'), MN.tgtTD.f],
-      [`${Kk.revenue} — full target`, cell(P.rev, 'money'), ''], [MN.ach.h, cell(p.ach, 'pct'), MN.ach.f],
-      [`${Kk.spend} — actual`, cell(A.spend, 'money'), A.spend == null ? Kk.noSpend : ''], [`  ${W.st.rows.mkt}`, cell(A.mkt, 'money'), ''], [`  ${W.st.rows.sls}`, cell(A.sls, 'money'), ''], [`  ${W.st.rows.oth}`, cell(A.oth, 'money'), ''],
-      [`${Kk.spend} — budget to date`, cell(L.spend, 'money'), MN.budgetTD.f], [`${Kk.spend} — full budget`, cell(P.spend, 'money'), ''],
+      [aw(x, C.xl.actual(Kk.revenue)), cell(A.rev, 'money'), A.rev == null ? Kk.noSales : ''], [C.xl.targetTD(Kk.revenue), cell(L.rev, 'money'), MN.tgtTD.f],
+      [C.xl.fullOf(Kk.revenue), cell(P.rev, 'money'), ''], [MN.ach.h, cell(p.ach, 'pct'), MN.ach.f],
+      [C.xl.actual(Kk.spend), cell(A.spend, 'money'), A.spend == null ? Kk.noSpend : ''], [`  ${W.st.rows.mkt}`, cell(A.mkt, 'money'), ''], [`  ${W.st.rows.sls}`, cell(A.sls, 'money'), ''], [`  ${W.st.rows.oth}`, cell(A.oth, 'money'), ''],
+      [C.xl.budgetTD(Kk.spend), cell(L.spend, 'money'), MN.budgetTD.f], [C.xl.fullBudget(Kk.spend), cell(P.spend, 'money'), ''],
       [MN.used.h, cell(p.used, 'pct'), MN.used.f], [MN.ap.h, cell(A.ap, 'pct'), MN.ap.f],
-      [`${MN.gp.h} — actual`, cell(A.gp, 'money'), estN(A)], ['GP %', cell(A.gpPct, 'pct'), ''],
-      [`${Kk.profit} — actual`, cell(A.profit, 'money'), [MN.profit.f, estN(A)].filter(Boolean).join(' · ')], [`${Kk.profit} — plan to date`, cell(L.profit, 'money'), estN(L)],
-      [`${Kk.profit} — plan`, cell(P.profit, 'money'), P.profit == null && p.cogsBad[0] ? Kk.noPlanProfit : estN(P)],
+      [C.xl.actual(MN.gp.h), cell(A.gp, 'money'), estN(A)], ['GP %', cell(A.gpPct, 'pct'), ''],
+      [C.xl.actual(Kk.profit), cell(A.profit, 'money'), [MN.profit.f, estN(A)].filter(Boolean).join(' · ')], [C.xl.planTD(Kk.profit), cell(L.profit, 'money'), estN(L)],
+      [C.xl.plan(Kk.profit), cell(P.profit, 'money'), P.profit == null && p.cogsBad[0] ? Kk.noPlanProfit : estN(P)],
       [MN.margin.h, cell(A.margin, 'pct'), ''], [MN.roi.h, cell(A.roi, 'x'), MN.roi.f], ['ROAS', cell(A.roas, 'x'), ''],
     ];
-    return { key: 'kpi', title: D.file.kpi, header: ['Metric', 'Value', 'Note'], cols: ['text', 'money', 'text'], rows };
+    return { key: 'kpi', title: D.file.kpi, header: [C.xl.metric, C.xl.value, C.xl.note], cols: ['text', 'money', 'text'], rows };
   }
   /* the one monthly chart of Overview (Revenue · Spend · Profit) */
   function pnlMonthTable(x) {
@@ -58,8 +58,8 @@ CP.export = (function () {
   function attentionTable(x) {
     const A = D.att, list = R.attention(x.seed, rangeOf(x));
     const words = i => (i.key === 'soon' ? A.issues.soon(i.n) : i.key === 'nosales' ? A.issues.nosales(i.n) : A.issues[i.key](R.pct(i.v)));
-    return { key: 'attention', title: A.title, header: ['Campaign', 'Severity', 'Problems', MN.ach.h, MN.used.h, `${MN.forecast.h} % of full target`, MN.gap.h], cols: ['text', 'text', 'text', 'pct', 'pct', 'pct', 'money'],
-      rows: list.map(a => [cell(a.c.name, 'text', { bold: true }), a.severity === 'err' ? 'Red' : 'Orange', a.issues.map(words).join(' · '), a.ach, a.used, a.forecast.pct, a.gap]),
+    return { key: 'attention', title: A.title, header: [C.xl.campaign, C.xl.severity, C.xl.problems, MN.ach.h, MN.used.h, C.xl.fcOfFull(MN.forecast.h), MN.gap.h], cols: ['text', 'text', 'text', 'pct', 'pct', 'pct', 'money'],
+      rows: list.map(a => [cell(a.c.name, 'text', { bold: true }), a.severity === 'err' ? C.xl.red : C.xl.orange, a.issues.map(words).join(' · '), a.ach, a.used, a.forecast.pct, a.gap]),
       notes: list.length ? [] : [`✓ ${A.none}`] };
   }
   /* CR-04 §7.4 — ≤ 10 columns: the period's goal · actual · Ach % / Used % of each Campaign (the months are in the chart and in "by month") */
@@ -75,17 +75,17 @@ CP.export = (function () {
   function sKpiTable(x) {
     const k = R.kpis(x.seed, rangeOf(x)), T = R.salesTable(x.seed, rangeOf(x), 'attention'), p = k.pnl, A = p.actual, L = p.lfl, t = T.total, Sk = S.k;
     const rows = [
-      [aw(x, `${Sk.revenue} — actual`), cell(A.rev, 'money'), A.rev == null ? D.k.noSales : ''], [`${Sk.revenue} — target to date`, cell(L.rev, 'money'), MN.tgtTD.f], [MN.ach.h, cell(p.ach, 'pct'), MN.ach.f],
+      [aw(x, C.xl.actual(Sk.revenue)), cell(A.rev, 'money'), A.rev == null ? D.k.noSales : ''], [C.xl.targetTD(Sk.revenue), cell(L.rev, 'money'), MN.tgtTD.f], [MN.ach.h, cell(p.ach, 'pct'), MN.ach.f],
       [Sk.forecast, cell(t.forecast, 'money'), [MN.forecast.f, t.atTarget.length ? Sk.fcAtTarget(t.atTarget) : '', t.notCounted.length ? Sk.fcNotCounted(t.notCounted.length) : ''].filter(Boolean).join(' · ')],
-      [`${Sk.forecast} — full target of the campaigns counted`, cell(t.forecastFull, 'money'), ''], [`${Sk.forecast} %`, cell(R.ratio(t.forecast, t.forecastFull), 'pct'), ''],
-      [aw(x, `${Sk.units} (pcs)`), cell(A.rev == null ? null : A.qty, 'num'), ''], [`${Sk.units} — target pieces to date`, cell(A.rev == null ? null : L.qty, 'num'), MN.units.f],
-      [`${Sk.onTarget} (${Sk.onTargetW})`, cell(T.by.on_target, 'num'), `of ${T.withAch} with sales actual · ${C.att.at_risk} ${T.by.at_risk} · ${C.att.behind} ${T.by.behind}`],
+      [C.xl.fcCounted(Sk.forecast), cell(t.forecastFull, 'money'), ''], [C.xl.pctOf(Sk.forecast), cell(R.ratio(t.forecast, t.forecastFull), 'pct'), ''],
+      [aw(x, C.xl.pcs(Sk.units)), cell(A.rev == null ? null : A.qty, 'num'), ''], [C.xl.piecesTD(Sk.units), cell(A.rev == null ? null : L.qty, 'num'), MN.units.f],
+      [`${Sk.onTarget} (${Sk.onTargetW})`, cell(T.by.on_target, 'num'), C.xl.withSales(T.withAch, C.att.at_risk, T.by.at_risk, C.att.behind, T.by.behind)],
     ];
-    return { key: 's_kpi', title: D.file.s_kpi, header: ['Metric', 'Value', 'Note'], cols: ['text', 'money', 'text'], rows };
+    return { key: 's_kpi', title: D.file.s_kpi, header: [C.xl.metric, C.xl.value, C.xl.note], cols: ['text', 'money', 'text'], rows };
   }
   function sMonthTable(x) {
     const qty = x.unit === 'qty', md = R.byMonth(x.seed, rangeOf(x), qty ? 'qty' : 'revenue'), cur = R.ym(x.today), Kc = D.m.cols, f = qty ? 'num' : 'money';
-    const title = `${S.m.title} · ${qty ? S.m.qty : 'Baht'} · ${x.mode === 'cumulative' ? D.m.cumulative : D.m.monthly}`;
+    const title = `${S.m.title} · ${qty ? S.m.qty : C.xl.baht} · ${x.mode === 'cumulative' ? D.m.cumulative : D.m.monthly}`;
     if (x.mode === 'cumulative') return { key: 's_month', title, header: [Kc.month, Kc.cumTarget, aw(x, Kc.cumActual), Kc.variance], cols: ['text', f, f, f], rows: md.cum.map(r => [monthLabel(r, cur), r.plan, r.actual, r.variance]) };
     const sum = k => md.rows.reduce((s, r) => (r[k] == null ? s : (s || 0) + r[k]), null);
     return { key: 's_month', title, header: [Kc.month, Kc.target, aw(x, Kc.actual), Kc.targetLfl, Kc.variance], cols: ['text', f, f, f, f],
@@ -122,22 +122,22 @@ CP.export = (function () {
 
   /* ===================== By campaign ===================== */
   const unitFmt = x => (x.unit === 'qty' ? 'num' : 'money');
-  const unitWord = x => (x.unit === 'qty' ? K.m.qty : 'Baht');
+  const unitWord = x => (x.unit === 'qty' ? K.m.qty : C.xl.baht);
   function cKpiTable(x) {
     const c = R.model(x.seed).byId.get(x.cid), tp = R.timeProgress(c, x.today), rr = R.runRate(x.seed, x.cid, { channel: x.channel, unit: 'amount', today: x.today }), T = rr.att.total;
     const sk = R.attainment(x.seed, x.cid, { channel: x.channel, unit: 'amount', today: x.today }).skus, by = st => sk.filter(s => s.node && s.node.status === st).length;
     const s = R.statement(x.seed, rangeOf(x), x.cid, 'same'), A = s.pnl.actual, plan = s.rows.find(r => r.key === 'profit').plan, pc = R.campaignPace(x.seed, x.cid, x.today);
     const rows = [
       [K.k.time, cell(tp.started ? tp.daysLeft : null, 'num'), tp.started ? `${K.k.timeOf(tp.total)} · ${R.pct(tp.pct)} passed · ends ${R.dmy(c.end)}` : K.k.notStarted(R.dmy(c.start))],
-      [aw(x, `${K.k.revenue} — actual to date`), cell(T.actTD, 'money'), T.actTD == null ? K.noActual : ''], [`${K.k.revenue} — target to date`, cell(T.tgtTD, 'money'), MN.tgtTD.f],
+      [aw(x, C.xl.actualTo(K.k.revenue)), cell(T.actTD, 'money'), T.actTD == null ? K.noActual : ''], [C.xl.targetTD(K.k.revenue), cell(T.tgtTD, 'money'), MN.tgtTD.f],
       [C.yr.timeGone, cell(R.timeGone(c, x.today), 'pct'), C.yr.timeGoneF], [`${C.yr.pace.cols.pace} (${C.yr.pace.cols.ach} ÷ ${C.yr.timeGone})`, cell(pc && pc.status ? +R.paceText(pc.pace) : null, 'num'), pc && pc.status ? C.yr.st[pc.status] : C.yr.pace.early],
-      [MN.ach.h, cell(T.ach, 'pct'), stText(T.status)], [MN.gap.h, cell(T.gap, 'money'), ''], ['Full target', cell(T.target, 'money'), ''], ['Remaining', cell(T.remaining, 'money'), ''],
-      [K.k.rate, cell(rr.required, 'money'), rr.monthsLeft == null ? K.noActual : K.k.rateFor(Math.round(rr.monthsLeft * 10) / 10)], ['Current pace (a month)', cell(rr.pace, 'money'), rr.pace == null ? K.k.noPace : ''],
+      [MN.ach.h, cell(T.ach, 'pct'), stText(T.status)], [MN.gap.h, cell(T.gap, 'money'), ''], [C.xl.fullTarget, cell(T.target, 'money'), ''], [C.xl.remaining, cell(T.remaining, 'money'), ''],
+      [K.k.rate, cell(rr.required, 'money'), rr.monthsLeft == null ? K.noActual : K.k.rateFor(Math.round(rr.monthsLeft * 10) / 10)], [C.xl.pace, cell(rr.pace, 'money'), rr.pace == null ? K.k.noPace : ''],
       [MN.forecast.h, cell(rr.forecast, 'money'), C.est.tip],
-      [aw(x, `${K.k.profit} — actual`), cell(A.profit, 'money'), estN(A)], [`${K.k.profit} — plan to date`, cell(plan, 'money'), ''], [MN.margin.h, cell(A.margin, 'pct'), ''], [MN.roi.h, cell(A.roi, 'x'), ''],
-      [`${C.att.on_target} (SKUs)`, cell(by('on_target'), 'num'), `of ${sk.filter(q => q.node && q.node.target != null).length} SKUs with a target · ${C.att.at_risk} ${by('at_risk')} · ${C.att.behind} ${by('behind')}`],
+      [aw(x, C.xl.actual(K.k.profit)), cell(A.profit, 'money'), estN(A)], [C.xl.planTD(K.k.profit), cell(plan, 'money'), ''], [MN.margin.h, cell(A.margin, 'pct'), ''], [MN.roi.h, cell(A.roi, 'x'), ''],
+      [C.xl.skus(C.att.on_target), cell(by('on_target'), 'num'), C.xl.skusOf(sk.filter(q => q.node && q.node.target != null).length, C.att.at_risk, by('at_risk'), C.att.behind, by('behind'))],
     ];
-    return { key: 'c_kpi', title: D.file.c_kpi, header: ['Metric', 'Value', 'Note'], cols: ['text', 'money', 'text'], rows };
+    return { key: 'c_kpi', title: D.file.c_kpi, header: [C.xl.metric, C.xl.value, C.xl.note], cols: ['text', 'money', 'text'], rows };
   }
   function cMonthTable(x) {
     const md = R.targetByMonth(x.seed, x.cid, { channel: x.channel, unit: x.unit, today: x.today }), cur = R.ym(x.today), f = unitFmt(x), Kc = D.m.cols;
@@ -164,7 +164,7 @@ CP.export = (function () {
   }
   function cSkuTable(x) {
     const { a, rows } = skuRows(x), f = unitFmt(x), chs = a.channel ? [a.channel] : R.CHANNELS, Kc = K.sku.cols;
-    const header = [Kc.sku, 'Code'].concat(chs.map(k => `${C.channel[k]} Ach %`), [Kc.tgtTD, aw(x, Kc.actual), Kc.ach, Kc.gap, Kc.status]);
+    const header = [Kc.sku, C.xl.code].concat(chs.map(k => `${C.channel[k]} Ach %`), [Kc.tgtTD, aw(x, Kc.actual), Kc.ach, Kc.gap, Kc.status]);
     return { key: 'c_sku', title: `${K.sku.title} · ${unitWord(x)}${x.skuTab && x.skuTab !== 'all' ? ' · ' + C.att[x.skuTab] : ''}`, header,
       cols: ['text', 'text'].concat(chs.map(() => 'pct'), [f, f, 'pct', f, 'text']),
       rows: rows.map(s => [cell(skuName(s), 'text', { bold: true }), s.product.code || ''].concat(chs.map(k => (s.byCh[k] ? s.byCh[k].ach : null)), [s.node.tgtTD, s.node.actTD, s.node.ach, s.node.gap, stText(s.node.status)])) };
@@ -173,18 +173,18 @@ CP.export = (function () {
   /* ===================== Spend & Profit ===================== */
   function wKpiTable(x) {
     const s = R.statement(x.seed, rangeOf(x), x.ids, x.basis), g = k => s.rows.find(r => r.key === k), A = s.pnl.actual, p = s.pnl, bl = R.budgetLeft(x.seed, rangeOf(x)), basis = x.basis === 'full' ? W.st.full : W.st.same;
-    const rows = [[aw(x, `${W.k.revenue} — actual`), cell(g('revenue').actual, 'money'), ''], [`${W.k.revenue} — target (${basis})`, cell(g('revenue').plan, 'money'), W.st.revenueTip],
-      [`${W.k.gp} — actual`, cell(g('gp').actual, 'money'), estN(A)], [`${W.k.gp} — plan (${basis})`, cell(g('gp').plan, 'money'), ''], ['GP %', cell(A.gpPct, 'pct'), `${W.st.cols.plan} ${R.pct(s.pct.gp[0])}`],
-      [`${W.k.spend} — actual`, cell(A.spend, 'money'), ''], [`${W.k.spend} — budget to date`, cell(p.lfl.spend, 'money'), MN.budgetTD.f], [MN.used.h, cell(p.used, 'pct'), MN.used.f], [MN.ap.h, cell(A.ap, 'pct'), MN.ap.f],
-      [`${W.k.profit} — actual`, cell(g('profit').actual, 'money'), estN(A)], [`${W.k.profit} — plan (${basis})`, cell(g('profit').plan, 'money'), ''], [MN.margin.h, cell(A.margin, 'pct'), `${W.st.cols.plan} ${R.pct(s.pct.margin[0])}`], [MN.roi.h, cell(A.roi, 'x'), ''],
-      [`${W.k.left}`, cell(bl.left, 'money'), MN.budgetLeft.f], [`${W.k.spend} — full budget`, cell(bl.full, 'money'), ''], [`${W.k.left} — used`, cell(bl.pct, 'pct'), '']];
-    return { key: 'w_kpi', title: D.file.w_kpi, header: ['Metric', 'Value', 'Note'], cols: ['text', 'money', 'text'], rows };
+    const rows = [[aw(x, C.xl.actual(W.k.revenue)), cell(g('revenue').actual, 'money'), ''], [C.xl.targetBasis(W.k.revenue, basis), cell(g('revenue').plan, 'money'), W.st.revenueTip],
+      [C.xl.actual(W.k.gp), cell(g('gp').actual, 'money'), estN(A)], [C.xl.planBasis(W.k.gp, basis), cell(g('gp').plan, 'money'), ''], ['GP %', cell(A.gpPct, 'pct'), `${W.st.cols.plan} ${R.pct(s.pct.gp[0])}`],
+      [C.xl.actual(W.k.spend), cell(A.spend, 'money'), ''], [C.xl.budgetTD(W.k.spend), cell(p.lfl.spend, 'money'), MN.budgetTD.f], [MN.used.h, cell(p.used, 'pct'), MN.used.f], [MN.ap.h, cell(A.ap, 'pct'), MN.ap.f],
+      [C.xl.actual(W.k.profit), cell(g('profit').actual, 'money'), estN(A)], [C.xl.planBasis(W.k.profit, basis), cell(g('profit').plan, 'money'), ''], [MN.margin.h, cell(A.margin, 'pct'), `${W.st.cols.plan} ${R.pct(s.pct.margin[0])}`], [MN.roi.h, cell(A.roi, 'x'), ''],
+      [`${W.k.left}`, cell(bl.left, 'money'), MN.budgetLeft.f], [C.xl.fullBudget(W.k.spend), cell(bl.full, 'money'), ''], [C.xl.used(W.k.left), cell(bl.pct, 'pct'), '']];
+    return { key: 'w_kpi', title: D.file.w_kpi, header: [C.xl.metric, C.xl.value, C.xl.note], cols: ['text', 'money', 'text'], rows };
   }
   function wChartTable(x) {
     const side = x.side || 'actual', w = CP.pnl.waterfallOf(x, side), Ch = W.chart, lab = st => Ch.steps[st.label] || st.label;
     const title = `${C.pl.wf.title} · ${C.pl.wf[side === 'forecast' ? 'fc' : side]}`;
-    if (!w.ok) return { key: 'w_chart', title, header: ['Step', 'Group', 'Amount', '% of revenue', 'Running total'], cols: ['text', 'text', 'money', 'pct', 'money'], rows: [], notes: [w.reason === 'no_cogs' ? Ch.noCogs : C.empty.title] };
-    return { key: 'w_chart', title, header: ['Step', 'Group', 'Amount', '% of revenue', 'Running total'], cols: ['text', 'text', 'money', 'pct', 'money'],
+    if (!w.ok) return { key: 'w_chart', title, header: [C.xl.step, C.xl.group, C.xl.amount, C.xl.pctRev, C.xl.running], cols: ['text', 'text', 'money', 'pct', 'money'], rows: [], notes: [w.reason === 'no_cogs' ? Ch.noCogs : C.empty.title] };
+    return { key: 'w_chart', title, header: [C.xl.step, C.xl.group, C.xl.amount, C.xl.pctRev, C.xl.running], cols: ['text', 'text', 'money', 'pct', 'money'],
       rows: w.steps.map(st => [cell(lab(st), 'text', { bold: st.kind === 'sub' || st.kind === 'total' }), Ch.groups[st.group], st.value, st.pctRev, st.to]),
       notes: w.est ? [C.cogsEst.note(R.baht(w.estAmt), w.estWho)] : [] };
   }
@@ -202,14 +202,14 @@ CP.export = (function () {
     const iss = R.issues(x.seed, o).byId, stOf = id => { const r = iss.get(id); return r && r.budget && r.budget.status ? C.yr.st[r.budget.status] : ''; };
     const line = (name, t, apv, bold, st) => [cell(name, 'text', { bold }), t.original, t.changes, t.current, t.committed, t.used, t.svt == null ? null : Math.round(t.svt), t.remaining, t.pending || null, apv == null ? null : apv, st || ''];
     const rows = bt.rows.flatMap(t => [line(t.c.name, t, ap.get(t.id), true, stOf(t.id))].concat(t.lines.map(l => line(`    ${C.plan.grid.groups[l.type] || l.type} · ${l.line}`, Object.assign({}, l, { svt: null }), null))));
-    return { key: 'w_budget', title: C.sb.bud.title, header: [K2.campaign, K2.original, K2.changes, K2.current, K2.committed, K2.used, `${K2.svt} (pts)`, K2.remaining, K2.pending, K2.ap, K2.status],
+    return { key: 'w_budget', title: C.sb.bud.title, header: [K2.campaign, K2.original, K2.changes, K2.current, K2.committed, K2.used, C.xl.pts(K2.svt), K2.remaining, K2.pending, K2.ap, K2.status],
       cols: ['text', 'money', 'money', 'money', 'money', 'pct', 'num', 'money', 'money', 'pct', 'text'], rows,
       total: line(D.p.total, bt.total, R.kpis(x.seed, o).pnl.actual.ap, true), notes: [B.tips.svt.f] };
   }
   /* CR-05 §9.3 — the Campaign tracker */
   function trackerTable(x) {
     const T = C.track.tracker, B = C.track, rows = R.trackerRows(x.seed, rangeOf(x));
-    return { key: 'tracker', title: T.title, header: [T.cols.campaign, T.cols.status, `${T.cols.time} %`, T.cols.sales, B.cols.current, B.cols.committed, B.cols.used, `${T.cols.svt} (pts)`, T.cols.pending, T.cols.owner],
+    return { key: 'tracker', title: T.title, header: [T.cols.campaign, T.cols.status, C.xl.pctOf(T.cols.time), T.cols.sales, B.cols.current, B.cols.committed, B.cols.used, C.xl.pts(T.cols.svt), T.cols.pending, T.cols.owner],
       cols: ['text', 'text', 'pct', 'pct', 'money', 'money', 'pct', 'num', 'money', 'text'],
       rows: rows.map(r => [cell(r.c.name, 'text', { bold: true }), C.status[r.status] || r.status, r.tp.started ? r.tp.pct : null, r.ach, r.t ? r.t.current : null, r.t ? r.t.committed : null, r.t ? r.t.used : null,
         r.t && r.t.svt != null ? Math.round(r.t.svt) : null, r.t && r.t.pending ? r.t.pending : null, r.c.owner || '']) };
@@ -256,7 +256,7 @@ CP.export = (function () {
       return [cell(c.name, 'text', { bold: true }), c.id, C.appr.state[c.approval] || c.approval || '', C.status[s], R.dmy(c.start), R.dmy(c.end), s === R.CANCELLED ? '' : daysText(R.daysLeft(c, x.today)),
         c.end_marketing ? R.dmy(c.end_marketing) : '', c.owner || '', N.target == null ? null : N.target, N.budget != null ? N.budget : t ? t.current : null, N.ap != null ? N.ap : null,
         progress(c), waiting(c), c.note || '', c.created_at ? R.dmy(c.created_at.slice(0, 10)) : '', c.updated_at ? R.dmy(c.updated_at.slice(0, 10)) : '']; });
-    return { key: 'campaigns', title: C.plng.title, header: [Kc.name, 'id', Kc.approval, Kc.status, 'Start', 'End campaign', Kc.days, Kc.endMkt, Kc.owner, Kc.targetV, C.plng.cols2.budget, 'A&P %', C.plng.cols.progress, C.plng.cols.waiting, 'Note', 'Created', Kc.updated],
+    return { key: 'campaigns', title: C.plng.title, header: [Kc.name, 'id', Kc.approval, Kc.status, C.xl.start, C.xl.endCampaign, Kc.days, Kc.endMkt, Kc.owner, Kc.targetV, C.plng.cols2.budget, 'A&P %', C.plng.cols.progress, C.plng.cols.waiting, C.xl.note, C.xl.created, Kc.updated],
       cols: x.rows.length ? ['text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'money', 'money', 'pct', 'text', 'text', 'text', 'text', 'text'] : [], rows };
   }
 

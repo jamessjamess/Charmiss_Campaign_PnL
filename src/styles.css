@@ -1218,14 +1218,14 @@ table.grid th.gl{white-space:normal;text-overflow:clip} table.grid .glt{overflow
 
 /* ===================== CR-09 (v0.9.0) — Campaign Monitor clean + deeper · Campaign Planning = the plans only ===================== */
 /* §4 — the KPI cards of Monitor and Planning: the anatomy of CR-08 §2.3 (one line of caption · the bars on one line) */
-#tab-monitor .kpis,#tab-planning .kpis{margin-top:12px}
-#tab-monitor .kpi,#tab-planning .kpi{min-height:0;padding:13px 14px 12px}
-#tab-monitor .kpi .v,#tab-planning .kpi .v{margin-top:2px;margin-bottom:9px}
-#tab-monitor .kpi .kbar,#tab-planning .kpi .kbar{margin-top:auto}
-#tab-monitor .kpi .cap,#tab-planning .kpi .cap{font-size:13px;margin-top:6px}
-#tab-monitor .card{padding:14px 18px}
-#tab-monitor .mhead{margin-top:12px}
-#tab-monitor .ptabs{margin-top:12px}
+#tab-tracking .kpis,#tab-planning .kpis{margin-top:12px}
+#tab-tracking .kpi,#tab-planning .kpi{min-height:0;padding:13px 14px 12px}
+#tab-tracking .kpi .v,#tab-planning .kpi .v{margin-top:2px;margin-bottom:9px}
+#tab-tracking .kpi .kbar,#tab-planning .kpi .kbar{margin-top:auto}
+#tab-tracking .kpi .cap,#tab-planning .kpi .cap{font-size:13px;margin-top:6px}
+#tab-tracking .card{padding:14px 18px}
+#tab-tracking .mhead{margin-top:12px}
+#tab-tracking .ptabs{margin-top:12px}
 /* §4.2 — Burn-up (2/3) | What to do (1/3) · the same height */
 .r21{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:14px;margin-top:14px;align-items:stretch}
 .r21 .card,.r31 .card{margin-top:0;display:flex;flex-direction:column}
@@ -1240,7 +1240,7 @@ table.grid th.gl{white-space:normal;text-overflow:clip} table.grid .glt{overflow
 .todo.t9 li .btn{margin-left:auto}
 /* §4.3 — Sales: the Channel and the unit of the tab · the matrix · the mix bars · the Pareto */
 .mtabbar{display:flex;flex-wrap:wrap;gap:8px 12px;justify-content:flex-end;margin-top:12px}
-#tab-monitor .mtabbar + .card{margin-top:10px}
+#tab-tracking .mtabbar + .card{margin-top:10px}
 .mixbars{display:flex;flex-direction:column;gap:8px;width:100%;margin-top:14px}
 .mxr{display:grid;grid-template-columns:86px minmax(0,1fr);align-items:center;gap:8px;font-size:12.5px;color:var(--text-2)}
 .mxt{display:flex;height:18px;overflow:hidden;background:var(--surface-3)}
@@ -1314,14 +1314,14 @@ table.grid th.gl{white-space:normal;text-overflow:clip} table.grid .glt{overflow
 .is-stuck > .stickytabs{box-shadow:0 8px 12px -10px rgba(16,24,40,.28)}
 :root[data-theme="dark"] .is-stuck > .stickytabs{box-shadow:0 8px 12px -10px rgba(0,0,0,.7)}
 @media (min-width:1280px){
-  #tab-dashboard.is-stuck .dtab:not(.hidden) > .toolbar,#tab-monitor.is-stuck > .sticktools{position:sticky;top:calc(var(--topbar-h) + 3px);z-index:16;justify-content:flex-end;flex-wrap:nowrap;pointer-events:none;margin-top:0;height:34px}
-  #tab-dashboard.is-stuck .dtab:not(.hidden) > .toolbar > *,#tab-monitor.is-stuck > .sticktools > *{pointer-events:auto}
+  #tab-dashboard.is-stuck .dtab:not(.hidden) > .toolbar,#tab-tracking.is-stuck > .sticktools{position:sticky;top:calc(var(--topbar-h) + 3px);z-index:16;justify-content:flex-end;flex-wrap:nowrap;pointer-events:none;margin-top:0;height:34px}
+  #tab-dashboard.is-stuck .dtab:not(.hidden) > .toolbar > *,#tab-tracking.is-stuck > .sticktools > *{pointer-events:auto}
   #tab-dashboard.is-stuck .dtab:not(.hidden) > .toolbar .asof{margin-left:0}
-  #tab-monitor.is-stuck > .sticktools .exp{margin-left:0}
+  #tab-tracking.is-stuck > .sticktools .exp{margin-left:0}
   #tab-dashboard.is-stuck .dtab:not(.hidden) > .kpis{margin-top:46px}
 }
 /* the cards a link scrolls to stay clear of the bar */
-#tab-dashboard .card,#tab-dashboard .r2,#tab-monitor .card,#tab-planning .card{scroll-margin-top:calc(var(--topbar-h) + 60px)}
+#tab-dashboard .card,#tab-dashboard .r2,#tab-tracking .card,#tab-planning .card{scroll-margin-top:calc(var(--topbar-h) + 60px)}
 /* §3.1 — All campaigns: the timeline + the number columns · the groups fold · the total = the KPI */
 .tll.allc{overflow-x:auto}
 .acg th.gx,.acg td.gx{padding:0 8px;white-space:nowrap;font-size:13px;font-variant-numeric:tabular-nums}
@@ -1368,3 +1368,168 @@ table.grid th.gl{white-space:normal;text-overflow:clip} table.grid .glt{overflow
 .skuside .skuh{font-size:13.5px;font-weight:700;color:var(--text-2);margin:8px 0 2px;cursor:help}
 .pacetbl td.nm{white-space:nowrap}
 .pacetbl .pcell{white-space:nowrap}
+
+/* ===================== CR-11 (v0.11.0) — Campaign Tracking: the toolbar · Campaign period · Burn-up shade · Cumulative profit · Sub-channel share · SKU trend ===================== */
+/* §3 (D101) — the Campaign field ≥ 360 px · its list 520 px (the name on one line · dates · status + issue) · Request budget · View plan · Export on the right */
+#m_tools .mright{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#m_tools .mright .btn{display:inline-flex;align-items:center;gap:6px}
+#m_tools .mright .exp{margin-left:0}
+.ms.mcamp .ms-trigger .ms-l{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+@media (min-width:768px){.ms.mcamp .ms-trigger{min-width:360px}.ms.mcamp .ms-pop{width:520px;max-width:520px;max-height:460px}}
+.ms.mcamp .ms-opt.pick{display:grid;grid-template-columns:minmax(0,1fr) 92px auto;align-items:center;gap:10px;min-height:40px;padding:6px 10px;text-align:left}
+.ms.mcamp .ms-opt.pick .ms-name{white-space:normal;line-height:1.3}
+.ms.mcamp .ms-opt.pick .ms-sub{white-space:nowrap}
+.ms.mcamp .ms-chips{display:inline-flex;gap:4px;justify-self:end;white-space:nowrap}
+/* stuck (≥ 1280 px): the tabs + Year · Campaign · ‹ › · the buttons as icons, in one row */
+@media (min-width:1280px){
+  #tab-tracking.is-stuck > .sticktools .mright .btn > span{display:none}
+  #tab-tracking.is-stuck > .sticktools .mright{margin-left:0;flex-wrap:nowrap}
+  #tab-tracking.is-stuck > .sticktools .mright .btn{padding:0 8px}
+  #tab-tracking.is-stuck > .sticktools .ms.mcamp .ms-trigger{min-width:270px}
+}
+/* §4.1 — Campaign period: one bar Start → End marketing → End · Today */
+#tab-tracking .cperiod{margin-top:14px;padding:12px 18px 10px}
+.cp-top{display:flex;align-items:center;justify-content:space-between;gap:6px 16px;flex-wrap:wrap}
+.cp-chips{display:inline-flex;gap:6px;flex-wrap:wrap;align-items:center}
+.cp-w{font-size:14px;color:var(--text);font-variant-numeric:tabular-nums}
+.cp-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"s b e" ". u .";align-items:center;gap:2px 12px;margin-top:10px}
+.cp-row > span.cp-end:first-child{grid-area:s} .cp-row > span.cp-end:last-of-type{grid-area:e} .cp-bar{grid-area:b} .cp-under{grid-area:u}
+.cp-end{font-size:12.5px;color:var(--muted);white-space:nowrap} .cp-end b{color:var(--text);font-weight:600}
+.cp-bar{position:relative;height:22px}
+.cp-p{position:absolute;top:0;bottom:0}
+.cp-p.m{background:var(--text-2)} .cp-p.s{background:color-mix(in srgb,var(--text-2) 30%,var(--surface))}
+.cp-p.off{opacity:.35}
+.cp-n{position:absolute;top:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--text);pointer-events:none;white-space:nowrap}
+.cp-n.m.on{color:var(--surface)}
+.cp-j{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--surface)}
+.cp-today{position:absolute;top:-5px;bottom:-5px;width:0;margin-left:-1px;border-left:2px solid var(--today)}
+.cp-under{position:relative;height:17px}
+.cp-under:has(.low){height:32px}
+.cp-l{position:absolute;top:2px;transform:translateX(-50%);font-size:12px;color:var(--text-2);white-space:nowrap}
+.cp-l.td{color:var(--today);font-weight:600}
+.cp-l.toL{transform:translateX(-100%)} .cp-l.toR{transform:none} .cp-l.low{top:17px}
+@media (max-width:640px){.cp-row{grid-template-columns:1fr 1fr;grid-template-areas:"s e" "b b" "u u"}.cp-row > span.cp-end:last-of-type{text-align:right}}
+/* §4.2 — Burn-up: the Marketing period shaded · the legend marks */
+.mshade{fill:var(--text-2);opacity:.08}
+.legend .lgs{display:inline-block;vertical-align:middle;overflow:visible}
+.legend i.ring{width:10px;height:10px;border:2.5px solid var(--ok);border-radius:50%;background:none;box-sizing:border-box}
+/* §5.3 — SKU × Channel: Rank · one SKU */
+.mxtbl td.rk{color:var(--muted);font-size:12.5px}
+.mxone{display:flex;gap:10px;align-items:center;margin:8px 0 0;font-size:13px;color:var(--text-2)}
+/* §5.3 (D102) — Sub-channel share: a 100% bar a channel (the card as tall as its rows) */
+.r2.r2top{align-items:start}
+.scs{display:flex;flex-direction:column;gap:12px;margin-top:10px}
+.scs-r{display:grid;grid-template-columns:48px minmax(0,1fr) 62px;align-items:center;gap:4px 10px}
+.scs-l{font-size:13px;font-weight:700;color:var(--text-2);cursor:help}
+.scs-t{display:flex;height:26px;overflow:hidden;background:var(--surface-3)}
+.scs-p{display:flex;align-items:center;justify-content:center;height:100%;font-style:normal;color:#fff;min-width:0;box-shadow:inset -1px 0 0 var(--surface)}
+.scs-p.lt{color:var(--text)}
+.scs-p b{font-size:12px;font-weight:600;white-space:nowrap;padding:0 4px}
+.scs-v{font-size:13px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.scs-u{grid-column:2;display:flex;flex-wrap:wrap;gap:2px 10px;font-size:12px;color:var(--muted)}
+.scs-u i{display:inline-block;width:9px;height:9px;margin-right:4px;vertical-align:-1px}
+/* §5.3 (D103) — SKU trend: Ach % a SKU a month */
+.trwrap{margin-top:8px;max-height:460px}
+.trtbl{border-collapse:separate;border-spacing:2px;width:100%}
+.trtbl th{font-size:12px;color:var(--muted);font-weight:600;padding:2px 1px;white-space:nowrap;text-align:center;background:var(--surface)}
+.trtbl th:first-child{text-align:left}
+.trtbl th small{display:block;font-size:10.5px;font-weight:400;line-height:1.1}
+.trtbl th.cur{color:var(--text)}
+.trtbl td.nm{width:1%;white-space:nowrap;font-size:13px;padding:2px 8px 2px 0;position:sticky;left:0;background:var(--surface);z-index:1}
+.trtbl td.trc{min-width:31px;height:26px;padding:0 1px;text-align:center;font-size:11px;letter-spacing:-.1px;font-variant-numeric:tabular-nums;border-radius:3px;background:var(--surface-2);color:var(--text)}
+.trtbl td.trc.ok,.legend i.trsw.ok{background-color:color-mix(in srgb,var(--ok) 28%,var(--surface))}
+.trtbl td.trc.warn,.legend i.trsw.warn{background-color:color-mix(in srgb,var(--warn) 28%,var(--surface))}
+.trtbl td.trc.err,.legend i.trsw.err{background-color:color-mix(in srgb,var(--err) 28%,var(--surface))}
+.trtbl td.trc.mtd{background-image:repeating-linear-gradient(45deg,transparent 0 4px,color-mix(in srgb,var(--surface) 60%,transparent) 4px 6.5px)}
+.legend i.trsw.mtd{background:repeating-linear-gradient(45deg,var(--surface-2) 0 3px,var(--muted) 3px 4.5px)}
+.trtbl td.em,.trtbl th.em{border-right:2px dotted var(--text)}
+.trtbl tr.click{cursor:pointer}
+.trtbl tr.click:hover td.nm b,.trtbl tr.on td.nm b{color:var(--accent)}
+.trtbl tr.on td.nm b{text-decoration:underline}
+
+/* ===================== CR-12 (v0.12.0) — ไทย │ EN · Light │ Dark │ System · the Display popover (a phone) · the Thai text · ?i18n=check ===================== */
+.topbar{position:sticky}
+.tbseg button{height:28px;padding:0 9px;display:inline-grid;place-items:center;font-weight:600}
+.tbseg.tb-theme button{width:30px;padding:0}
+.tbseg.tb-theme svg{width:17px;height:17px}
+.tbseg button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.tb-disp{display:none}
+.disppop{position:absolute;right:10px;top:calc(var(--topbar-h) - 4px);z-index:45;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);padding:10px 12px;display:flex;flex-direction:column;gap:10px;min-width:240px}
+.disppop.hidden{display:none}
+.disppop .dp-h{font-size:13px;font-weight:700;color:var(--text-2)}
+.disppop .dp-r{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.disppop .dp-l{font-size:13.5px;color:var(--text-2)}
+@media (max-width:639px){#langSeg,#themeSeg{display:none}.tb-disp{display:inline-grid}}
+/* §6 — Thai: the vowels above / below are not cut (the text that sits in a box of a fixed height) */
+:lang(th) body{line-height:1.5}
+:lang(th) .ichip,:lang(th) .chip,:lang(th) .sttabs button,:lang(th) .seg button,:lang(th) .ptabs a,:lang(th) .vtabs a{line-height:1.45}
+:lang(th) .ichip,:lang(th) .chip{padding-top:1px;padding-bottom:1px}
+/* ?i18n=check (dev) */
+.i18nchk{position:fixed;right:10px;bottom:10px;z-index:9999;max-width:460px;max-height:42vh;overflow:auto;background:#fff8e6;color:#4a3500;border:1px solid #e0b84c;border-radius:10px;padding:8px 10px;font:12px/1.4 system-ui,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.i18nchk.ok{background:#ecfdf3;color:#05603a;border-color:#6ce9a6}
+.i18nchk ol{margin:4px 0 0 18px;padding:0}
+
+/* ===================== CR-13 (v0.13.0) — the Campaign page · Request change · Period change · Close · History · the 7 steps · Target builder · Budget envelope ===================== */
+/* §2 — the head · the tabs · the state chips (Ended · to close orange · Closed grey) */
+.st.toclose{background:var(--warn-soft);color:var(--warn)} .st.toclose.late{background:var(--err-soft);color:var(--err);font-weight:600;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--err) 45%,transparent)} .st.closed{background:var(--surface-2);color:var(--text-2)}
+.cp-chips{display:flex;gap:6px;align-items:center;flex-wrap:wrap} .cp-chips .pchip{text-decoration:none}
+.cptabs{margin-top:10px}
+.cp-act .btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;vertical-align:-2px}
+.menu-pop button.sub{padding-left:14px}
+/* §2.3 — Overview */
+.ov1{margin-top:14px}
+.ov-kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:6px 14px;margin:8px 0 12px} .ov-kv dt{color:var(--muted);font-size:13.5px} .ov-kv dd{margin:0;font-size:14px}
+.ov-per{border-top:1px solid var(--border);padding-top:10px;margin-top:4px} .ov-pl{font-size:13px;font-weight:700;color:var(--text-2)}
+.ov-period{margin-top:4px} .ov-dates{margin-top:6px}
+.ov-form{margin:8px 0} .ov-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
+.ov-use .ov-r{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.ov-use .ov-r span{color:var(--text-2);font-size:13.5px} .ov-use .ov-r b{font-variant-numeric:tabular-nums} .ov-use .ov-r .muted{flex-basis:100%;text-align:right}
+.ov-use .ov-line{margin:10px 0 6px;font-size:13.5px}
+.ov-items .oitem{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 0;border-bottom:1px solid var(--border)} .ov-items .oitem:last-child{border-bottom:0}
+.ov-items .oitem .oi-s{flex:1;min-width:200px} .ov-items .oitem.late .oi-s{color:var(--err);font-weight:600}
+.apt.period{background:var(--info-soft);color:var(--info)} .apt.close{background:var(--surface-2);color:var(--text)}
+.rqtbl td.wrap{white-space:normal}
+.cpro-tools{margin-top:12px}
+/* §6 — History: a group a month · the filter chips */
+.hchips{margin-top:6px}
+.hist.h13 .hmon{display:block;padding:10px 0 4px;border-bottom:0;font-size:12.5px;font-weight:700;color:var(--muted);text-transform:none}
+.hist.h13 .hrow{flex:1;min-width:0} .hist.h13 .hl .av{margin-right:3px}
+/* §4 · §5 — the drawers: the Impact table (a changed row bold) · the checks */
+.pctbl td.num,.pctbl th.num{text-align:right} .pctbl tr.chg td{font-weight:700} .pcimp .nsband{margin-top:8px} .pcimp [data-pccut]{margin-top:6px}
+.pctbl{width:100%;table-layout:fixed} .pctbl td,.pctbl th{white-space:normal;overflow-wrap:anywhere} .pctbl td:first-child,.pctbl th:first-child{width:38%}
+@media (max-width:640px){.pctbl td,.pctbl th{padding:6px 6px;font-size:12.5px;height:auto}
+  .tbuild .tb-row{gap:6px 10px} .tbuild .tb-l{flex:0 0 100%;min-width:0} .tbuild .tb-skus{flex:0 0 100%} .tbuild .tb-skus .tb-pin{flex:0 0 100%} .tbuild .tb-skus .tb-pin > span:first-child{flex:1}}
+.checks2 li.info{color:var(--text-2)} .checks2 li.info .ci{color:var(--muted)}
+.clsure{margin:4px 0 10px}
+/* §7.2 — the stepper in one row (≤ 72 px · sideways scroll under 1280) */
+.stepper.s7{display:flex;align-items:center;gap:0;overflow-x:auto;padding:6px 2px 8px;margin-top:12px;border-bottom:1px solid var(--border);max-height:72px}
+.s7{display:flex;align-items:center;gap:6px;padding:4px 5px 6px;text-decoration:none;color:var(--text);border-bottom:2px solid transparent;white-space:nowrap;flex:0 0 auto}
+.s7:hover{background:var(--row-hover);border-radius:8px} .s7.on{border-bottom-color:var(--accent)} .s7:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.s7n{flex:0 0 20px;height:20px;border-radius:50%;display:inline-grid;place-items:center;font-size:12px;font-weight:700;border:1.5px solid var(--border-strong);color:var(--text-2);background:var(--surface)}
+.s7.done .s7n{background:var(--ok);border-color:var(--ok);color:#fff} .s7.prog .s7n{border-color:var(--info);color:var(--info)} .s7.ret .s7n{background:var(--warn-soft);border-color:var(--warn);color:var(--warn)}
+.s7.open .s7n{border-color:var(--accent);color:var(--accent)} .s7.late .s7n{box-shadow:0 0 0 2px var(--err-soft);border-color:var(--err)}
+.s7t{display:flex;flex-direction:column;line-height:1.25} .s7t b{font-size:12.5px} .s7w{display:flex;gap:4px;align-items:center;font-size:11.5px;color:var(--muted)}
+.s7f{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--warn);vertical-align:2px}
+.s7dots{display:inline-flex;gap:2px} .s7dots .pd{width:9px;height:9px;font-size:0}
+.s7l{flex:1 1 4px;min-width:4px;max-width:18px;height:1px;background:var(--border-strong);margin:0 1px}
+/* F3 — a read-only grid shows no chosen cell */
+table.grid.ro td.on{outline:none}
+/* §7.3 — Target builder */
+.tbuild{padding:10px 16px} .tbuild summary{cursor:pointer;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tb-body{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.tb-row{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap} .tb-l{min-width:120px;font-size:13px;font-weight:600;color:var(--text-2)}
+.tb-pin{display:inline-flex;align-items:center;gap:5px;font-size:13px} .tbuild .tb-pin .inp{width:64px;flex:0 0 64px} .tbuild .inp.tb-full{width:150px;flex:0 0 150px}
+.tbuild .tb-sum{margin-left:4px;font-size:12.5px;font-weight:600} .tbuild .tb-cust .tb-pin .inp{width:52px;flex-basis:52px}
+.tb-skus{display:flex;flex-wrap:wrap;gap:6px 14px;flex:1}
+.tb-sum{font-size:12.5px;font-weight:700} .tb-sum.okx{color:var(--ok)}
+.tb-bars{display:inline-flex;align-items:flex-end;gap:2px;height:30px;margin-left:6px} .tb-bars i{width:10px;background:var(--rev);opacity:.75}
+.tb-cust .tb-pin input{width:56px} .tb-res{font-size:13px;color:var(--text-2)}
+/* §7.4 — Budget envelope · the head of a group of lines · the tools */
+.envtbl input{width:110px} .envtbl td.num input[data-envpct]{width:70px}
+.envh{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 8px;font-size:13px;color:var(--text-2)}
+.envbar{position:relative;display:inline-flex;width:180px;height:8px;background:var(--surface-3);overflow:hidden} .envbar i{display:block;height:100%} .envbar i.ok{background:var(--ok)} .envbar i.ov{background:var(--warn)}
+.ltools{display:flex;gap:8px 18px;flex-wrap:wrap;align-items:center;margin:0 0 8px;font-size:13px} .lt-g{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap} .lt-g input{width:120px}
+/* §7.5 — Forecast & summary */
+.sumset .sumh{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:12px 0 4px;font-size:13.5px}
+.sumtbl td.num,.sumtbl th.num{text-align:right}
+.pstate .st{height:21px;font-size:12.5px}

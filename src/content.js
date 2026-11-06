@@ -10,18 +10,23 @@ CP.content = (function () {
   const s = n => (n === 1 ? '' : 's');
   return {
     app: {
-      title: 'Campaign P&L', brandBold: 'Campaign', brandRest: 'P&L', org: 'Charmiss', version: 'v0.10.0', dev: 'DEV',
+      title: 'Campaign P&L', brandBold: 'Campaign', brandRest: 'P&L', org: 'Charmiss', version: 'v0.13.0', dev: 'DEV',
       searchMenu: 'Search menu…', noMenuMatch: 'No page matches', collapseMenu: 'Collapse menu', expandMenu: 'Expand menu', openMenu: 'Open menu', mainMenu: 'Main menu',
+      /* CR-12 §4.4 — the language switch (each language written in itself) · the theme Light · Dark · System (darkMode / lightMode: no longer used) */
+      lang: { label: 'Language · ภาษา', th: 'ไทย', en: 'EN', thLong: 'ภาษาไทย', enLong: 'English', toTh: 'เปลี่ยนเป็นภาษาไทย', toEn: 'Switch to English' },
+      theme: { label: 'Theme', light: 'Light', dark: 'Dark', system: 'System', systemNow: t => `System (now: ${t})`, cmd: t => `Theme: ${t}`,
+        tip: 'System = the same theme as Windows / macOS — it follows when the computer changes' },
+      display: 'Display',
       darkMode: 'Dark mode', lightMode: 'Light mode', jump: 'Search or jump to…', ctrlK: 'Ctrl+K', devTip: 'Development build · demo data — made-up campaigns and numbers, kept in this browser',
     },
     /* the side menu: groups (CR-01 §2.3 · CR-06 §8 — WORK › Dashboard · Campaigns · Expenses — MASTER DATA › Product Master, as KOL › KOL Master) */
-    /* CR-07 (D61) — WORK: Dashboard · Campaign Monitor · Campaign Planning — MASTER DATA: Product Master */
-    nav: [{ group: 'Work', items: [{ key: 'dashboard', label: 'Dashboard', icon: 'dashboard', route: 'dashboard' }, { key: 'monitor', label: 'Campaign Monitor', icon: 'monitor', route: 'monitor' },
+    /* CR-07 (D61) — WORK: Dashboard · Campaign Tracking · Campaign Planning — MASTER DATA: Product Master */
+    nav: [{ group: 'Work', items: [{ key: 'dashboard', label: 'Dashboard', icon: 'dashboard', route: 'dashboard' }, { key: 'tracking', label: 'Campaign Tracking', icon: 'monitor', route: 'tracking' },
       { key: 'planning', label: 'Campaign Planning', icon: 'planning', route: 'planning' }] }, { group: 'Master data', items: [{ key: 'products', label: 'Product Master', icon: 'products', route: 'products' }] }],
     cmdk: {
       placeholder: 'Type a page, campaign or product…', esc: 'Esc', goTo: 'Go to page', campaigns: 'Campaigns', products: 'Products', none: 'Nothing matches',
       footL: '↑↓ select · ⏎ open', footR: 'Press Ctrl+K to open from anywhere', group: { work: 'Work' }, campaignTag: 'Campaign',
-      /* CR-07 §11 — the 3 tabs of the Dashboard · Campaign Monitor · Campaign Planning › My tasks · Approvals · Timeline · Product Master · New campaign · New product */
+      /* CR-07 §11 — the 3 tabs of the Dashboard · Campaign Tracking · Campaign Planning › My tasks · Approvals · Timeline · Product Master · New campaign · New product */
       actions: [{ key: 'new', label: 'New campaign', right: 'Action', icon: 'plus' }, { key: 'newProduct', label: 'New product', right: 'Action', icon: 'plus' }], cancelledTag: 'Cancelled',
       routes: [{ key: 'tasks', label: 'My tasks', right: 'Campaign Planning', icon: 'tasks', hash: 'planning/tasks' }, { key: 'approvals', label: 'Approvals', right: 'Campaign Planning', icon: 'planning', hash: 'planning/approvals' },
         { key: 'timeline', label: 'Timeline', right: 'Campaign Planning', icon: 'timeline', hash: 'planning/timeline' }], productTag: s => s,
@@ -31,6 +36,18 @@ CP.content = (function () {
         { key: 'sales', label: 'Sales', right: 'Dashboard', icon: 'sales' }, { key: 'expenses', label: 'Expenses', right: 'Dashboard', icon: 'expenses' }],
     },
     /* CR-06 §2 (D51 · D52 · D54) — demo data only: Reset demo data (the Acting as menu) · the first sheet of an export says the numbers are made up */
+    /* CR-12 §4.3 — the words of the export sheets and a few tooltips that were written in the code (export.js · the screens) · Thai: content.th.js */
+    xl: {
+      metric: 'Metric', value: 'Value', of: 'Of', note: 'Note', campaign: 'Campaign', code: 'Code', baht: 'Baht', set: 'Set', part: 'Part', month: 'Month', rank: 'Rank', channel: 'Channel',
+      severity: 'Severity', problems: 'Problems', red: 'Red', orange: 'Orange', start: 'Start', endCampaign: 'End campaign', created: 'Created',
+      fullTarget: 'Full target', remaining: 'Remaining', pace: 'Current pace (a month)', actualYTD: 'Actual YTD', planFull: 'Plan (full)', actualTD: 'Actual to date', pctOfPlan: '% of plan',
+      step: 'Step', group: 'Group', amount: 'Amount', pctRev: '% of revenue', running: 'Running total',
+      actual: n => `${n} — actual`, actualTo: n => `${n} — actual to date`, targetTD: n => `${n} — target to date`, fullOf: n => `${n} — full target`, budgetTD: n => `${n} — budget to date`,
+      fullBudget: n => `${n} — full budget`, plan: n => `${n} — plan`, planTD: n => `${n} — plan to date`, targetBasis: (n, b) => `${n} — target (${b})`, planBasis: (n, b) => `${n} — plan (${b})`,
+      used: n => `${n} — used`, fcCounted: n => `${n} — full target of the campaigns counted`, fcOfFull: n => `${n} % of full target`, pcs: n => `${n} (pcs)`, piecesTD: n => `${n} — target pieces to date`,
+      pctOf: n => `${n} %`, pts: n => `${n} (pts)`, chActual: ch => `${ch} actual`, skus: n => `${n} (SKUs)`, profitOf: v => `Profit ${v}`,
+      withSales: (n, a, an, b, bn) => `of ${n} with sales actual · ${a} ${an} · ${b} ${bn}`, skusOf: (n, a, an, b, bn) => `of ${n} SKUs with a target · ${a} ${an} · ${b} ${bn}`,
+    },
     demo: {
       sheetL: 'Data', sheet: 'demo (made-up numbers)', reset: 'Reset demo data', resetTip: 'Forget what was clicked in this browser — back to the start',
       resetQ: 'Reset demo data?', resetBody: 'Every change made in this browser goes back to the start.', resetDone: 'Demo data reset',
@@ -180,7 +197,7 @@ CP.content = (function () {
       sc: { other: n => `Other (${n})` },
       table: 'Table', chart: 'Chart', downloadXlsx: 'Download .xlsx',
       /* export: the file of a tab · the sheet of a card */
-      file: { tracker: 'Campaign PnL - Campaign tracker', w_budget: 'Campaign PnL - Budget by campaign', overview: 'Campaign PnL - Overview', pnl: 'Campaign PnL - P&L', sales: 'Campaign PnL - Sales', expenses: 'Campaign PnL - Expenses', campaign: 'Campaign PnL - Campaign Monitor',
+      file: { tracker: 'Campaign PnL - Campaign tracker', w_budget: 'Campaign PnL - Budget by campaign', overview: 'Campaign PnL - Overview', pnl: 'Campaign PnL - P&L', sales: 'Campaign PnL - Sales', expenses: 'Campaign PnL - Expenses', campaign: 'Campaign PnL - Campaign Tracking', c_pkpi: 'P&L KPI', c_cum: 'Cumulative profit by month', c_subs: 'Sub-channel share', c_trend: 'SKU trend', c_p100: 'Where each 100 of sales goes',
         o_pace: 'Sales vs Time gone', o_watch: 'Watchlist', o_all: 'All campaigns', o_p100: 'Where each 100 of sales goes', s_rbc: 'Revenue by campaign', s_cxm: 'Revenue by channel x campaign', p_kpi: 'P&L KPI', p_table: 'P&L by campaign', p_profit: 'Profit by campaign', p_eff: 'Marketing efficiency', s_chmix: 'Revenue by channel', b_kpi: 'Budget KPI', b_group: 'Spend by group',
         kpi: 'KPI', pnlmonth: 'By month', attention: 'Needs attention', timeline: 'Campaign timeline',
         s_kpi: 'KPI', s_month: 'Target vs Actual by month', s_table: 'Campaign attainment', s_channel: 'By channel', s_sku: 'SKU watchlist',
@@ -326,8 +343,8 @@ CP.content = (function () {
     appr: {
       state: { draft: 'Draft', submitted: 'In review', pending: 'In review', approved: 'Approved', returned: 'Returned', rejected: 'Rejected', withdrawn: 'Withdrawn' },
       tabTable: 'Table', tab: 'Approvals', tabStaff: 'My requests',
-      segs: { pending: 'Pending', decided: 'Decided', drafts: 'Drafts' }, allTypes: 'All types', types: { plan: 'New plan', request: 'Budget change' },
-      kind: { plan: 'New plan', increase: 'Budget increase', release: 'Budget decrease', reallocation: 'Reallocation' },
+      segs: { pending: 'Pending', decided: 'Decided', drafts: 'Drafts' }, allTypes: 'All types', types: { plan: 'New plan', request: 'Budget change', period: 'Period change', close: 'Close' },
+      kind: { plan: 'New plan', increase: 'Budget increase', release: 'Budget decrease', reallocation: 'Reallocation', period: 'Period change', close: 'Close campaign' },
       sub: (by, d, ago, v) => `Submitted by ${by} · ${d} · ${ago}${v ? ` · v${v}` : ''}`, notSent: (by, d) => `Draft by ${by} · ${d}`, ago: n => (n <= 0 ? 'today' : `${n} day${n === 1 ? '' : 's'} ago`),
       waiting: 'Waiting for the Executive', review: 'Review', view: 'Review', open: 'Open plan', more: n => `+${n} more`, decided: (st, by, d) => `${st} · ${by} · ${d}`,
       none: { pending: 'Nothing is waiting for approval', decided: 'Nothing decided yet', drafts: 'No drafts' },
@@ -345,7 +362,10 @@ CP.content = (function () {
         failed: 'Could not save', duplicated: n => `${n} made as a new draft` },
       log: { created: 'Created', saved: 'Draft saved', submitted: 'Submitted', resubmitted: 'Resubmitted', withdrawn: 'Withdrawn to draft', returned: 'Returned to draft', approved: 'Approved', rejected: 'Rejected',
         request: 'Budget request', 'request.approved': 'Request approved', 'request.returned': 'Request returned', 'request.rejected': 'Request rejected', 'request.withdrawn': 'Request withdrawn', undo: 'Decision undone', duplicated: 'Duplicated',
-        'step.done': 'Step done', 'step.assign': 'Step assigned', revise: 'Sent back to revise' },
+        'step.done': 'Step done', 'step.assign': 'Step assigned', revise: 'Sent back to revise',
+        /* CR-13 §6 */ details: 'Details edited', period: 'Period change requested', 'period.approved': 'Period change approved', 'period.returned': 'Period change returned',
+        'period.rejected': 'Period change rejected', 'period.withdrawn': 'Period change withdrawn', close: 'Close requested', closed: 'Closed', 'close.returned': 'Close returned', 'close.rejected': 'Close rejected',
+        'close.withdrawn': 'Close withdrawn', reopened: 'Reopened', cancelled: 'Cancelled', restored: 'Restored' },
     },
     /* ===================== CR-05 §5 — the Campaign page ===================== */
     plan: {
@@ -358,11 +378,11 @@ CP.content = (function () {
         endMkt: 'End marketing', created: 'Created', updated: 'Updated', timeLeft: 'Time left', revenue: 'Net revenue', profitA: 'Campaign profit' },
       checks: { sku: 'At least one SKU', cogsPrice: 'Every SKU has COGS and a price in the channels it has a target', target: 'Target above 0', budget: 'Budget above 0',
         months: 'Months inside Start – End (budget from the month before Start)', negative: 'No negative cell', monthsOut: n => `${n} cell${n === 1 ? '' : 's'} outside`, negOut: n => `${n} negative cell${n === 1 ? '' : 's'}`,
-        apHigh: v => `A&P ${v} — above 20% of the target`, gpLow: v => `GP ${v} — below 50%`, noSales: 'Target with no Sales expenses budget', noMkt: m => `Target with no Marketing budget: ${m}`,
+        apHigh: v => `A&P ${v} — above 20% of the target`, gpLow: v => `GP ${v} — below 50%`, noSales: 'Target with no Sales expenses budget', noMkt: m => `Target with no Marketing budget: ${m}`, envelope: 'Every group has an envelope or No expense',
         /* CR-07 §7 — the checks of each step (R.stepChecks) */
         name: 'Campaign name', objective: 'Objective written', channels: 'At least one channel', dates: 'Start ≤ End marketing ≤ End campaign', assigned: 'Every step has an assignee and a Due date',
         skuPrice: 'Every SKU has COGS and a net price in each channel of step 1', monthsT: 'Target months inside Start – End', group: 'An amount above 0, or No expense',
-        monthsB: 'Budget months from the month before Start to End', before5: 'Steps 3 · 4a · 4b · 4c done', fcComment: 'Finance comment written', before6: 'Steps 1 – 5 done', allChecks: 'Every check of the plan passes' },
+        monthsB: 'Budget months from the month before Start to End', before5: 'Steps 3 · 4 · 5a · 5b · 5c done', fcComment: 'Finance comment written', before6: 'Steps 1 – 6 done', allChecks: 'Every check of the plan passes' },
       why: { locked: 'In review — locked until the Executive decides (Withdraw to edit it)', self: 'You submitted this — another Executive must approve', selfReq: 'You asked for this — another Executive must approve',
         notYours: who => `This step is ${who}’s — read only for you`, waitStep: s => `Waits for: ${s}` },
       grid: { products: 'Products', addSku: '+ Add SKU', skuPh: 'Search Product Master — code or name', code: 'Code', name: 'Product name', nick: 'Nickname', group: 'Group', category: 'Category', cogs: 'COGS / pc', product: 'Product',
@@ -402,9 +422,9 @@ CP.content = (function () {
         svt: { h: 'Spend vs time', d: 'Used % less the share of the campaign time passed — +24 pts = spending faster than time (orange above +20).', f: 'Used % − Elapsed %' },
         current: { h: 'Current budget', d: 'The approved plan + the approved requests.', f: 'Original + Changes' } },
       seg: { budget: 'Budget', profit: 'Profit' }, noBudgetRows: n => `${n} campaign${n === 1 ? '' : 's'} with no budget yet`, pts: v => `${v > 0.5 ? '+' : ''}${Math.round(v)} pts`,
-      tracker: { title: 'Campaign tracker', tip: 'Are the sales and the budget moving with the time? One row a campaign — a row opens Campaign Monitor.',
+      tracker: { title: 'Campaign tracker', tip: 'Are the sales and the budget moving with the time? One row a campaign — a row opens Campaign Tracking.',
         cols: { campaign: 'Campaign', status: 'Status', time: 'Time', sales: 'Sales', budget: 'Budget', svt: 'Spend vs time', pending: 'Pending', owner: 'Owner' } },
-      block: { title: 'Budget', tip: 'The current budget of the campaign (approved plan + approved requests) against what is spent.', byLine: 'By line', open: 'Campaign Monitor ›' },
+      block: { title: 'Budget', tip: 'The current budget of the campaign (approved plan + approved requests) against what is spent.', byLine: 'By line', open: 'Campaign Tracking ›' },
       noForecast: 'No forecast before the first sales month', lines: 'Lines',
       kpiTip: { h: 'Budget', d: 'What is spent against the current budget of the period — the approved plans + the approved requests. Pending requests are not counted yet.', f: 'Spent ÷ Current budget' },
       kpiCap: (pct, left, cur, pend) => `${pct} used · ${left} left of ${cur}${pend ? ` · ${pend} pending` : ''}`, kpiCapOver: (pct, over, cur, pend) => `${pct} used · ${over} over ${cur}${pend ? ` · ${pend} pending` : ''}`,
@@ -478,16 +498,16 @@ CP.content = (function () {
         barTip: 'The bar = Ach % of the full target · the black tick = Time gone', achTip: { h: 'Ach %', d: 'Actual to date ÷ the full target of the campaign.', f: 'Actual ÷ Full target' },
         timeTip: { h: 'Time gone', d: 'The share of the campaign time passed.', f: 'Days from Start to today ÷ days from Start to End' }, gapTip: { h: 'Gap', d: 'Ach % less Time gone, in points — below 0 = behind the time.', f: '(Ach % − Time gone) × 100' },
         paceTip: { h: 'Pace', d: 'Ach % ÷ Time gone — 1.00 = selling exactly with the time.', f: 'Ach % ÷ Time gone' }, fcTip: { h: 'Forecast end', d: 'Actual to date + the current pace × the time left — % of the full target beside it.' },
-        open: n => `Open ${n} in Campaign Monitor › Sales`, early: '—', earlyTip: 'Not started, or under 10% of its time gone — too early to tell (D67)', noFc: 'No forecast before the first sales month' },
+        open: n => `Open ${n} in Campaign Tracking › Sales`, early: '—', earlyTip: 'Not started, or under 10% of its time gone — too early to tell (D67)', noFc: 'No forecast before the first sales month' },
       st: { on_track: 'On track', at_risk: 'At risk', behind: 'Behind', over: 'Over budget', near: 'Near budget', ahead: 'Spending ahead', ended_over: 'Ended over budget', ok: 'On budget' },
       stTip: { on_track: 'Pace 0.95 or more', at_risk: 'Pace 0.85 – 0.95', behind: 'Pace below 0.85 — urgent', over: 'Spent above 100% of the budget — urgent', near: 'Used 90 – 100% and the campaign has not ended',
         ahead: 'Used % more than 20 points above Time gone', ended_over: 'Ended above its budget — to watch', ok: 'Within the budget' },
       sev: { urgent: 'Urgent', watch: 'To watch' },
       /* the Watchlist: Budget (Over · Near · Spending ahead · Ended over budget) | Sales (Behind · At risk) — the same rows as R.issues */
       /* CR-08 §3 — the value at the right of a row: one line (Ach 79% · Time 91% / Used 109% · −฿669K / Used 92% · ฿200K left) */
-      watch: { bOver: (u, v) => `Used ${u} · ${v}`, bLeft: (u, v) => `Used ${u} · ${v} left`, sDetail: (a, tg) => `Ach ${a} · Time ${tg}`, open: n => `Open ${n} in Campaign Monitor`,
-        budget: { title: 'Expenses to watch', tip: { h: 'Expenses to watch', d: 'Over budget (red) · Near budget · Spending ahead of the time · Ended over budget (orange) — a row opens Campaign Monitor › Expenses.' }, none: 'All campaigns within budget' },
-        sales: { title: 'Sales to watch', tip: { h: 'Sales to watch', d: 'Behind (red, Pace < 0.85) · At risk (orange, Pace 0.85 – 0.95) — a row opens Campaign Monitor › Sales.' }, none: 'All campaigns on pace' } },
+      watch: { bOver: (u, v) => `Used ${u} · ${v}`, bLeft: (u, v) => `Used ${u} · ${v} left`, sDetail: (a, tg) => `Ach ${a} · Time ${tg}`, open: n => `Open ${n} in Campaign Tracking`,
+        budget: { title: 'Expenses to watch', tip: { h: 'Expenses to watch', d: 'Over budget (red) · Near budget · Spending ahead of the time · Ended over budget (orange) — a row opens Campaign Tracking › Expenses.' }, none: 'All campaigns within budget' },
+        sales: { title: 'Sales to watch', tip: { h: 'Sales to watch', d: 'Behind (red, Pace < 0.85) · At risk (orange, Pace 0.85 – 0.95) — a row opens Campaign Tracking › Sales.' }, none: 'All campaigns on pace' } },
       file: { watch: 'Watchlist' },
     },
     /* ===================== CR-07 §4.2 — Dashboard › P&L (statement · waterfall · by campaign · profit by campaign) ===================== */
@@ -501,13 +521,13 @@ CP.content = (function () {
       k: { revenue: 'Net revenue', gp: 'Gross profit', exp: 'Total expenses', profit: 'Campaign profit', ofPlan: v => `of ${v} plan`, revCap: p => `${p} of the full-year target`,
         gpCap: (a, p) => `GP ${a} · plan ${p}`, gpTip: p => `${p} of the full-year plan`, expTip: (m, sl, o, u) => `Marketing ${m} · Sales ${sl} · Other ${o} · ${u} of the full-year budget used`,
         expCap: (ap, plan) => `A&P ${ap} · plan ${plan}`, profitCap: (mg, roi) => `Margin ${mg} · ROI ${roi}` },
-      tbl: { title: 'P&L by campaign', tip: { h: 'P&L by campaign', d: 'One row a campaign of the year — Actual · Plan · Forecast. The total = the statement. A row opens Campaign Monitor › P&L.' },
+      tbl: { title: 'P&L by campaign', tip: { h: 'P&L by campaign', d: 'One row a campaign of the year — Actual · Plan · Forecast. The total = the statement. A row opens Campaign Tracking › P&L.' },
         cols: { campaign: 'Campaign', rev: 'Net revenue', gpPct: 'GP %', mkt: 'Marketing', sls: 'Sales', oth: 'Other', profit: 'Campaign profit', margin: 'Margin', vsPlan: 'Profit vs plan to date', roi: 'ROI',
           cogs: 'COGS', gp: 'Gross profit', exp: 'Total expenses' },
         /* CR-10 §4 (D96) — COGS · Gross profit · Total expenses ▸ (Marketing · Sales · Other) · no GP % by campaign */
         gpTip: { h: 'Gross profit', d: 'GP % differs by channel mix — compare campaigns by Campaign profit and Margin.', f: 'Net revenue − COGS' },
         expTip: { h: 'Total expenses', d: 'Marketing + Sales + Other expenses — open it for the three groups.', f: 'Marketing + Sales + Other' }, expOpen: 'Show Marketing · Sales · Other', expClose: 'Hide Marketing · Sales · Other',
-        vsTip: { h: 'Profit vs plan to date', d: 'Actual: the campaign profit less the plan of the same months (to date) · Forecast: the forecast end less the full plan.', f: 'Actual profit − Plan profit to date' }, open: n => `Open ${n} in Campaign Monitor › P&L` },
+        vsTip: { h: 'Profit vs plan to date', d: 'Actual: the campaign profit less the plan of the same months (to date) · Forecast: the forecast end less the full plan.', f: 'Actual profit − Plan profit to date' }, open: n => `Open ${n} in Campaign Tracking › P&L` },
       bars: { title: 'Profit by campaign', tip: { h: 'Profit by campaign', d: 'Campaign profit to date (the bar, from 0) against its full plan (the black tick) · a loss in red · largest first — the same rows as Marketing efficiency beside it.' }, actual: 'Actual', loss: 'Loss', plan: 'Plan',
         val: (a, p) => `${a} · plan ${p}` },
       /* CR-08 §6.4 (D77) — Marketing efficiency: net sales per ฿1 of marketing · the rows of Profit by campaign */
@@ -518,7 +538,7 @@ CP.content = (function () {
     },
     /* ===================== CR-07 §4.3 — Dashboard › Sales & Budget ===================== */
     sb: {
-      bud: { title: 'Budget by campaign', tip: { h: 'Budget by campaign', d: 'Current budget · Spent · Used % (the black tick = Time gone) · Remaining · Pending request · Status — one rule with Overview and Campaign Monitor · the worst first. A row opens Campaign Monitor › Budget.' } },
+      bud: { title: 'Budget by campaign', tip: { h: 'Budget by campaign', d: 'Current budget · Spent · Used % (the black tick = Time gone) · Remaining · Pending request · Status — one rule with Overview and Campaign Tracking · the worst first. A row opens Campaign Tracking › Expenses.' } },
       /* CR-08 §4 — Sales: the KPI · Sales vs Time gone (from Overview) · Revenue by channel (donut) */
       sk: { fc: 'Forecast end (Est.)', fcTip: { h: 'Forecast end (Est.)', d: 'Where the net revenue of the year ends at the current pace — the same number as the P&L statement.', f: 'Actual + the current pace × the time left (no pace yet = the target) · an ended campaign = its actual' },
         fcOf: v => `of ${v} target`, fcVs: v => `${v} vs target`,
@@ -543,10 +563,10 @@ CP.content = (function () {
         pend: 'Pending requests', pendTip: 'Budget requests of the campaigns in scope waiting for a decision — not counted in the budget yet.', pendCap: (n, d) => `${n} request${s(n)} · oldest ${d} day${s(d)}`, pendNone: 'No request waiting', pendBar: (p, left) => `${p} of the ${left} left` },
       grp: { title: 'Spend by group', tip: { h: 'Spend by group', d: 'Spent to date by group: Marketing · Sales · Other — the total in the middle.' }, cols: { group: 'Group', spent: 'Spent', share: '%' } },
     },
-    /* ===================== CR-07 §5 — Campaign Monitor (#monitor/<id>/<tab>) ===================== */
+    /* ===================== CR-07 §5 — Campaign Tracking (CR-11 §2 · D99 — was Campaign Tracking · #tracking/<id>/<tab>) ===================== */
     mon: {
-      /* CR-10 D92 — the tab Budget is called Expenses (one word on every page) · its route stays budget (#monitor/<id>/expenses works too) */
-      title: 'Campaign Monitor', tabs: { summary: 'Summary', sales: 'Sales', budget: 'Expenses', pnl: 'P&L', history: 'History' },
+      /* CR-10 D92 — the tab Budget is called Expenses · CR-11 §2 (D100) — the tabs in the order of the Dashboard, History last · route tab expenses (budget → expenses) */
+      title: 'Campaign Tracking', tabs: { summary: 'Summary', pnl: 'P&L', sales: 'Sales', expenses: 'Expenses', history: 'History' },
       none: 'No approved campaign in this year', groups: ['Urgent', 'To watch', 'Others'], viewPlan: 'View plan',
       stCols: { plan: 'Plan (full)', actual: 'Actual to date', fc: 'Forecast end (Est.)', fcVar: 'Forecast vs Plan' },
       k: { pace: 'Sales vs Time gone', paceTip: { h: 'Sales vs Time gone', d: 'Ach % of the full target against Time gone of the campaign.', f: 'Pace = Ach % ÷ Time gone' }, paceV: (a, tg) => `${a} · ${tg} gone`, paceCap: p => `Pace ${p}`,
@@ -567,7 +587,19 @@ CP.content = (function () {
         profit: 'Campaign profit', ofPlan: v => `of ${v} plan`, profitCap: (m, r) => `Margin ${m} · ROI ${r}`, profitTip: p => `${p} of the plan profit`,
         fc: 'Forecast end (Est.)', fcTip: { h: 'Forecast end (Est.)', d: 'Net revenue at the end at the current pace · the profit beside it against the plan.', f: 'Actual + the current pace × the months left (an ended campaign = its actual)' },
         fcCap: (f, pl) => `profit ${f} of ${pl}`, fcCapTip: (f, pl) => `Forecast profit ${f} · plan profit ${pl}`, usedTip: (u, tg) => `Used ${u} · Time gone ${tg}` },
-      burn2: { endMkt: 'End marketing', fc: 'Forecast (Est.)', tip: { h: 'Burn-up', d: 'Cumulative Ach % (sales) and Used % (budget) against Time gone (the dashed diagonal) · the dotted line = End marketing · the dashed ends = where they finish at the current pace (Est.).' } },
+      burn2: { endMkt: 'End marketing', fc: 'Forecast (Est.)', tip: { h: 'Burn-up', d: 'Cumulative Ach % (sales) and Used % (budget) against Time gone (the dashed diagonal) · the shaded part = the Marketing period (Start → End marketing, the dotted line — as Campaign period) · the dashed ends = where they finish at the current pace (Est.).' } },
+      /* CR-11 §4.1 (D101) — Campaign period: the head card as one bar · one sentence at the right */
+      period: { start: 'Start', end: 'End', mkt: 'Marketing', sell: 'Sell-through', going: (p, left) => `${p} of time gone · ${left}`, left: n => `${n} day${s(n)} left`, endsToday: 'ends today',
+        ended: d => `Ended ${d}`, starts: n => `Starts in ${n} day${s(n)}` },
+      /* CR-11 §5.2 (D104) — P&L: the KPI of the Dashboard's P&L for one Campaign · Cumulative profit by month */
+      pk: { gpTip: p => `${p} of the plan gross profit`, expTip: (m, sl, o, u) => `Marketing ${m} · Sales ${sl} · Other ${o} · ${u} of the plan expenses` },
+      cum: { title: 'Cumulative profit by month', tip: { h: 'Cumulative profit by month', d: 'The bars = the campaign profit of each month (a loss in red · the month in progress hatched) · the line = the running profit (actual) · the dashed line = the running profit of the plan · Break-even = the first month the running profit reaches 0.', f: 'Net revenue − COGS − Marketing − Sales − Other, a month · running = the sum up to that month' },
+        profit: 'Profit', loss: 'Loss', runA: 'Running profit', runP: 'Running plan', beL: 'Break-even', month: 'Profit of the month', planM: 'Plan of the month',
+        be: m => `Break-even in ${m}`, notYet: v => `Not yet — ${v} to break even`, planBe: m => `Plan: break-even in ${m}` },
+      /* CR-11 §5.3 (D103) — SKU trend: Ach % of each SKU each month */
+      trend: { title: 'SKU trend', tip: { h: 'SKU trend', d: 'Which SKU slipped and when — Ach % of each SKU each month (green ≥ 100% · orange 90 – 99% · red below 90% · empty = no target) · the month in progress hatched (its actual so far) · the dotted line = End marketing · a row shows only that SKU in SKU × Channel.', f: 'Actual of the month ÷ Target of the month' },
+        sku: 'SKU', lg: { ok: '≥ 100%', warn: '90 – 99%', err: '< 90%' }, rowTip: n => `${n} — show only this SKU in SKU × Channel`,
+        cellTip: (n, m, a, t, p, mtd) => `${n} · ${m}${mtd ? ' (in progress)' : ''}\nActual ${a} · Target ${t} · Ach ${p}`, note: 'Ach % = actual of the month ÷ target of the month · empty = no target, or no actual of the campaign that month yet' },
       todo2: { sell: (req, when, x) => `Sell ${req} a month ${when} — ${x} the current pace`, forDays: n => `for the last ${n} day${s(n)}`, forMonths: n => `for the next ${n} months`, sellNoPace: (req, when) => `Sell ${req} a month ${when}`,
         over: v => `${v} over — stop the open lines or request budget`, none: 'On pace and within budget', seeSku: 'See SKUs behind ›', request: 'Request budget' },
       /* CR-09 §4.3 (D80 · D81 · D82 · D83) — Sales: the Channel of the tab · the status = the Pace at every level */
@@ -578,11 +610,13 @@ CP.content = (function () {
         gapTip: { h: 'Gap to pace', d: 'What it sold less what it would have sold on pace — below 0 = behind the time.', f: 'Actual − Full target × Time gone' },
         achTip: { h: 'Ach %', d: 'Actual ÷ the full target · the black tick = Time gone of the campaign · the target to date (D14) in the tooltip.', f: 'Actual ÷ Full target' },
         rowTip: (n, a, t, td, p) => `${n}\nActual ${a} · Full target ${t} · Target to date ${td}${p ? ` · Pace ${p}` : ''}`, subShare: (p, ch) => `${p} of ${ch}` },
-      mx: { title: 'SKU × Channel', tip: { h: 'SKU × Channel', d: 'The actual of every SKU in every channel (the line under = Ach % of its full target) · the tint = the Pace status · Share % = of the campaign actual · the total row = Net revenue.' },
-        seg: { actual: 'Actual', ach: 'Ach %', share: 'Share %' }, segL: 'Value in the cells', cols: { sku: 'SKU', total: 'Total', share: 'Share %', ach: 'Ach %', status: 'Status' },
+      mx: { title: 'SKU × Channel', tip: { h: 'SKU × Channel', d: 'The actual of every SKU in every channel (the line under = Ach % of its full target) · the tint = the Pace status · Share % = of the campaign actual (its tooltip: the share of the top SKUs together) · Rank = by actual, #1 the largest · the total row = Net revenue.' },
+        onlySku: n => `Showing ${n} only`, showAll: 'Show all SKUs', shareTip: (n, p) => `Top ${n} SKU${s(n)} = ${p}`,
+        seg: { actual: 'Actual', ach: 'Ach %', share: 'Share %' }, segL: 'Value in the cells', cols: { sku: 'SKU', total: 'Total', share: 'Share %', rank: 'Rank', ach: 'Ach %', status: 'Status' },
         sorts: { actual: 'Actual', gap: 'Gap', ach: 'Ach %', name: 'Name' }, tabs: { all: 'All', behind: 'Behind', at_risk: 'At risk', on_track: 'On track' }, none: 'No SKU in this filter', total: 'Total',
         cellTip: (sku, ch, a, t, p, st) => `${sku} · ${ch}\nActual ${a} · Full target ${t} · Ach ${p}${st ? ` · ${st}` : ''}` },
-      subs: { title: 'Sub-channel share', tip: { h: 'Sub-channel share', d: 'The actual of each sub-channel, by channel — its share of the channel (no target by sub-channel — D63).' }, of: (p, ch) => `${p} of ${ch}` },
+      subs: { title: 'Sub-channel share', tip: { h: 'Sub-channel share', d: 'Each channel as 100%: its sub-channels, the largest at the left (2 or more under 5% together as Other) · the actual of the channel at the end of the row (no target by sub-channel — D63).' }, of: (p, ch) => `${p} of ${ch}`,
+        otherN: n => `Other ${n}`, sub: 'Sub-channel', shareH: 'Share of channel' },
       pareto: { title: 'SKU contribution', tip: { h: 'SKU contribution', d: 'The actual of each SKU, largest first, and the running share of the campaign (the dashed line, 0 – 100% across) — which SKUs carry the campaign. Top 10 + Other.' }, other: n => `Other (${n})`, cum: 'Running share' },
       /* CR-09 §4.4 — Budget by line: Marketing ▸ Sales ▸ Other (folded) · the status of a line */
       lines: { title: 'Budget by line', tip: { h: 'Budget by line', d: 'Marketing · Sales · Other (open a group for its lines, the highest Used % first) · Used % with the black tick = Time gone · Over > 100% · Near budget 90 – 100% while it runs.' },
@@ -603,7 +637,7 @@ CP.content = (function () {
       waitExec: d => `Executive · in review ${d} day${s(d)}`, execWord: 'Executive (in review)', more: n => ` · +${n} more`,
       task: { title: 'My tasks', tip: { h: 'My tasks', d: 'The steps given to the one acting, of the plans in Draft or Returned · Due in red = overdue · orange = due in 3 days or less.' },
         cols: { campaign: 'Campaign', step: 'Step', due: 'Due', status: 'Status' }, open: 'Open', none: 'Nothing assigned to you' },
-      menu: { plan: 'Open plan', monitor: 'Open in Campaign Monitor' }, badgeTasks: n => `${n} step${s(n)} of yours open`,
+      menu: { plan: 'Open', monitor: 'Open in Campaign Tracking' }, badgeTasks: n => `${n} step${s(n)} of yours open`,
       /* CR-09 §5 (D85 · D86) — the planning work only: the plan's numbers, no results (they live in Monitor / Dashboard) */
       kpi: { inProg: 'In progress', inProgTip: { h: 'In progress', d: 'Plans not approved yet: Draft · In review · Returned (cancelled ones not counted).', f: 'Draft + In review + Returned' }, plans: n => `${n} plan${s(n)}`,
         by: { draft: n => `${n} draft`, returned: n => `${n} returned`, submitted: n => `${n} in review` },
@@ -611,9 +645,9 @@ CP.content = (function () {
         review: 'In review', reviewTip: { h: 'In review', d: 'Plans waiting for the Executive — the oldest first.', f: 'today − submitted' }, reviewCap: n => `oldest ${n} day${s(n)}`, reviewNone: 'Nothing waiting',
         next: 'Next 12 months', nextTip: { h: 'Next 12 months', d: 'Campaigns that start in the next 12 months — approved and still in planning (not rejected or cancelled): the target and budget of their plan.', f: 'Σ plan target · Σ plan budget · A&P = budget ÷ target' },
         nextV: v => `Target ${v}`, approved: v => `${v} approved`, nextCap: (b, ap) => `Budget ${b} · A&P ${ap}` },
-      stTabs2: { progress: 'In progress', approved: 'Approved', rejected: 'Rejected', all: 'All', cancelled: 'Cancelled' },
-      cols2: { start: 'Start', budget: 'Budget (plan)' }, inDays: n => (n === 0 ? 'today' : n > 0 ? `in ${n} day${s(n)}` : `${-n} day${s(-n)} ago`), approvedOn: (d, who) => `Approved ${d} · ${who}`, ap: p => `A&P ${p}`, toMonitor: 'Monitor ›',
-      budgetTip: { h: 'Budget (plan)', d: 'The budget of the plan (Marketing + Sales + Other) and its A&P % of the plan target — what is spent is in Campaign Monitor.', f: 'A&P = Budget ÷ Target' },
+      stTabs2: { progress: 'In progress', approved: 'Approved', toclose: 'To close', rejected: 'Rejected', all: 'All', cancelled: 'Cancelled' },
+      cols2: { start: 'Start', budget: 'Budget (plan)' }, inDays: n => (n === 0 ? 'today' : n > 0 ? `in ${n} day${s(n)}` : `${-n} day${s(-n)} ago`), approvedOn: (d, who) => `Approved ${d} · ${who}`, ap: p => `A&P ${p}`, toMonitor: 'Tracking ›',
+      budgetTip: { h: 'Budget (plan)', d: 'The budget of the plan (Marketing + Sales + Other) and its A&P % of the plan target — what is spent is in Campaign Tracking.', f: 'A&P = Budget ÷ Target' },
       task2: { sum: (o, od, d) => `${o} open · ${od} overdue${d ? ` · next due ${d}` : ''}`, blocked: n => `Blocked · ${n} step${s(n)}`, blockedTip: list => ({ h: 'Waiting for', d: list.join(' · ') }) },
       dec: { cols: { campaign: 'Campaign', type: 'Type', version: 'Version', amount: 'Amount', decision: 'Decision', by: 'By', date: 'Date', review: '' }, earlier: n => `${n} earlier`, hide: 'Hide', title: 'Decided', drafts: 'Drafts' },
       tl2: { title: 'Timeline', running: 'Running (approved)', before: (n, m) => `${n} campaign${s(n)} ended before ${m}`, after: (n, m) => `${n} campaign${s(n)} start after ${m}`, show: 'Show', hide: 'Hide',
@@ -621,19 +655,59 @@ CP.content = (function () {
         legend: { run: 'Approved · running', ns: 'Approved · not started', ended: 'Ended', draft: 'Draft', review: 'In review', ret: 'Returned', rej: 'Rejected', can: 'Cancelled', endMkt: 'End marketing' } },
     },
     /* ===================== CR-07 §7 · §8 — a plan in 6 steps (D64 · D70 · D71) ===================== */
+    /* ===================== CR-13 — the Campaign page of Planning (Overview · Plan · Requests · History) · Period change · Close · the 7 steps' helpers ===================== */
+    cpg: {
+      tabs: { overview: 'Overview', plan: 'Plan', requests: 'Requests', history: 'History' },
+      st: { not_started: n => `Not started · in ${n} day${s(n)}`, ongoing: n => (n === 0 ? 'On going · ends today' : `On going · ${n} day${s(n)} left`), toclose: 'Ended · to close',
+        late: n => `${n} day${s(n)} late`, closed: d => `Closed ${d}`, closedBy: (d, who) => `Closed ${d} · ${who}`, cancelled: 'Cancelled', endedOn: d => `Ended ${d}` },
+      apprV: (w, v) => `${w} v${v}`, endMktOf: d => `End marketing ${d}`,
+      pending: { period: 'Period change pending', close: 'Close requested', budget: 'Budget change pending' },
+      change: 'Request change', types: { budget: 'Budget change', period: 'Period change', close: 'Close campaign', closeEarly: 'Close early' },
+      toTracking: 'Campaign Tracking ›', reopen: 'Reopen', cantRequest: 'Closed or cancelled — no request', onlyOwner: 'The owner or Admin may ask',
+      d: { title: 'Campaign details', edit: 'Edit', save: 'Save', cancel: 'Cancel', period: 'Period', reqPeriod: 'Request period change', readOnly: 'Closed — read only',
+        saved: n => `${n} saved`, dates: (a, m, b) => `Start ${a}${m ? ` · End marketing ${m}` : ''} · End ${b}`,
+        f: { name: 'Name', brand: 'Brand', category: 'Category', objective: 'Objective', channels: 'Channels', owner: 'Owner' } },
+      use: { title: 'Plan in use', approved: (v, d, who) => `v${v} · Approved ${d} · ${who}`, target: 'Target', budget: 'Budget (current)', budgetSub: (o, ch) => `original ${o} · approved changes ${ch}`,
+        profit: 'Plan profit', ap: 'A&P', line: (a, u) => `Ach ${a} · Used ${u}`, open: 'Open plan ›' },
+      items: { title: 'Open items', none: 'No open item', close: 'Close campaign', closeSub: (d, late) => `Due ${d}${late ? ` · ${late}` : ''}`, closeBtn: 'Close campaign…', open: 'Open' },
+      latest: { title: 'Latest activity', all: 'All history ›' },
+      plan: { inUse: v => `v${v} (in use)`, ver: v => `v${v}`, compare: 'Compare', sections: { products: 'Products', target: 'Sales target', budget: 'Budget', summary: 'Forecast & summary' } },
+      rq: { title: 'Requests', none: 'No request yet', new: 'New request', cols: { no: '#', type: 'Type', summary: 'Summary', by: 'By', sent: 'Sent', status: 'Status', decided: 'Decided' },
+        sumPeriod: (a, b) => `End ${a} → ${b}`, sumStart: (a, b) => `Start ${a} → ${b}`, sumMkt: (a, b) => `End marketing ${a} → ${b}`, sumClose: v => `Close · unused ${v}`, sumEarly: (d, v) => `Close early ${d} · unused ${v}`,
+        kind: { increase: 'Budget increase', release: 'Release', reallocation: 'Reallocation', period: 'Period', close: 'Close' } },
+      per: { title: 'Period change', sub: n => n, start: 'Start', endMkt: 'End marketing', end: 'End campaign', reason: 'Reason', reasonPh: 'Why the dates move (at least 10 characters)',
+        locked: 'Started — cannot move', impact: 'Impact', now: 'Now', after: 'After approval', days: 'Days', daysV: (n, l) => `${n} days · ${l} left`, daysPlus: (n, d, l) => `${n} days (${d}) · ${l} left`,
+        timeGone: 'Time gone', ach: t => `Ach % (the full target stays ${t})`, pace: 'Pace · Status', rate: 'Sales still needed a month', moves: 'Target / budget moved', noMove: '— (nothing moves)',
+        move: (a, b, t, bu) => `${a} → ${b}: target ${t} · budget ${bu}`, better: 'Status improves because the period is longer, not because sales went up.',
+        cut: (m, s, sp) => `${m} has ${s} sales actual${sp ? ` and ${sp} spend actual` : ''} — it cannot leave the period`, newMonths: 'Need budget for the new months? Send a Budget change after this is approved.',
+        same: 'The dates are the same', short: 'At least 10 characters', order: 'Start ≤ End marketing ≤ End campaign', send: 'Send period change', sent: n => `Period change #${n} sent` },
+      cl: { title: n => `Close ${n}`, early: n => `Close ${n} early`, ended: d => `Ended ${d}`, checks: 'Checks', noWait: 'No request waiting', wait: n => `${n} request${s(n)} waiting — decide or withdraw ${n === 1 ? 'it' : 'them'} first`,
+        noStep: 'No plan step open', lastExp: d => `Last expense ${d}`, spent: (a, b, u) => `Spent ${a} of ${b} current budget (Used ${u})`, rev: (a, p) => `Net revenue ${a} · Ach ${p} of the target`,
+        profit: (a, p) => `Campaign profit ${a} · plan ${p}`, unused: v => `Unused budget ${v} — stays in the numbers (not released)`, sure: 'No more expenses are expected for this campaign',
+        note: 'Closing note', notePh: 'What worked, what did not, why the gap …', gap: (a, b) => `Explain the gap: ${a ? `${a} below the target` : ''}${a && b ? ' · ' : ''}${b ? `${b} over the budget` : ''}`,
+        date: 'Close date', dateErr: d => `On or after today and after the last month with actual (${d})`, short: 'At least 20 characters', tick: 'Tick it to close', send: 'Send close request', sent: n => `Close request #${n} sent`,
+        closedNote: (d, who) => `Closed ${d} · ${who}`, reopenQ: n => `Reopen ${n}?`, reopenBody: 'The campaign goes back to Ended · to close. A reason is written in the history.', reopenReason: 'Reason', reopened: n => `${n} reopened` },
+      rv: { period: 'Period change', close: 'Close', from: 'From', to: 'To', note: 'Closing note', unused: 'Unused budget' },
+      log: { details: 'Details edited', period: 'Period change requested', 'period.approved': 'Period change approved', 'period.returned': 'Period change returned', 'period.rejected': 'Period change rejected',
+        'period.withdrawn': 'Period change withdrawn', close: 'Close requested', closed: 'Closed', 'close.returned': 'Close returned', 'close.rejected': 'Close rejected', 'close.withdrawn': 'Close withdrawn', reopened: 'Reopened',
+        cancelled: 'Cancelled', restored: 'Restored' },
+    },
+    /* CR-13 §6 — the history helper (Tracking › History · the Campaign page › History) */
+    hist: { f: { all: 'All', approvals: 'Approvals', changes: 'Changes', budget: 'Budget', steps: 'Steps' }, none: 'Nothing here yet', openReq: n => `Open request #${n}`, compare: (a, b) => `Compare v${a} ↔ v${b}` },
     step: {
       title: 'Campaign Planning', stepsL: 'The steps of the plan',
-      names: { 1: 'Campaign details', 2: 'Products', 3: 'Sales target', '4a': 'Marketing exp', '4b': 'Sales exp', '4c': 'Other exp', 5: 'Forecast', 6: 'Review & submit' },
-      pages: { details: 'Campaign details', products: 'Products', target: 'Sales target', budget: 'Budget', forecast: 'Forecast', review: 'Review & submit' },
+      /* CR-13 §7.1 (D121) — 7 steps on the page: the envelope (env) · the lines (5a 5b 5c = 4a 4b 4c) · Forecast & summary (5) · Review & submit (6) */
+      names: { 1: 'Campaign details', 2: 'Products', 3: 'Sales target', env: 'Budget envelope', '4a': 'Marketing exp', '4b': 'Sales exp', '4c': 'Other exp', 5: 'Forecast & summary', 6: 'Review & submit' },
+      pages: { details: 'Campaign details', products: 'Products', target: 'Sales target', envelope: 'Budget envelope', budget: 'Budget lines', forecast: 'Forecast & summary', review: 'Review & submit' },
       dept: { brand: 'Brand', sales: 'Sales', marketing: 'Marketing', finance: 'Finance' },
       state: { not_started: 'Not started', in_progress: 'In progress', done: 'Done', returned: 'Returned' },
       waiting: 'waiting', waitFor: s => `waits for ${s}`, overdue: n => `Overdue ${n} day${s(n)}`, dueSoon: 'Due soon', due: d => `Due ${d}`, dueL: 'Due', refresh: 'Needs refresh',
-      markDone: 'Mark step done', notReady: 'Finish steps 1 – 5 and the checks first', reviewBtn: 'Review', toMonitor: 'View in Campaign Monitor', readOnly: 'Read only',
+      markDone: 'Mark step done', notReady: 'Finish steps 1 – 6 and the checks first', reviewBtn: 'Review', toMonitor: 'View in Campaign Tracking', readOnly: 'Read only',
       fixFirst: 'Fix the fields in red first', checksFirst: list => `Not ready: ${list}`, doneToast: n => `${n} — done`,
       side: { title: 'Plan P&L', target: 'Target', gp: 'GP %', mkt: 'Marketing', sls: 'Sales', oth: 'Other', ap: 'A&P %', profit: 'Plan profit', margin: 'Margin', roi: 'ROI', checks: 'Checks of this step' },
       d: { name: 'Campaign name', brand: 'Brand', category: 'Category', objective: 'Objective', objectivePh: 'What should this campaign do? e.g. launch the new tint in MT and ECOM',
         start: 'Start', endMkt: 'End marketing', end: 'End campaign', channels: 'Channels', owner: 'Owner (Brand)', assignTitle: 'Who does each step',
-        assignTip: { h: 'Who does each step', d: 'An assignee and a Due date a step — the Due starts from Start (step 2 −60 days · 3 / 4 −45 · 5 −35 · 6 −30). Only the assignee, the owner or Admin edits a step.' },
+        assignTip: { h: 'Who does each step', d: 'An assignee and a Due date a step — the Due starts from Start (step 1 −75 days · 2 −60 · 3 −50 · 4 −45 · 5 −40 · 6 −35 · 7 −30). Only the assignee, the owner or Admin edits a step.' },
         cols: { step: 'Step', dept: 'Department', who: 'Assignee', due: 'Due', status: 'Status' } },
       p: { role: 'Role', roles: { hero: 'Hero', core: 'Core', gwp: 'GWP' }, notSold: 'Not sold', chNote: chs => `Net prices for the channels of step 1: ${chs}` },
       t: { noSku: 'Add the SKUs first in', corner: 'SKU · Channel' },
@@ -648,6 +722,21 @@ CP.content = (function () {
         be: 'Break-even revenue', beAch: 'Break-even achievement', beAchV: p => `${p} of the target`, noWarn: 'No warning',
         curve: 'Profit by achievement', curveTip: { h: 'Profit by achievement', d: 'Campaign profit at 50% – 120% of the target with the plan GP % and the full budget · the dashed line = break-even.' },
         dots: { worst: 'Worst', base: 'Base', best: 'Best' } },
+      /* CR-13 §7.3 – §7.6 — the Target builder · the Budget envelope · the helpers of the lines · Forecast & summary */
+      envChanged: 'Envelope changed',
+      tb: { title: 'Target builder', sub: 'fills the grid from a total — edit the grid after as you like', from: 'Start from', blank: 'Blank', copy: 'Copy mix from', full: 'Full target ฿',
+        ch: 'Channel split', sku: 'SKU split', curve: 'Month curve', curves: { even: 'Even', launch: 'Launch', follow: 'Follow marketing', custom: 'Custom' }, fill: 'Fill the grid',
+        sum: v => `Σ ${v}%`, res: (g, b, d) => `Grid ${g} · builder ${b} (${d} rounding)`, edited: 'Edited after fill', errFull: 'Type the full target first', errCh: 'The channel split must add to 100%',
+        errSku: 'The SKU split must add to 100%', replaceQ: 'Replace the target in the grid?', replaceBody: 'The quantities typed in the grid are replaced by the builder.', replace: 'Replace' },
+      env: { tip: { h: 'Budget envelope', d: 'How much each group may spend — % of the target ↔ ฿ · Phasing = how the lines spread by month · Reference = the average of the approved plans of the same category. The envelope only guides: the budget of the plan is the sum of its lines.' },
+        of: t => `Target ${t}`, cols: { group: 'Group', pct: '% of target', amount: 'Amount', phasing: 'Phasing', ref: 'Reference' }, total: 'Total (A&P)',
+        ph: { mkt: 'Until End marketing', sales: 'Follow sales target', even: 'Even' }, refTip: (cat, n) => ({ h: 'Reference', d: `The average % of the target of ${n} approved plan(s) of ${cat}.` }), allCat: 'every category',
+        note: 'The envelope guides the lines of step 5 — over or under it is a warning, not a stop (the budget of the plan = the sum of its lines).', refresh: 'The target changed — check the envelope and mark the step done again (Needs refresh)',
+        head: (e, a, l) => `Envelope ${e} · Allocated ${a} · Left ${l}`, over: v => `${v} over the envelope`, under: v => `${v} not allocated`,
+        spread: 'Spread', totalPh: 'Total ฿', spreadBtn: 'Spread', rest: 'Fill the rest', restBtn: 'Fill the rest', noRest: 'Nothing left in the envelope', needTotal: 'Pick a line and type a total',
+        vs: 'Envelope vs lines', env: 'Envelope', lines: 'Lines', diff: 'Lines − envelope' },
+      sum: { title: 'Forecast & summary', bySku: 'Summary by SKU', byCh: 'Summary by channel', byMonth: 'By month', sku: 'SKU', ch: 'Channel', qty: 'Qty', target: 'Target ฿', share: 'Share %', gp: 'Gross profit',
+        profit: 'Plan profit of the month', run: 'Running plan profit' },
       r: { waiting: d => `In review — waiting for the Executive (${d} day${s(d)})`, returned: (by, c) => `Returned by ${by}: ${c}`, steps: 'Steps', comment: 'Note to the Executive', commentPh: 'Anything the Executive should know before approving' },
     },
     ms: { search: 'Search', noMatches: 'No matches', selectAll: 'Select all', clear: 'Clear', reset: 'Reset', nSelected: n => `${n} selected` },

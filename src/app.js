@@ -7,6 +7,8 @@
    CR-07 (D61): WORK Dashboard · Campaign Monitor · Campaign Planning — MASTER DATA Product Master · the old routes go to the new ones (#campaigns… → #planning… ·
    #expenses → #dashboard · #dashboard/sales|spend|operations|campaign/<id> in screen-dashboard.js) · the Planning badge = approvals waiting + my open steps ·
    Ctrl+K: the 3 Dashboard tabs · Campaign Monitor (+ a Campaign → its Monitor) · Campaign Planning (+ My tasks · Approvals · Timeline) · Product Master · New campaign.
+   CR-11 (D99): Campaign Monitor → Campaign Tracking (#tracking/<id>/<tab> · #monitor/… goes there).
+   CR-12: ไทย │ EN (CP.i18n · ?lang) · Light │ Dark │ System (?theme) on the top bar · a phone: Display · Ctrl+K switches both.
    ?today=yyyy-mm-dd stands in for today (checks and screenshots). */
 (function () {
   'use strict';
@@ -24,19 +26,48 @@
   $('jumpBtn').innerHTML = `${ICON.search}<span class="tx">${esc(A.jump)}</span><kbd>${esc(A.ctrlK)}</kbd>`; $('jumpBtn').setAttribute('aria-label', `${A.jump} (${A.ctrlK})`);
   $('topDev').textContent = A.dev; $('topDev').title = A.devTip;
   $('sidenav').setAttribute('aria-label', A.mainMenu);
+  $('cmdk').setAttribute('aria-label', A.jump);   /* CR-12 — the words of index.html in the language of the page */
 
-  /* ===================== theme ===================== */
-  function applyTheme(t) {
-    if (t === 'dark') document.documentElement.dataset.theme = 'dark'; else document.documentElement.dataset.theme = 'light';
-    const label = t === 'dark' ? A.lightMode : A.darkMode;
-    $('themeBtn').innerHTML = t === 'dark' ? ICON.moon : ICON.sun;
-    $('themeBtn').title = label; $('themeBtn').setAttribute('aria-label', label);
+  /* ===================== CR-12 §2 · §3 — the language (ไทย │ EN) · the theme (Light │ Dark │ System) — boot.js set both before the page drew ===================== */
+  /* the language: a click remembers it and loads the same page again (CP.i18n.set — D107) · each language written in itself · ←/→ move, Enter / Space choose ·
+     the theme: Light · Dark · System (follows the computer at once, the charts drawn again) · a phone (< 640 px): one Display button → both in a popover */
+  const LG = A.lang, TM = A.theme, sysMQ = matchMedia('(prefers-color-scheme: dark)');
+  let themePref = CP.themePref || 'system';
+  const resolved = p => (p === 'system' ? (sysMQ.matches ? 'dark' : 'light') : p);
+  const radios = (attr, items, on) => items.map(x => `<button type="button" role="radio" class="${x.v === on ? 'on' : ''}" data-${attr}="${x.v}" aria-checked="${x.v === on}" tabindex="${x.v === on ? 0 : -1}" title="${esc(x.tip)}" aria-label="${esc(x.tip)}">${x.html}</button>`).join('');
+  function drawSwitches() {
+    const sysNow = TM.systemNow(sysMQ.matches ? TM.dark : TM.light);
+    const lang = radios('lng', [{ v: 'th', html: esc(LG.th), tip: `${LG.label} · ${LG.thLong}` }, { v: 'en', html: esc(LG.en), tip: `${LG.label} · ${LG.enLong}` }], CP.lang);
+    const theme = radios('thm', [{ v: 'light', html: ICON.sun, tip: TM.light }, { v: 'dark', html: ICON.moon, tip: TM.dark }, { v: 'system', html: ICON.system, tip: `${sysNow} — ${TM.tip}` }], themePref);
+    $('langSeg').innerHTML = lang; $('langSeg').setAttribute('aria-label', LG.label); $('langSeg').title = LG.label;
+    $('themeSeg').innerHTML = theme; $('themeSeg').setAttribute('aria-label', TM.label);
+    $('dispBtn').innerHTML = ICON.display; $('dispBtn').title = A.display; $('dispBtn').setAttribute('aria-label', A.display);
+    $('dispPop').setAttribute('aria-label', A.display);
+    $('dispPop').innerHTML = `<div class="dp-h">${esc(A.display)}</div><div class="dp-r"><span class="dp-l">${esc(LG.label)}</span><div class="seg tbseg" role="radiogroup" aria-label="${esc(LG.label)}">${lang}</div></div>` +
+      `<div class="dp-r"><span class="dp-l">${CP.ui.labelInfo(TM.label, TM.tip)}</span><div class="seg tbseg tb-theme" role="radiogroup" aria-label="${esc(TM.label)}">${theme}</div></div>`;
   }
-  $('themeBtn').addEventListener('click', () => {
-    const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-    applyTheme(t); pref.set('theme', t);
-    if (current) showPage(current);   // the charts read their colours from the theme
+  function applyTheme(p, redraw) {
+    themePref = ['light', 'dark', 'system'].includes(p) ? p : 'system';
+    const h = document.documentElement; h.dataset.theme = resolved(themePref); h.dataset.themePref = themePref;
+    drawSwitches();
+    if (redraw && current) showPage(current, parseHash().sub);   // the charts read their colours from the theme
+  }
+  function setTheme(p) { pref.set('theme', p); applyTheme(p, true); }
+  sysMQ.addEventListener('change', () => { if (themePref === 'system') applyTheme('system', true); else drawSwitches(); });
+  const openDisp = on => { $('dispPop').classList.toggle('hidden', !on); $('dispBtn').setAttribute('aria-expanded', String(on)); if (on) { const b = $('dispPop').querySelector('button.on'); if (b) b.focus(); } };
+  document.querySelector('.topbar').addEventListener('click', e => {
+    const l = e.target.closest('[data-lng]'); if (l) { if (l.dataset.lng !== CP.lang || CP.langForced) CP.i18n.set(l.dataset.lng); return; }
+    const t = e.target.closest('[data-thm]'); if (t) { setTheme(t.dataset.thm); const again = document.querySelector(`${$('dispPop').classList.contains('hidden') ? '#themeSeg' : '#dispPop'} [data-thm="${t.dataset.thm}"]`); if (again) again.focus(); return; }
+    if (e.target.closest('#dispBtn')) openDisp($('dispPop').classList.contains('hidden'));
   });
+  /* a radio group: ←/→ move the focus (Enter / Space choose) */
+  document.querySelector('.topbar').addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !$('dispPop').classList.contains('hidden')) { e.stopPropagation(); openDisp(false); $('dispBtn').focus(); return; }
+    const b = e.target.closest('.tbseg [role=radio]'); if (!b || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+    e.preventDefault(); const all = [...b.parentElement.querySelectorAll('[role=radio]')], i = all.indexOf(b), n = all[(i + (e.key === 'ArrowRight' ? 1 : -1) + all.length) % all.length];
+    all.forEach(x => { x.tabIndex = x === n ? 0 : -1; }); n.focus();
+  });
+  document.addEventListener('click', e => { if (!e.target.closest('#dispPop, #dispBtn') && !$('dispPop').classList.contains('hidden')) openDisp(false); });
 
   /* ===================== side menu: open / folded (remembered) · a drawer under 768px ===================== */
   const mobileMQ = matchMedia('(max-width:767px)');
@@ -79,12 +110,14 @@
   /* CR-07 §11 — the old routes: #campaigns[/table|timeline|approvals|<id>/<page>] → #planning/… · #expenses → #dashboard (the Dashboard maps its own old tabs) */
   function redirect() {
     const [seg, ...rest] = location.hash.slice(1).split('/');
-    if (seg === 'campaigns') { if (rest[0] === 'table') rest[0] = 'plans'; if (rest[1] === 'expenses' || rest[1] === 'requests') { history.replaceState(null, '', `#monitor/${rest[0]}/budget`); return; }
+    if (seg === 'campaigns') { if (rest[0] === 'table') rest[0] = 'plans'; if (rest[1] === 'expenses' || rest[1] === 'requests') { history.replaceState(null, '', `#tracking/${rest[0]}/expenses`); return; }
       /* the old tabs of a Campaign page: Summary · History of an approved one → its Monitor · of a plan → its review · Sales target / Budget → the plan's steps */
       if (rest[1] === 'summary' || rest[1] === 'history') { let live = false; try { live = (CP.ui.seed().campaigns || []).some(c => c.id === rest[0]); } catch (e) { live = false; }
-        history.replaceState(null, '', live ? `#monitor/${rest[0]}/${rest[1]}` : `#planning/${rest[0]}/review`); return; }
+        history.replaceState(null, '', live ? `#tracking/${rest[0]}/${rest[1]}` : `#planning/${rest[0]}/review`); return; }
       history.replaceState(null, '', '#planning' + (rest.length ? '/' + rest.join('/') : '')); }
     else if (seg === 'expenses') history.replaceState(null, '', '#dashboard');
+    /* CR-11 §2 — Campaign Monitor is Campaign Tracking: #monitor/… → #tracking/… (the tab budget → expenses in screen-tracking.js) */
+    else if (seg === 'monitor') history.replaceState(null, '', '#tracking' + (rest.length ? '/' + rest.join('/') : ''));
   }
   function parseHash() { redirect(); const [seg, ...rest] = location.hash.slice(1).split('/'); const p = PAGES.find(x => x.key === seg); return { page: p ? p.key : null, sub: rest.join('/') || null }; }
   function showPage(key, sub) {
@@ -121,7 +154,7 @@
   function ckItems() {
     const q = R.foldText(ck.q), seed = CP.ui.seed(), td = R.todayISO(), a = CP.actor.get();
     const pid = current === 'planning' && CP.cpage && CP.cpage.current() && /^#planning\/[^/]+/.test(location.hash) && !/^#planning\/(new|plans|tasks|approvals|timeline)$/.test(location.hash) ? CP.cpage.current()
-      : current === 'monitor' && CP.screens.monitor.current() ? CP.screens.monitor.current() : null;
+      : current === 'tracking' && CP.screens.tracking.current() ? CP.screens.tracking.current() : null;
     const pc = pid ? (seed.allCampaigns || []).find(c => c.id === pid) : null, onPage = pc ? { c: pc, plan: (seed.plans || {})[pid] || null } : null;
     /* CR-07 §11 — Overview · P&L · Sales & Budget · Campaign Monitor · Campaign Planning · My tasks · Approvals · Timeline · Product Master · New campaign · New product */
     const pages = K.pages.map(p => ({ kind: 'tab', key: p.key, label: p.label, right: p.right, icon: ICON.nav[p.icon] }))
@@ -130,6 +163,9 @@
       .concat(K.actions.filter(p => (p.key === 'new' ? R.canDo('create', a).ok : p.key === 'newProduct' ? R.canDo('product', a).ok : false))
         .map(p => ({ kind: 'action', key: p.key, label: p.label, right: p.right, icon: ICON.nav[p.icon] })))
       .concat(onPage && R.canDo('request', a, onPage.plan, { live: true }).ok ? [{ kind: 'action', key: 'request', label: K.requestAction.label, right: onPage.c.name, icon: ICON.nav.plus }] : [])
+      /* CR-12 — Switch to English / เปลี่ยนเป็นภาษาไทย · Theme: Light · Dark · System (right: Display) */
+      .concat([{ kind: 'lang', key: CP.lang === 'th' ? 'en' : 'th', label: CP.lang === 'th' ? LG.toEn : LG.toTh, right: A.display, icon: ICON.display }])
+      .concat(['light', 'dark', 'system'].map(v => ({ kind: 'theme', key: v, label: TM.cmd(TM[v]), right: A.display, icon: ICON[v === 'light' ? 'sun' : v === 'dark' ? 'moon' : 'system'] })))
       .filter(p => !q || R.foldText(p.label).includes(q));
     const camps = (seed.allCampaigns || seed.campaigns || []).filter(c => !q || R.foldText(c.name).includes(q)).map(c => ({ kind: 'campaign', key: c.id, label: c.name, live: c.approval === 'approved',
       right: c.approval !== 'approved' ? C.appr.state[c.approval] || '' : R.statusOf(c, td) === R.CANCELLED ? K.cancelledTag : C.status[R.statusOf(c, td)], icon: ICON.nav.campaign }));
@@ -162,16 +198,18 @@
     /* a tab · a Campaign → its Campaign Monitor (CR-07) */
     if (x.kind === 'tab') { CP.screens.dashboard.go(x.key); return; }
     if (x.kind === 'route') { location.hash = x.hash; return; }
+    if (x.kind === 'lang') { CP.i18n.set(x.key); return; }
+    if (x.kind === 'theme') { setTheme(x.key); return; }
     if (x.kind === 'product') { if (location.hash !== '#products') location.hash = 'products'; setTimeout(() => CP.products.openForm(x.key), 0); return; }
     /* CR-03 — New campaign: Campaign Planning and its drawer */
     if (x.kind === 'action') {
       if (x.key === 'newProduct') { if (location.hash !== '#products') location.hash = 'products'; setTimeout(() => CP.products.openForm(null), 0); return; }
-      if (x.key === 'request') { CP.reqdraw.open(current === 'monitor' ? CP.screens.monitor.current() : CP.cpage.current()); return; }
+      if (x.key === 'request') { CP.reqdraw.open(current === 'tracking' ? CP.screens.tracking.current() : CP.cpage.current()); return; }
       if (location.hash === '#planning/new') CP.screens.planning.openNew(); else location.hash = 'planning/new'; return;
     }
     /* CR-05 — a plan not approved yet opens its plan (not on the Dashboard, D50) · an approved one its Campaign Monitor */
     if (!x.live) { location.hash = `planning/${x.key}`; return; }
-    location.hash = `monitor/${x.key}`;
+    location.hash = `tracking/${x.key}`;
   }
   dlg.addEventListener('input', e => { if (e.target.id !== 'ck_q') return; ck.q = e.target.value; ck.i = 0; ckDraw(); });
   dlg.addEventListener('keydown', e => {
@@ -186,11 +224,12 @@
 
   /* ===================== start ===================== */
   shell.classList.toggle('collapsed', pref.get('navcollapsed', '0') === '1');
-  applyTheme(pref.get('theme', 'light'));
+  applyTheme(CP.themePref || 'system', false);   /* CR-12 — boot.js read ?theme / the pref / System */
   CP.actor.draw();
   const h = parseHash();
   if (!h.page) history.replaceState(null, '', '#' + PAGES[0].route);
   const h2 = parseHash();
   showPage(h2.page, h2.sub);
   lastHash = location.hash;
+  CP.i18n.restore();   /* CR-12 — after a language switch: the same scroll */
 })();

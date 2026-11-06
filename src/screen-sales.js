@@ -136,7 +136,7 @@ CP.tabs.sales = (function () {
       const dw = dl.kind === 'ended' ? D.p.endedOn(R.dm(x.c.end)) : X.daysText(dl);
       return `<tr class="click" tabindex="0" data-mon="${esc(x.c.id)}|sales" title="${esc(T.open(x.c.name))}"><td class="nm"><b>${esc(x.c.name)}</b></td>` +
         `<td title="${esc(Q.barTip(R.pct(x.ach), R.pct(x.timeGone), pc))}">${x.ach == null ? U.none(D.p.why.noSales) : `<span class="pcell">${U.paceBar(x.ach, x.timeGone, stCls(x.status) || 'ok', 120)}<span class="tgv">${esc(Q.tgLine(R.pct(x.timeGone), dw))}</span></span>`}</td>` +
-        `<td class="num">${x.gap == null || early ? U.none() : `<span class="${x.gap < -0.5 ? 'neg' : 'okx'}">${esc((x.gap > 0 ? '+' : '') + Math.round(x.gap) + ' pts')}</span>`}</td>` +
+        `<td class="num">${x.gap == null || early ? U.none() : `<span class="${x.gap < -0.5 ? 'neg' : 'okx'}">${esc(C.track.pts(x.gap))}</span>`}</td>` +
         `<td>${early ? `<span class="muted small" title="${esc(T.earlyTip)}">${esc(T.early)}</span>` : `<span title="${esc(Q.statusTip(C.yr.st[x.status], pc))}">${U.paceChip(x.status)}</span>`}</td>` +
         `<td class="num">${x.fc.forecast == null ? U.none(T.noFc) : `${esc(R.shortBaht(x.fc.forecast))} <span class="muted small">${esc(R.pct(x.fc.pct))}</span>`}</td></tr>`; }).join('');
     $('s_pace').innerHTML = `<div class="card-head"><h3>${labelInfo(T.title, T.tip)}</h3><div class="ctl"><div class="legend"><span><i class="bar" style="--sw:var(--ok)"></i>${esc(C.yr.st.on_track)}</span><span><i class="bar" style="--sw:var(--warn)"></i>${esc(C.yr.st.at_risk)}</span><span><i class="bar" style="--sw:var(--err)"></i>${esc(C.yr.st.behind)}</span><span><i class="tick"></i>${esc(C.yr.timeGone)}</span></div>` +
@@ -215,16 +215,16 @@ CP.tabs.sales = (function () {
   /* ---------- Export: KPI · by month · Sales vs Time gone · Revenue by channel · By channel · SKU watchlist ---------- */
   X.register('s_kpi', x => { const k = R.kpis(x.seed, x), A = k.pnl.actual, L = k.pnl.lfl, Pl = k.pnl.plan, F = R.pnlForecast(x.seed, x).forecast, K = SB.sk, yg = R.yearGone(x.year, x.today);
     const rows = paceRows(), by = { on_track: 0, at_risk: 0, behind: 0, early: 0 }; rows.forEach(r => { by[r.status || 'early']++; });
-    return { key: 's_kpi', title: D.file.s_kpi, header: ['Metric', 'Value', 'Of', '%', 'Note'], cols: ['text', 'money', 'money', 'pct', 'text'],
+    return { key: 's_kpi', title: D.file.s_kpi, header: [C.xl.metric, C.xl.value, C.xl.of, '%', C.xl.note], cols: ['text', 'money', 'money', 'pct', 'text'],
       rows: [[C.yr.k.revenue, A.rev, Pl.rev, R.ratio(A.rev, Pl.rev), `${C.yr.timeGone} ${R.pct(yg)} · ${C.yr.k.toGo(R.baht((Pl.rev || 0) - (A.rev || 0)))}`],
         [K.fc, F.rev, Pl.rev, R.ratio(F.rev, Pl.rev), K.fcVs(R.signedShort(F.rev == null ? null : F.rev - (Pl.rev || 0)))],
-        [`${K.units} (pcs)`, { v: A.rev == null ? null : A.qty, fmt: 'num' }, { v: A.rev == null ? null : L.qty, fmt: 'num' }, A.rev == null ? null : R.ratio(A.qty, L.qty), MN.units.f],
+        [C.xl.pcs(K.units), { v: A.rev == null ? null : A.qty, fmt: 'num' }, { v: A.rev == null ? null : L.qty, fmt: 'num' }, A.rev == null ? null : R.ratio(A.qty, L.qty), MN.units.f],
         [`${K.onTrack} (${K.onTrackOf})`, { v: by.on_track, fmt: 'num' }, { v: rows.length, fmt: 'num' }, R.ratio(by.on_track, rows.length), `${C.yr.st.at_risk} ${by.at_risk} · ${C.yr.st.behind} ${by.behind}${by.early ? ` · ${K.by.early(by.early)}` : ''}`]] }; });
   X.register('s_pace', () => { const T = C.yr.pace.cols, rows = paceRows();
     return { key: 's_pace', title: C.yr.pace.title, header: [T.campaign, T.ach, T.time, T.gap, T.pace, T.status, T.fc], cols: ['text', 'pct', 'pct', 'num', 'num', 'text', 'money'],
       rows: rows.map(x => [{ v: x.c.name, bold: true }, x.ach, x.timeGone, x.gap == null || x.status == null ? null : Math.round(x.gap), x.status == null ? null : +R.paceText(x.pace), x.status ? C.yr.st[x.status] : C.yr.pace.early, x.fc.forecast]) }; });
   X.register('s_rbc', () => { const K = SB.rbc, d = rbcData();
-    return { key: 's_rbc', title: K.title, header: [K.cols[0], 'Rank', K.cols[1], K.cols[2], S.ch.cols.full, 'Ach %'], cols: ['text', 'num', 'money', 'pct', 'money', 'pct'],
+    return { key: 's_rbc', title: K.title, header: [K.cols[0], C.xl.rank, K.cols[1], K.cols[2], S.ch.cols.full, C.money.ach.h], cols: ['text', 'num', 'money', 'pct', 'money', 'pct'],
       rows: d.rows.map(x => [{ v: x.c.name, bold: true }, x.rank + 1, x.rev, x.share, x.target, R.ratio(x.rev, x.target)]), total: [C.common.total, null, d.tot, d.tot ? 1 : null, null, null] }; });
   X.register('s_cxm', () => { const K = SB.cxm, d = cxmData(), chs = R.CHANNELS.filter(k => d.totals[k]);
     return { key: 's_cxm', title: K.title, header: [K.cols.campaign].concat(chs.map(k => C.channel[k]), chs.map(k => `${C.channel[k]} Ach %`), [K.cols.total, K.cols.share]), cols: ['text'].concat(chs.map(() => 'money'), chs.map(() => 'pct'), ['money', 'pct']),

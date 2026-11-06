@@ -20,26 +20,33 @@ Object.assign(CP.rules, (function (R) {
   /* CR-07 §10 — the departments: Brand · Sales · Marketing · Finance · Executive · Admin */
   const DEPTS = ['brand', 'sales', 'marketing', 'finance', 'executive', 'admin'];
 
-  /* ===================== CR-07 §7 — the 6 steps of a plan (4 = three budget groups, each its own step) ===================== */
-  const STEP_KEYS = ['1', '2', '3', '4a', '4b', '4c', '5', '6'];
-  const STEP_NAMES = { 1: 'Campaign details', 2: 'Products', 3: 'Sales target', '4a': 'Marketing exp', '4b': 'Sales exp', '4c': 'Other exp', 5: 'Forecast', 6: 'Review & submit' };
-  const STEP_DEPT = { 1: 'brand', 2: 'brand', 3: 'sales', '4a': 'marketing', '4b': 'sales', '4c': 'finance', 5: 'finance', 6: 'brand' };
-  const STEP_DUE = { 1: -75, 2: -60, 3: -45, '4a': -45, '4b': -45, '4c': -45, 5: -35, 6: -30 };
+  /* ===================== CR-07 §7 — the steps of a plan · CR-13 §7.1 (D121): 7 on the page — 1 · 2 · 3 · 4 Budget envelope (key env) · 5 Budget lines (4a 4b 4c) ·
+     6 Forecast & summary (key 5) · 7 Review & submit (key 6) — the keys saved before stay (no migration) · a plan without env (made before CR-13) = env done ===================== */
+  const STEP_KEYS = ['1', '2', '3', 'env', '4a', '4b', '4c', '5', '6'];
+  /* the number a step shows (its key stays) */
+  const STEP_NUM = { 1: '1', 2: '2', 3: '3', env: '4', '4a': '5a', '4b': '5b', '4c': '5c', 5: '6', 6: '7' };
+  /* CR-12 §4.3 — the names of the steps are words of the page (C.step.names — Thai in Thai) */
+  const STEP_NAMES = C.step.names;
+  const STEP_DEPT = { 1: 'brand', 2: 'brand', 3: 'sales', env: 'brand', '4a': 'marketing', '4b': 'sales', '4c': 'finance', 5: 'finance', 6: 'brand' };
+  const STEP_DUE = { 1: -75, 2: -60, 3: -50, env: -45, '4a': -40, '4b': -40, '4c': -40, 5: -35, 6: -30 };
   const STEP_TYPE = { '4a': 'marketing', '4b': 'sales', '4c': 'other' };
-  const STEP_PAGE = { 1: 'details', 2: 'products', 3: 'target', '4a': 'budget', '4b': 'budget', '4c': 'budget', 5: 'forecast', 6: 'review' };
+  const STEP_PAGE = { 1: 'details', 2: 'products', 3: 'target', env: 'envelope', '4a': 'budget', '4b': 'budget', '4c': 'budget', 5: 'forecast', 6: 'review' };
   /* the steps of a new plan: Brand steps = the owner · the others = the first person of that department · Due counted back from Start */
   function newSteps(start, owner, people) {
     const of = d => { const p = (people || []).find(x => x.active !== false && x.dept === d); return p ? p.name : owner; };
     return Object.fromEntries(STEP_KEYS.map(k => [k, { assignee: STEP_DEPT[k] === 'brand' ? owner : of(STEP_DEPT[k]), due: start ? R.addDays(start, STEP_DUE[k]) : null, status: 'not_started', done_at: null, by: null, refresh: false, none: false }]));
   }
-  const stepDone = (plan, k) => !!plan && !!plan.steps && !!plan.steps[k] && plan.steps[k].status === 'done';
-  /* a step is open when the steps before it are done: 2 after 1 · 3 and 4 after 2 · 5 after 3 + 4a + 4b + 4c · 6 after 1–5 */
-  const NEEDS = { 1: [], 2: ['1'], 3: ['2'], '4a': ['2'], '4b': ['2'], '4c': ['2'], 5: ['3', '4a', '4b', '4c'], 6: ['1', '2', '3', '4a', '4b', '4c', '5'] };
+  /* CR-13 — a plan made before the envelope step: env is done (its envelope = the lines of each group) */
+  const autoEnv = (plan, k) => k === 'env' && !!plan && !!plan.steps && !plan.steps.env;
+  const stepDone = (plan, k) => autoEnv(plan, k) || (!!plan && !!plan.steps && !!plan.steps[k] && plan.steps[k].status === 'done');
+  /* a step is open when the steps before it are done: 2 after 1 · 3 after 2 · the envelope after 3 · the lines (4a 4b 4c) after the envelope ·
+     the forecast (5) after 3 + the envelope + the lines · review (6) after all */
+  const NEEDS = { 1: [], 2: ['1'], 3: ['2'], env: ['3'], '4a': ['env'], '4b': ['env'], '4c': ['env'], 5: ['3', 'env', '4a', '4b', '4c'], 6: ['1', '2', '3', 'env', '4a', '4b', '4c', '5'] };
   function stepState(plan, k, today) {
-    const s = (plan && plan.steps && plan.steps[k]) || { status: 'not_started' }, td = today || R.todayISO(), wait = NEEDS[k].filter(x => !stepDone(plan, x));
+    const s = autoEnv(plan, k) ? { status: 'done', auto: true } : (plan && plan.steps && plan.steps[k]) || { status: 'not_started' }, td = today || R.todayISO(), wait = NEEDS[k].filter(x => !stepDone(plan, x));
     const open = !wait.length, due = s.due || null, late = !!due && s.status !== 'done' && due < td, soon = !!due && s.status !== 'done' && !late && R.dayDiff(due, td) <= 3;
     return { key: k, name: STEP_NAMES[k], dept: STEP_DEPT[k], assignee: s.assignee || null, due, status: s.status, open, waitFor: wait, overdue: late, soon, daysLate: late ? R.dayDiff(td, due) : 0,
-      refresh: !!s.refresh, none: !!s.none, done_at: s.done_at, by: s.by };
+      refresh: !!s.refresh, none: !!s.none, done_at: s.done_at, by: s.by, auto: !!s.auto, env: !!s.envChanged, num: STEP_NUM[k] };
   }
   /* the 6 dots of the Plans table (4 = its three groups) · what the plan waits on (the first step not done that is open) */
   function planProgress(plan, today) {
@@ -112,8 +119,9 @@ Object.assign(CP.rules, (function (R) {
     if (T.ap != null && T.ap > 0.2) warns.push({ key: 'ap', text: W.apHigh(R.pct(T.ap)) });
     if (T.gpPct != null && T.target > 0 && T.gpPct < 0.5) warns.push({ key: 'gp', text: W.gpLow(R.pct(T.gpPct)) });
     if (T.target > 0 && !T.sls) warns.push({ key: 'sls', text: W.noSales });
-    const noMkt = [...T.byMonth].filter(([m, o]) => o.amount > 0 && !o.mkt).map(([m]) => R.monthName(m)).sort();
-    if (T.target > 0 && noMkt.length) warns.push({ key: 'mkt', text: W.noMkt(noMkt.join(', ')) });
+    /* CR-13 F2 — only the months up to End marketing (after it, no marketing is the plan) · in time order · as ranges (Jul – Dec 2025) */
+    const em = c && c.end_marketing ? R.ym(c.end_marketing) : null, noMkt = [...T.byMonth].filter(([m, o]) => o.amount > 0 && !o.mkt && (!em || m <= em)).map(([m]) => m).sort();
+    if (T.target > 0 && noMkt.length) warns.push({ key: 'mkt', text: W.noMkt(monthRanges(noMkt)) });
     return { errs, warns, ok: errs.every(x => x.ok), totals: T };
   }
   /* CR-07 §7 — the checks of one step (the side panel · Mark step done needs every ✓) */
@@ -132,19 +140,49 @@ Object.assign(CP.rules, (function (R) {
       ok('target', T.target > 0 || T.qty > 0);
       const out1 = ((ver && ver.target) || []).filter(r => num(r.qty) && s0 && (r.month < s0 || r.month > e0)).length, neg = ((ver && ver.target) || []).filter(r => num(r.qty) < 0).length;
       ok('monthsT', !out1, out1 ? W.monthsOut(out1) : ''); ok('negative', !neg, neg ? W.negOut(neg) : '');
+    } else if (k === 'env') {
+      /* CR-13 §7.4 — every group has an envelope or "No expense" (the lines may differ from it — D122) */
+      const E = envOf(ver); ok('envelope', ENV_GROUPS.every(g => E[g].amount > 0 || E[g].none), ENV_GROUPS.filter(g => !(E[g].amount > 0 || E[g].none)).map(g => C.plan.grid.groups[g]).join(' · '));
     } else if (STEP_TYPE[k]) {
       const rows = ((ver && ver.budget) || []).filter(r => r.type === STEP_TYPE[k] && num(r.amount)), sumG = rows.reduce((x, r) => x + (num(r.amount) || 0), 0), st = plan.steps && plan.steps[k];
       ok('group', sumG > 0 || (st && st.none), sumG > 0 ? R.baht(sumG) : '');
       const out2 = rows.filter(r => s0 && (r.month < b0 || r.month > e0)).length, neg = rows.filter(r => num(r.amount) < 0).length;
       ok('monthsB', !out2, out2 ? W.monthsOut(out2) : ''); ok('negative', !neg, neg ? W.negOut(neg) : '');
     } else if (k === '5') {
-      ok('before5', ['3', '4a', '4b', '4c'].every(x => stepDone(plan, x)));
+      ok('before5', ['3', 'env', '4a', '4b', '4c'].every(x => stepDone(plan, x)));
       ok('fcComment', String(((ver && ver.forecast) || {}).comment || '').trim().length > 0);
     } else if (k === '6') {
-      ok('before6', ['1', '2', '3', '4a', '4b', '4c', '5'].every(x => stepDone(plan, x)));
+      ok('before6', ['1', '2', '3', 'env', '4a', '4b', '4c', '5'].every(x => stepDone(plan, x)));
       const pc = planChecks(ver, c); ok('allChecks', pc.ok, pc.errs.filter(x => !x.ok).map(x => x.text).join(' · '));
     }
     return { list: out, ok: out.every(x => x.ok) };
+  }
+
+  /* CR-13 F2 — months as ranges: [2025-07 … 2025-12] → "Jul – Dec 2025" · a gap starts a new range · another year → "Nov 2025 – Jan 2026" */
+  function monthRanges(ms) {
+    const out = []; let a = null, b = null;
+    const put = () => { if (!a) return; out.push(a === b ? R.monthName(a) : a.slice(0, 4) === b.slice(0, 4) ? `${R.monthShort(a)} – ${R.monthName(b)}` : `${R.monthName(a)} – ${R.monthName(b)}`); };
+    ms.slice().sort().forEach(m => { if (b && R.addMonths(b, 1) === m) b = m; else { put(); a = b = m; } }); put();
+    return out.join(', ');
+  }
+  /* ===================== CR-13 §7.4 (D122) — the budget envelope of a version: a group = { pct of the target, amount, phasing, none } · a version made before
+     CR-13 (no envelope) = the lines of each group (derived) · the envelope only guides — the budget of the plan = Σ lines ===================== */
+  const ENV_GROUPS = ['marketing', 'sales', 'other'], ENV_PHASE = { marketing: 'mkt', sales: 'sales', other: 'even' };
+  function envOf(ver) {
+    const T = planTotals(ver), E = (ver && ver.envelope) || null, lines = { marketing: T.mkt, sales: T.sls, other: T.oth };
+    return Object.fromEntries(ENV_GROUPS.map(g => { const e = E && E[g] ? E[g] : null, amount = e ? num(e.amount) || 0 : lines[g];
+      return [g, { amount, pct: R.ratio(amount, T.target), phasing: (e && e.phasing) || ENV_PHASE[g], none: !!(e && e.none), lines: lines[g], left: amount - lines[g], derived: !e }]; }));
+  }
+  /* the weights of the months of a phasing: even (Start … End) · mkt (Start … End marketing) · sales (the target of each month) · custom ({ month: weight }) */
+  function phaseWeights(months, c, phasing, targetByMonth, custom) {
+    const s = R.ym(c.start), e = R.ym(c.end), em = c.end_marketing ? R.ym(c.end_marketing) : e;
+    const w = months.map(m => (phasing === 'mkt' ? (m >= s && m <= em ? 1 : 0) : phasing === 'sales' ? (targetByMonth && targetByMonth.get(m)) || 0 : phasing === 'custom' ? +((custom || {})[m] || 0) : m >= s && m <= e ? 1 : 0));
+    const t = w.reduce((x, y) => x + y, 0); return t > 0 ? w.map(x => x / t) : months.map(m => (m >= s && m <= e ? 1 : 0)).map((x, i, a) => x / Math.max(1, a.reduce((p, q) => p + q, 0)));
+  }
+  /* an amount spread on weights, whole baht, the rounding on the last month that has weight → Σ = the amount exactly */
+  function spreadWhole(total, w) {
+    const out = w.map(x => Math.round(total * x)), d = Math.round(total) - out.reduce((a, b) => a + b, 0), i = w.map(x => x > 0).lastIndexOf(true);
+    if (i >= 0) out[i] += d; return out;
   }
 
   /* ===================== CR-07 §8 (D71) — the Forecast of step 5: achievement × target · Worst / Base / Best · Break-even ===================== */
@@ -191,9 +229,15 @@ Object.assign(CP.rules, (function (R) {
       case 'approve': case 'return': case 'reject': case 'revise':
         if (!isMgr(a) || st !== 'submitted') return no();
         return w && w.submitted_by === a.name ? no(P.self) : yes;
-      case 'duplicate': return st === 'rejected' && canDraft(a) ? yes : no();
+      /* CR-13 §2.4 — Duplicate as draft: a rejected plan or an approved one */
+      case 'duplicate': return (st === 'rejected' || st === 'approved') && canDraft(a) ? yes : no();
       case 'details': return canDraft(a) && (own || isMgr(a)) && st !== 'rejected' ? yes : no();
       case 'request': return st === 'approved' && x.live && canDraft(a) ? yes : no();
+      /* CR-13 §3 (D117) — Budget change: as before (the campaign not closed / cancelled — an ended one still takes late invoices) · Period change · Close: the owner or Admin */
+      case 'change': { if (st !== 'approved' || x.closed || x.cancelled) return no(C.cpg.cantRequest);
+        if (x.kind === 'budget') return canDraft(a) ? yes : no(); return own || a.role === 'admin' ? yes : no(C.cpg.onlyOwner); }
+      case 'reopen': return a.role === 'admin' && x.closed ? yes : no();
+      case 'details.approved': return st === 'approved' && !x.closed && (own || a.role === 'admin') ? yes : no(x.closed ? C.cpg.d.readOnly : '');
       case 'request.decide': { const q = x.req; if (!isMgr(a) || !q || q.status !== 'pending') return no(); return q.by === a.name ? no(P.selfReq) : yes; }
       case 'request.withdraw': { const q = x.req; return q && q.by === a.name && (q.status === 'pending' || q.status === 'returned') ? yes : no(); }
       case 'request.edit': { const q = x.req; return q && q.by === a.name && q.status === 'returned' ? yes : no(); }
@@ -214,12 +258,16 @@ Object.assign(CP.rules, (function (R) {
     switch (act.type) {
       case 'save': {
         if (p.approval === 'returned' && w && w.status === 'returned') { const nv = clone(w); Object.assign(nv, { v: w.v + 1, status: 'draft', submitted_at: null, submitted_by: null, decided_at: null, decided_by: null, comment: '' }); p.versions.push(nv); w = nv; p.approval = 'draft'; }
-        ['skus', 'target', 'budget', 'details', 'forecast', 'review'].forEach(k => { if (act[k]) w[k] = act[k]; });
+        ['skus', 'target', 'budget', 'details', 'forecast', 'review', 'builder', 'envelope'].forEach(k => { if (act[k]) w[k] = act[k]; });
         /* CR-07 §7 — the step edited goes (back) to In progress · a change before step 5 when 5 is done → 5 Needs refresh (D70) */
         (act.steps || (act.step ? [act.step] : [])).forEach(k => { const s = p.steps && p.steps[k]; if (!s) return;
           if (s.status !== 'in_progress') Object.assign(s, { status: 'in_progress', done_at: null }); if (k === '5') s.refresh = false;
-          if (['1', '2', '3', '4a', '4b', '4c'].includes(k) && p.steps['5'] && (p.steps['5'].status === 'done' || p.steps['5'].status === 'in_progress') && p.steps['5'].done_at !== undefined) {
+          if (['1', '2', '3', 'env', '4a', '4b', '4c'].includes(k) && p.steps['5'] && (p.steps['5'].status === 'done' || p.steps['5'].status === 'in_progress') && p.steps['5'].done_at !== undefined) {
             if (p.steps['5'].status === 'done') Object.assign(p.steps['5'], { status: 'in_progress', refresh: true, done_at: null }); }
+          /* CR-13 §7.1 — the target changed → the envelope Needs refresh · the envelope changed → the lines say "Envelope changed" (not reset) */
+          if (k === '3' && p.steps.env && p.steps.env.status === 'done') Object.assign(p.steps.env, { status: 'in_progress', refresh: true, done_at: null });
+          if (k === 'env') ['4a', '4b', '4c'].forEach(x => { if (p.steps[x] && p.steps[x].status !== 'not_started') p.steps[x].envChanged = true; });
+          if (['4a', '4b', '4c'].includes(k) && p.steps[k]) p.steps[k].envChanged = false;
           if (p.steps['6'] && p.steps['6'].status === 'done') Object.assign(p.steps['6'], { status: 'not_started', done_at: null }); });
         L('saved', act.detail || `v${w.v}`); break;
       }
@@ -244,19 +292,52 @@ Object.assign(CP.rules, (function (R) {
       }
       case 'req.new': {
         const no = (p.requests.reduce((m, q) => Math.max(m, q.no), 0) || 0) + 1;
+        /* CR-13 — a period change ({ period: { from, to, moves } }) · a close request ({ close: { early, close_date, note, checks, moves } }) · else a budget change */
+        if (act.kind === 'period' || act.kind === 'close') {
+          p.requests.push({ no, type: act.kind, status: 'pending', reason: act.reason, lines: [], period: act.period || null, close: act.close || null, by: act.by, at: act.at, decided_by: null, decided_at: null, comment: '' });
+          L(act.kind, `#${no} ${reqWords(p.requests[p.requests.length - 1])}`); break; }
         p.requests.push({ no, type: requestType(act.lines), status: 'pending', reason: act.reason, lines: act.lines, by: act.by, at: act.at, decided_by: null, decided_at: null, comment: '' });
         L('request', `#${no} ${requestType(act.lines)} ${R.baht(sumLines(act.lines))}`); break;
       }
-      case 'req.edit': { const q = p.requests.find(x => x.no === act.no); Object.assign(q, { reason: act.reason, lines: act.lines, type: requestType(act.lines), status: 'pending', at: act.at, decided_by: null, decided_at: null, comment: '' }); L('request', `#${q.no} resubmitted`); break; }
-      case 'req.withdraw': { const q = p.requests.find(x => x.no === act.no); q.status = 'withdrawn'; L('request.withdrawn', `#${q.no}`); break; }
+      case 'req.edit': { const q = p.requests.find(x => x.no === act.no);
+        if (q.type === 'period' || q.type === 'close') { Object.assign(q, { reason: act.reason, period: act.period || q.period, close: act.close || q.close, status: 'pending', at: act.at, decided_by: null, decided_at: null, comment: '' }); L(q.type, `#${q.no} ${reqWords(q)}`); break; }
+        Object.assign(q, { reason: act.reason, lines: act.lines, type: requestType(act.lines), status: 'pending', at: act.at, decided_by: null, decided_at: null, comment: '' }); L('request', `#${q.no} resubmitted`); break; }
+      case 'req.withdraw': { const q = p.requests.find(x => x.no === act.no); q.status = 'withdrawn'; L(q.type === 'period' || q.type === 'close' ? q.type + '.withdrawn' : 'request.withdrawn', `#${q.no}`); break; }
       case 'req.approve': case 'req.return': case 'req.reject': {
         const q = p.requests.find(x => x.no === act.no), st = { 'req.approve': 'approved', 'req.return': 'returned', 'req.reject': 'rejected' }[act.type];
-        Object.assign(q, { status: st, decided_by: act.by, decided_at: act.at, comment: act.comment || '' }); L('request.' + st, `#${q.no} ${R.baht(sumLines(q.lines))}${act.comment ? ' · ' + act.comment : ''}`); break;
+        Object.assign(q, { status: st, decided_by: act.by, decided_at: act.at, comment: act.comment || '' });
+        if (q.type === 'period') { L('period.' + st, `#${q.no} ${reqWords(q)}${act.comment ? ' · ' + act.comment : ''}`); break; }
+        if (q.type === 'close') {
+          /* §5.3 (D120) — Closed: read only · the unused budget written down, never released */
+          if (st === 'approved') p.closure = { status: 'closed', closed_at: act.at, closed_by: act.by, note: (q.close && q.close.note) || '', unused: q.close && q.close.checks ? q.close.checks.unused : null, early: !!(q.close && q.close.early), req: q.no };
+          L(st === 'approved' ? 'closed' : 'close.' + st, `#${q.no} ${reqWords(q)}${act.comment ? ' · ' + act.comment : ''}`); break; }
+        L('request.' + st, `#${q.no} ${R.baht(sumLines(q.lines))}${act.comment ? ' · ' + act.comment : ''}`); break;
       }
+      /* CR-13 §2.3 (D115) — the details of an approved plan (Name · Brand · Category · Objective · Channels · Owner): no approval, in the history */
+      case 'details': { const v = approvedVersion(p) || w, ch = [];
+        Object.entries(act.details || {}).forEach(([k, val]) => { const old = v.details[k]; if (JSON.stringify(old) !== JSON.stringify(val)) { ch.push(`${C.cpg.d.f[k] || k}: ${fmtD(old)} → ${fmtD(val)}`); v.details[k] = val; } });
+        if (act.owner && act.owner !== p.owner) { ch.push(`${C.cpg.d.f.owner}: ${p.owner || '—'} → ${act.owner}`); p.owner = act.owner; }
+        if (act.name && act.oldName && act.name !== act.oldName) ch.unshift(`${C.cpg.d.f.name}: ${act.oldName} → ${act.name}`);
+        if (ch.length) L('details', ch.join(' · ')); break; }
+      /* §5.3 (D119) — Admin › Reopen: no approval · a reason · Ended · to close again */
+      case 'reopen': p.closure = { status: 'open', reopened_at: act.at, reopened_by: act.by, reason: act.reason || '' }; L('reopened', act.reason || ''); break;
       case 'log': L(act.action, act.detail); break;
       default: throw new Error('unknown step ' + act.type);
     }
     return p;
+  }
+
+  /* CR-13 — the words of a period / close request in the history (the dates · the close date · the unused budget) */
+  const fmtD = v => (Array.isArray(v) ? v.join(' · ') : v == null || v === '' ? '—' : String(v));
+  function reqWords(q) {
+    const W = C.cpg.rq;
+    if (q.type === 'period' && q.period) { const a = q.period.from, b = q.period.to, out = [];
+      if (a.start !== b.start) out.push(W.sumStart(R.dmy(a.start), R.dmy(b.start)));
+      if ((a.end_marketing || '') !== (b.end_marketing || '')) out.push(W.sumMkt(a.end_marketing ? R.dmy(a.end_marketing) : '—', b.end_marketing ? R.dmy(b.end_marketing) : '—'));
+      if (a.end !== b.end) out.push(W.sumPeriod(R.dmy(a.end), R.dmy(b.end)));
+      return out.join(' · '); }
+    if (q.type === 'close' && q.close) { const u = q.close.checks && q.close.checks.unused != null ? R.baht(q.close.checks.unused) : '—'; return q.close.early ? W.sumEarly(R.dmy(q.close.close_date), u) : W.sumClose(u); }
+    return '';
   }
 
   /* ===================== budget requests (§7) ===================== */
@@ -318,8 +399,10 @@ Object.assign(CP.rules, (function (R) {
     let byP = MERGED.get(seed); if (!byP) MERGED.set(seed, byP = new WeakMap()); if (byP.has(P)) return byP.get(P);
     const all = (seed.campaigns || []).map(c => {
       const plan = P[c.id] || null, appr = plan ? plan.approval : 'draft', ver = approvedVersion(plan), w = working(plan);
-      return Object.assign({}, c, { plan: 'web', owner: (plan && plan.owner) || c.owner || null, approval: appr, v: w ? w.v : 1,
-        vApproved: ver ? ver.v : null, submitted_at: w && w.status === 'submitted' ? w.submitted_at : null });
+      /* CR-13 §4.3 · §5.1 — the dates of the approved period changes / close early, in the order they were decided · the closure of the plan */
+      const dates = periodDates(plan, c);
+      return Object.assign({}, c, dates, { plan: 'web', owner: (plan && plan.owner) || c.owner || null, approval: appr, v: w ? w.v : 1,
+        vApproved: ver ? ver.v : null, submitted_at: w && w.status === 'submitted' ? w.submitted_at : null, closure: (plan && plan.closure) || null });
     });
     const live = all.filter(c => c.approval === 'approved' && approvedVersion(P[c.id]));
     const liveIds = new Set(live.map(c => c.id)), web = liveIds;
@@ -334,18 +417,97 @@ Object.assign(CP.rules, (function (R) {
         const ver = approvedVersion(plan), sm = skuMap(ver), have = new Set(ver.skus.map(s => s.code));
         for (let i = products.length - 1; i >= 0; i--) if (products[i].campaign_id === c.id && have.has(products[i].key)) products.splice(i, 1);
         ver.skus.forEach(s => products.push({ campaign_id: c.id, key: s.code, code: s.code, name: s.name, nickname: s.nickname, group: s.group, category: s.category, cogs: num(s.cogs) }));
+        const mvT = monthMoves(plan, 'T'), mvB = monthMoves(plan, 'B'), mT = m => mvT(m), mB = m => mvB(m);
         ver.target.forEach(r => { const q = num(r.qty) || 0, a = rowAmount(r, sm.get(r.code)); if (!q && !a) return;
-          sales.push({ campaign_id: c.id, product_key: r.code, channel: r.channel, sub_channel: r.sub_channel || '', month: r.month, scenario: 'target', qty: q, amount: a }); });
-        ver.budget.forEach(r => { const a = num(r.amount) || 0; if (a) exps.push({ campaign_id: c.id, type: r.type, line: r.line, month: r.month, scenario: 'budget', amount: a, src: 'orig' }); });
+          sales.push({ campaign_id: c.id, product_key: r.code, channel: r.channel, sub_channel: r.sub_channel || '', month: mT(r.month), scenario: 'target', qty: q, amount: a }); });
+        ver.budget.forEach(r => { const a = num(r.amount) || 0; if (a) exps.push({ campaign_id: c.id, type: r.type, line: r.line, month: mB(r.month), scenario: 'budget', amount: a, src: 'orig' }); });
       }
       ((plan && plan.requests) || []).forEach(q => {
-        if (q.status === 'approved') q.lines.forEach(l => { const a = num(l.amount) || 0; if (a) exps.push({ campaign_id: c.id, type: l.type, line: l.line, month: l.month, scenario: 'budget', amount: a, src: 'req', req: q.no }); });
-        else if (q.status === 'pending') q.lines.forEach(l => pending.push({ campaign_id: c.id, no: q.no, type: l.type, line: l.line, month: l.month, amount: num(l.amount) || 0 }));
+        if (q.status === 'approved') (q.lines || []).forEach(l => { const a = num(l.amount) || 0; if (a) exps.push({ campaign_id: c.id, type: l.type, line: l.line, month: monthMoves(plan, 'B', q.decided_at)(l.month), scenario: 'budget', amount: a, src: 'req', req: q.no }); });
+        else if (q.status === 'pending') (q.lines || []).forEach(l => pending.push({ campaign_id: c.id, no: q.no, type: l.type, line: l.line, month: l.month, amount: num(l.amount) || 0 }));
       });
     });
     const out = Object.assign({}, seed, { campaigns: live, allCampaigns: all, products, sales, expenses: exps, pending, plans: P });
     byP.set(P, out);
     return out;
+  }
+
+
+  /* ===================== CR-13 §4.3 · §5.1 — the approved period changes of a plan (and a close early): the dates now · the months moved ===================== */
+  const decidedOf = plan => ((plan && plan.requests) || []).filter(q => q.status === 'approved' && ((q.type === 'period' && q.period) || (q.type === 'close' && q.close && q.close.early)))
+    .sort((a, b) => String(a.decided_at || '').localeCompare(String(b.decided_at || '')));
+  function periodDates(plan, c) {
+    const list = decidedOf(plan); if (!list.length) return {};
+    const d = { start: c.start, end: c.end, end_marketing: c.end_marketing || null };
+    list.forEach(q => { if (q.type === 'period') Object.assign(d, { start: q.period.to.start, end: q.period.to.end, end_marketing: q.period.to.end_marketing || null });
+      else { d.end = q.close.close_date; if (d.end_marketing && d.end_marketing > d.end) d.end_marketing = d.end; } });
+    return d;
+  }
+  /* the month a target (T) / budget (B) row of a month goes to after every approved move (in order) */
+  function monthMoves(plan, kind) {
+    const steps = decidedOf(plan).map(q => (q.type === 'period' ? q.period.moves : q.close.moves) || []).filter(x => x.length);
+    if (!steps.length) return m => m;
+    return m => steps.reduce((x, mv) => { const hit = mv.find(y => y.from === x); return hit ? (kind === 'T' ? hit.toT || x : hit.toB || x) : x; }, m);
+  }
+
+  /* ===================== CR-13 §4 (D116) — Period change · §5 (D118 – D120) — Close · Close early · the campaign state (Ended ≠ Closed) ===================== */
+  /* to = { start, end_marketing, end } · the months that leave the period give their target to the nearest month inside (a later Start → the first month ·
+     a shorter End → the last) and their budget the same (a budget may sit in the month before Start) · the months added get nothing · a month with
+     sales actual (or spend actual) cannot leave (cut) → { moves [{ from, toT, toB, target, budget }], cut [{ m, sales, spend }] } */
+  function periodMoves(seed, cid, to) {
+    const M = R.model(seed), cm = M.cells.get(cid) || new Map(), first = R.ym(to.start), last = R.ym(to.end), before = R.addMonths(first, -1), moves = [], cut = [];
+    cm.forEach((x, m) => {
+      const outT = m < first || m > last, outB = m < before || m > last; if (!outT && !outB) return;
+      const sales = x.rev[1] != null && outT ? x.rev[1] : null, spend = (x.mkt[1] != null || x.sls[1] != null || x.oth[1] != null) && outB ? (x.mkt[1] || 0) + (x.sls[1] || 0) + (x.oth[1] || 0) : null;
+      if ((sales != null && Math.abs(sales) > 0.5) || (spend != null && Math.abs(spend) > 0.5)) cut.push({ m, sales: sales || 0, spend: spend || 0 });
+      const target = outT ? x.rev[0] || 0 : 0, budget = outB ? (x.mkt[0] || 0) + (x.sls[0] || 0) + (x.oth[0] || 0) : 0;
+      if (Math.abs(target) > 0.5 || Math.abs(budget) > 0.5) moves.push({ from: m, toT: outT ? (m < first ? first : last) : m, toB: outB ? (m < before ? before : last) : m, target, budget }); });
+    return { moves: moves.sort((a, b) => a.from.localeCompare(b.from)), cut: cut.sort((a, b) => a.m.localeCompare(b.m)) };
+  }
+  /* the rows of a Campaign moved (pure: a new list) · kind T = target rows · B = budget rows */
+  function moveRows(rows, cid, moves, kind) {
+    if (!moves.length) return rows;
+    const to = new Map(moves.map(x => [x.from, kind === 'T' ? x.toT : x.toB])), is = r => (kind === 'T' ? r.scenario === 'target' : r.scenario === 'budget');
+    return (rows || []).map(r => (r.campaign_id === cid && is(r) && to.has(r.month) && to.get(r.month) !== r.month ? Object.assign({}, r, { month: to.get(r.month) }) : r));
+  }
+  /* Impact (§4.2): now → after — days · days left · Time gone · Ach % (the full target stays) · Pace · Status · the sales a month still needed · the moves ·
+     "better only because longer" — the same rules (R.timeProgress · R.campaignPace · R.runRate) on a copy of the seed with the new dates and the rows moved */
+  function periodImpact(seed, cid, to, today) {
+    const td = today || R.todayISO(), c0 = (seed.campaigns || []).find(x => x.id === cid); if (!c0) return null;
+    const mv = periodMoves(seed, cid, to), c1 = Object.assign({}, c0, { start: to.start, end: to.end, end_marketing: to.end_marketing || null });
+    const s1 = Object.assign({}, seed, { campaigns: seed.campaigns.map(x => (x.id === cid ? c1 : x)), sales: moveRows(seed.sales, cid, mv.moves, 'T'), expenses: moveRows(seed.expenses, cid, mv.moves, 'B') });
+    const side = (s, c) => { const tp = R.timeProgress(c, td), dl = R.daysLeft(c, td), sp = R.campaignPace(s, cid, td), rr = R.runRate(s, cid, { today: td });
+      return { days: tp.total, left: dl.kind === 'left' ? dl.n : dl.kind === 'ended' ? 0 : tp.total, started: td >= c.start, ended: td > c.end, timeGone: sp ? sp.timeGone : null, ach: sp ? sp.ach : null,
+        target: sp ? sp.target : null, pace: sp ? sp.pace : null, status: sp ? sp.status : null, rate: td <= c.end && rr.required != null && rr.monthsLeft > 1e-9 ? rr.required : null }; };
+    const a = side(seed, c0), b = side(s1, c1), rank = { behind: 0, at_risk: 1, on_track: 2 };
+    const better = !!(a.status && b.status && rank[b.status] > rank[a.status] && to.end > c0.end);
+    const added = to.end > c0.end ? R.monthsIn(R.addDays(c0.end, 1), to.end).filter(m => m > R.ym(c0.end)) : [];
+    return { now: a, after: b, moves: mv.moves, cut: mv.cut, ok: !mv.cut.length, better, added, from: { start: c0.start, end: c0.end, end_marketing: c0.end_marketing || null }, to };
+  }
+  /* the closure of a plan (§5.4): { status 'open' | 'closed', closed_at, closed_by, note, unused } — never the status of the dates */
+  const closureOf = (c, plan) => { const z = (plan && plan.closure) || (c && c.closure) || null; return z && z.status === 'closed' ? z : { status: 'open' }; };
+  /* the state of an approved Campaign (§2.2 · §5.1): not_started · ongoing · toclose (Ended, not closed — Due End + 30 days) · closed · cancelled */
+  function campState(c, plan, today) {
+    const td = today || R.todayISO(), s = R.statusOf(c, td), z = closureOf(c, plan);
+    if (s === R.CANCELLED) return { key: 'cancelled', s };
+    if (z.status === 'closed') return { key: 'closed', s, at: String(z.closed_at || '').slice(0, 10), by: z.closed_by, z };
+    if (s === 'complete') { const due = R.addDays(c.end, 30), late = td > due ? R.dayDiff(td, due) : 0; return { key: 'toclose', s, due, late }; }
+    if (s === 'not_started') return { key: 'not_started', s, n: R.dayDiff(c.start, td) };
+    return { key: 'ongoing', s, n: Math.max(0, R.dayDiff(c.end, td)) };
+  }
+  /* the checks of a close request (§5.3): requests waiting · plan steps open · the last expense · spent / current budget (Used %) · net revenue · Ach ·
+     campaign profit · plan profit · the unused budget (stays in the numbers — D120) · the gap to explain (below the target · over the budget) */
+  function closeChecks(seed, cid, plan, today) {
+    const M = R.model(seed), c = M.byId.get(cid), cm = M.cells.get(cid) || new Map(), td = today || R.todayISO(); if (!c) return null;
+    const waiting = ((plan && plan.requests) || []).filter(q => q.status === 'pending' || q.status === 'returned');
+    const stepsOpen = plan && plan.steps && plan.approval !== 'approved' ? STEP_KEYS.filter(k => !stepDone(plan, k)).length : 0;
+    let lastExp = null; cm.forEach((x, m) => { if ((x.mkt[1] || 0) + (x.sls[1] || 0) + (x.oth[1] || 0) > 0 && (!lastExp || m > lastExp)) lastExp = m; });
+    let lastSales = null; cm.forEach((x, m) => { if ((x.rev[1] || 0) > 0 && (!lastSales || m > lastSales)) lastSales = m; });
+    const ms = [...cm.keys()].sort(), t = budgetTrack(seed, { from: ms.length ? R.monthFirst(ms[0]) : c.start, to: ms.length ? R.monthLast(ms[ms.length - 1]) : c.end, statuses: R.STATUSES, includeCancelled: true, only: [cid], today: td }).rows[0] || null;
+    const sp = R.campaignPace(seed, cid, td), p = R.pnl(M, [cid], ms, { today: td });
+    return { waiting, stepsOpen, lastExp, lastSales, lastDay: lastExp ? (R.monthLast(lastExp) < td ? R.monthLast(lastExp) : td) : null,
+      spent: t ? t.committed : null, current: t ? t.current : null, used: t ? t.used : null, unused: t ? Math.max(0, t.current - t.committed) : null, over: t ? Math.max(0, t.committed - t.current) : 0,
+      rev: p.actual.rev, ach: sp ? sp.ach : null, target: sp ? sp.target : null, short: sp && sp.target != null ? Math.max(0, sp.target - (sp.actual || 0)) : 0, profit: p.actual.profit, planProfit: p.plan.profit };
   }
 
   /* ===================== the work waiting (Approvals · badge · Needs attention) ===================== */
@@ -488,7 +650,7 @@ Object.assign(CP.rules, (function (R) {
   }
 
   return { ROLE_KEYS, DEPTS, roleKey, isMgr, PLAN_STATES, REQ_STATES, PRODUCT_STATES, newPlan, working,
-    STEP_KEYS, STEP_NAMES, STEP_DEPT, STEP_TYPE, STEP_PAGE, newSteps, stepState, planProgress, canDoStep, stepChecks, planForecast, breakEven, budgetStatus, issues, pnlForecast, planningKpi, approvedVersion, skuMap, priceOf, rowAmount,
+    monthRanges, envOf, ENV_GROUPS, phaseWeights, spreadWhole, STEP_KEYS, STEP_NAMES, STEP_NUM, STEP_DEPT, STEP_TYPE, STEP_PAGE, newSteps, periodDates, monthMoves, periodMoves, periodImpact, moveRows, closureOf, campState, closeChecks, reqWords, stepState, planProgress, canDoStep, stepChecks, planForecast, breakEven, budgetStatus, issues, pnlForecast, planningKpi, approvedVersion, skuMap, priceOf, rowAmount,
     planTotals, planChecks, planDiff, canDo, planAct, sumLines, requestType, requestImpact,
     budgetTrack, mergePlans, approvalItems, waitingFor, clonePlan: clone, trackerRows,
     productUse, productChecks, skuFromMaster, planCogsDrift, runningByMonth };

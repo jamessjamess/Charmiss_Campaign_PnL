@@ -12,7 +12,7 @@ CP.screens.planning = (function () {
   const K = C.camps, D = C.dash, AP = C.appr;
   const st = Object.assign({ year: 'all', includeCancelled: false, sort: 'start', tsort: 'start', tab: 'progress', view: 'plans', page: 1 }, pref.json('plng', {}) || {});
   /* CR-09 §5.2 (D86) — the status tabs: In progress (first) · Approved · Rejected · All (+ Cancelled) · an old remembered tab → In progress */
-  if (!['progress', 'approved', 'rejected', 'all', 'cancelled'].includes(st.tab)) st.tab = 'progress';
+  if (!['progress', 'approved', 'toclose', 'rejected', 'all', 'cancelled'].includes(st.tab)) st.tab = 'progress';
   st.q = '';   // the search is for this visit only
   if (!R.LIST_SORTS.includes(st.sort)) st.sort = 'start';
   if (!['start', 'status', 'name'].includes(st.tsort)) st.tsort = 'start';
@@ -31,13 +31,13 @@ CP.screens.planning = (function () {
     const parts = String(sub || '').split('/');
     /* #planning/<id>[/<step>] — the plan (screen-plan.js) */
     if (parts[0] === 'table') parts[0] = 'plans';
-    if (parts[0] && parts[0] !== 'new' && !VIEWS.includes(parts[0])) { view = 'page'; $('k_listv').classList.add('hidden'); $('k_pagev').classList.remove('hidden'); CP.cpage.render($('k_pagev'), decodeURIComponent(parts[0]), parts[1] || null); return; }
+    if (parts[0] && parts[0] !== 'new' && !VIEWS.includes(parts[0])) { view = 'page'; $('k_listv').classList.add('hidden'); $('k_pagev').classList.remove('hidden'); CP.cpage.render($('k_pagev'), decodeURIComponent(parts[0]), parts.slice(1).join('/') || null); return; }
     /* the tab seen last (as the Dashboard) — #planning alone opens it */
     view = VIEWS.includes(parts[0]) ? parts[0] : VIEWS.includes(st.view) ? st.view : 'plans';
     if (st.view !== view) { st.view = view; save(); }
     const want = `#planning/${view}`;
     if (sub !== 'new' && location.hash !== want) history.replaceState(null, '', want);
-    $('k_pagev').classList.add('hidden'); $('k_pagev').innerHTML = ''; $('k_listv').classList.remove('hidden');
+    $('k_pagev').classList.add('hidden'); $('k_listv').classList.remove('hidden');
     renderAll();
     if (sub === 'new') { history.replaceState(null, '', '#planning/plans'); if (R.canDo('create', me()).ok) openForm(null); }
   }
@@ -85,26 +85,31 @@ CP.screens.planning = (function () {
       cap: esc(Q.nextCap(R.shortBaht(nx.budget), R.pct(R.ratio(nx.budget, nx.target)))) });
     box.innerHTML = ip + od + rv + nt;
   }
-  /* ---------- Plans · My tasks (n) · Approvals (n) · Timeline — Approvals: an Executive what waits for a decision · the rest: My requests (n = returned to them) ---------- */
+  /* ---------- CR-11 §6 (D105): Plans · Timeline · My tasks (n) · My requests (n) — an Executive: Approvals (n), what waits for a decision · the rest: My requests (n = returned to them) ---------- */
   const PL = C.plng;
-  /* an approved plan opens Campaign Monitor · the others their plan (CR-07 §6) */
-  const openRow = id => { const c = campaigns().find(x => x.id === id); location.hash = c && c.approval === 'approved' ? `#monitor/${id}` : `#planning/${id}`; };
+  /* CR-13 §2.4 (D114) — a row opens the Campaign page (Overview when approved · the Plan step of the one acting when not) */
+  const openRow = id => { location.hash = `#planning/${id}`; };
   const taskRows = () => { const a = me(), plans = seedNow().plans || {}, out = [];
-    campaigns().forEach(c => { const p = plans[c.id]; if (!p || !p.steps || (p.approval !== 'draft' && p.approval !== 'returned') || R.statusOf(c, td()) === R.CANCELLED) return;
-      R.STEP_KEYS.forEach(k => { const s = R.stepState(p, k, td()); if (s.assignee === a.name && s.status !== 'done') out.push({ c, plan: p, s }); }); });
+    campaigns().forEach(c => { const p = plans[c.id]; if (!p) return;
+      /* CR-13 §5.2 (D119) — an Ended campaign not closed: the owner's task Close campaign · Due = End + 30 days */
+      if (p.approval === 'approved') { const cs = R.campState(c, p, td()); if (cs.key === 'toclose' && p.owner === a.name)
+        out.push({ c, plan: p, s: { key: 'close', dept: 'brand', assignee: p.owner, due: cs.due, status: 'in_progress', open: true, overdue: cs.late > 0, daysLate: cs.late, soon: !cs.late && R.dayDiff(cs.due, td()) <= 3, refresh: false, waitFor: [] } }); return; }
+      if (!p.steps || (p.approval !== 'draft' && p.approval !== 'returned') || R.statusOf(c, td()) === R.CANCELLED) return;
+      R.STEP_KEYS.forEach(k => { const s = R.stepState(p, k, td()); if (s.assignee === a.name && s.status !== 'done' && !s.auto) out.push({ c, plan: p, s }); }); });
     return out.sort((x, y) => (x.s.open === y.s.open ? 0 : x.s.open ? -1 : 1) || String(x.s.due || '9').localeCompare(String(y.s.due || '9'))); };
   const apItems = () => R.approvalItems(seedNow(), td());
   const apCount = () => R.waitingFor(apItems(), me()).length;
   function renderVTabs() {
     const a = me(), n = apCount(), mgr = R.isMgr(a), lbl = mgr || a.role === 'viewer' || a.role === 'accounting' ? AP.tab : AP.tabStaff;
     const tab = (v, href, label) => `<a role="tab" href="${href}" class="${view === v ? 'on' : ''}" aria-selected="${view === v}">${label}</a>`, nt = taskRows().filter(x => x.s.open).length;
-    $('k_vtabs').innerHTML = tab('plans', '#planning/plans', esc(PL.tabs.plans)) + tab('tasks', '#planning/tasks', `${esc(PL.tabs.tasks)}${nt ? ` <span class="nbadge">${nt}</span>` : ''}`) +
-      tab('approvals', '#planning/approvals', `${esc(lbl)}${n ? ` <span class="nbadge" title="${esc(mgr ? AP.badgeTip(n) : AP.badgeTipStaff(n))}">${n}</span>` : ''}`) + tab('timeline', '#planning/timeline', esc(K.tl.tab));
+    $('k_vtabs').innerHTML = tab('plans', '#planning/plans', esc(PL.tabs.plans)) + tab('timeline', '#planning/timeline', esc(K.tl.tab)) + tab('tasks', '#planning/tasks', `${esc(PL.tabs.tasks)}${nt ? ` <span class="nbadge">${nt}</span>` : ''}`) +
+      tab('approvals', '#planning/approvals', `${esc(lbl)}${n ? ` <span class="nbadge" title="${esc(mgr ? AP.badgeTip(n) : AP.badgeTipStaff(n))}">${n}</span>` : ''}`);
   }
   const ap = Object.assign({ seg: 'pending', type: 'all' }, pref.json('camps_appr', {}) || {});
   function apLists() {
     const a = me(), mgr = R.isMgr(a) || a.role === 'viewer' || a.role === 'accounting', mine = x => x.by === a.name || (x.plan && x.plan.owner === a.name);
-    const all = apItems().filter(x => (ap.type === 'all' || (ap.type === 'plan' ? x.kind === 'plan' : x.kind === 'request')) && (mgr || mine(x)) && R.statusOf(x.c, td()) !== R.CANCELLED);
+    const typeOf = x => (x.kind === 'plan' ? 'plan' : x.req.type === 'period' || x.req.type === 'close' ? x.req.type : 'request');
+    const all = apItems().filter(x => (ap.type === 'all' || typeOf(x) === ap.type) && (mgr || mine(x)) && R.statusOf(x.c, td()) !== R.CANCELLED);
     const at = x => String(x.at || ''), dec = x => String(x.decided_at || '');
     return { pending: all.filter(x => x.status === 'pending' && x.latest).sort((p, q) => at(p).localeCompare(at(q))),
       decided: all.filter(x => ['approved', 'returned', 'rejected'].includes(x.status) && x.decided_at).sort((p, q) => dec(q).localeCompare(dec(p))),
@@ -113,7 +118,7 @@ CP.screens.planning = (function () {
   function renderAppr() {
     const L = apLists(), segs = ['pending', 'decided', 'drafts'], list = L[ap.seg] || [];
     $('k_apprv').innerHTML = `<div class="toolbar ctools">${U.segHTML('data-apseg', segs.map(k => ({ v: k, label: `${AP.segs[k]} ${L[k].length}` })), ap.seg, { label: AP.tab })}` +
-      `<label class="ms"><select class="ms-trigger sel" data-aptype aria-label="${esc(AP.allTypes)}"><option value="all">${esc(AP.allTypes)}</option>${['plan', 'request'].map(k => `<option value="${k}"${ap.type === k ? ' selected' : ''}>${esc(AP.types[k])}</option>`).join('')}</select></label></div>` +
+      `<label class="ms"><select class="ms-trigger sel" data-aptype aria-label="${esc(AP.allTypes)}"><option value="all">${esc(AP.allTypes)}</option>${['plan', 'request', 'period', 'close'].map(k => `<option value="${k}"${ap.type === k ? ' selected' : ''}>${esc(AP.types[k])}</option>`).join('')}</select></label></div>` +
       (!list.length ? `<div class="card"><div class="c3-empty">${esc(AP.none[ap.seg])}</div></div>` : ap.seg === 'pending' ? `<div class="apcards">${list.map(apCard).join('')}</div>` : decTable(list));
   }
   /* CR-09 §5.4 (D87) — Decided · Drafts: a short table, one group a Campaign (the latest row on top · open it for the earlier ones) · newest first */
@@ -122,7 +127,7 @@ CP.screens.planning = (function () {
     const T = PL.dec, Kc = T.cols, d = s => (s ? R.dmy(String(s).slice(0, 10)) : '—'), groups = new Map();
     list.forEach(x => { if (!groups.has(x.c.id)) groups.set(x.c.id, []); groups.get(x.c.id).push(x); });
     const when = x => String(x.decided_at || x.at || ((x.plan.log || []).slice(-1)[0] || {}).at || '');
-    const row = (x, sub, n, open) => { const kind = x.kind === 'plan' ? AP.kind.plan : AP.kind[x.req.type] || x.req.type, amt = x.kind === 'plan' ? R.planTotals(x.v).budget : R.sumLines(x.req.lines);
+    const row = (x, sub, n, open) => { const kind = x.kind === 'plan' ? AP.kind.plan : AP.kind[x.req.type] || x.req.type, amt = x.kind === 'plan' ? R.planTotals(x.v).budget : R.sumLines(x.req.lines || []);
       return `<tr class="${sub ? 'sub' : 'grp'}"${sub ? ` data-decsub="${esc(x.c.id)}"` : ` data-decrow="${esc(x.c.id)}"`}><td class="nm">${sub ? '' : `<span class="bnm">${n > 1 ? `<button type="button" class="chev" data-decopen="${esc(x.c.id)}" aria-expanded="${open}" aria-label="${esc(open ? T.hide : T.earlier(n - 1))}">${ICON.chevronDown}</button>` : '<span class="chev ph"></span>'}<a href="#planning/${esc(x.c.id)}"><b>${esc(x.c.name)}</b></a>${n > 1 ? ` <span class="muted small">${esc(T.earlier(n - 1))}</span>` : ''}</span>`}</td>` +
         `<td>${esc(kind)}</td><td>${esc(x.kind === 'plan' ? `v${x.v.v}` : `#${x.req.no}`)}</td><td class="num"><b class="${amt < 0 ? 'neg' : ''}">${esc(x.kind === 'plan' ? R.shortBaht(amt) : R.signedShort(amt))}</b></td>` +
         `<td>${U.apChip(x.status)}</td><td>${esc(x.decided_by || x.by || '—')}</td><td class="nowrap">${esc(d(when(x)))}</td>` +
@@ -140,6 +145,10 @@ CP.screens.planning = (function () {
       const T = R.planTotals(x.v), prev = x.v.v > 1 ? x.plan.versions.find(v => v.v === x.v.v - 1) : null, Tp = prev ? R.planTotals(prev) : null;
       body = kv(A.period, `${R.dmy(c.start)} – ${R.dmy(c.end)}`) + kv(A.target, R.baht(T.target)) + kv(A.budget, R.baht(T.budget) + (Tp && Math.abs(T.budget - Tp.budget) > 0.5 ? ` (${R.signedShort(T.budget - Tp.budget)} ${A.vs(prev.v)})` : '')) +
         kv(A.ap, R.pct(T.ap, 1), T.ap > 0.2 ? 'warn' : '') + kv(A.profit, R.baht(T.profit), T.profit < 0 ? 'neg' : '');
+    } else if (x.req.type === 'period' || x.req.type === 'close') {
+      /* CR-13 — a period change: the dates from → to · the Impact when pending · a close request: the note · the unused budget */
+      const q = x.req; body = kv(A.reason, q.reason) + kv(C.cpg.rq.cols.summary, CP.cpage.reqSummary(q));
+      if (q.type === 'period' && x.status === 'pending') { const im = R.periodImpact(seedNow(), c.id, q.period.to, td()); if (im) body += kv(A.impact, `${C.cpg.per.timeGone} ${R.pct(im.now.timeGone)} → ${R.pct(im.after.timeGone)} · Pace ${im.now.pace == null ? '—' : R.paceText(im.now.pace)} → ${im.after.pace == null ? '—' : R.paceText(im.after.pace)}`, im.better ? 'warn' : ''); }
     } else {
       const q = x.req, t = R.sumLines(q.lines), lw = l => `${l.line} ${R.monthShort(l.month)} ${R.signedShort(+l.amount)}`;
       /* P6 — no "…": the first 2 lines + "+2 more" (the whole list in its tooltip) */
@@ -151,7 +160,7 @@ CP.screens.planning = (function () {
     const can = x.status === 'pending' && (x.kind === 'plan' ? R.canDo('approve', a, x.plan) : R.canDo('request.decide', a, x.plan, { req: x.req }));
     /* P7 — Review (the review drawer) · Open plan (the plan page) */
     const btns = (x.status === 'draft' ? '' : `<button type="button" class="btn small${can.ok ? ' primary' : ''}" data-aprev="${esc(x.kind)}|${esc(c.id)}|${x.req ? x.req.no : ''}"${!can.ok && can.why ? ` title="${esc(can.why)}"` : ''}>${esc(AP.review)}</button>`) +
-      `<a class="btn small ghost" href="#planning/${esc(c.id)}/${x.kind === 'request' ? 'budget' : 'review'}">${esc(AP.open)}</a>`;
+      `<a class="btn small ghost" href="#planning/${esc(c.id)}/${x.kind === 'request' ? 'requests' : 'plan/review'}">${esc(AP.open)}</a>`;
     return `<article class="apcard ${esc(x.status)}"><header><span class="apt ${esc(x.kind === 'plan' ? 'plan' : x.req.type)}">${esc(kind)}${x.req ? ` #${x.req.no}` : ''}</span>${U.apChip(x.status)}${x.status === 'pending' && x.age >= 3 ? `<span class="chip warn">${esc(AP.ago(x.age))}</span>` : ''}</header>` +
       `<h3><a href="#planning/${esc(c.id)}">${esc(c.name)}</a></h3><div class="apsub">${U.avatar(x.by || x.plan.owner, true)}<span>${esc(sub)}</span></div><div class="apbody">${body}</div>${decided}<footer>${btns}</footer></article>`;
   }
@@ -161,11 +170,14 @@ CP.screens.planning = (function () {
   const campaigns = () => seedNow().allCampaigns || seedNow().campaigns || [];
   /* CR-09 §5.2 — the status tabs of Plans: In progress (Draft · In review · Returned) · Approved · Rejected (+ Cancelled) */
   const tabOf = c => (R.statusOf(c, td()) === R.CANCELLED ? 'cancelled' : c.approval === 'approved' ? 'approved' : c.approval === 'rejected' ? 'rejected' : 'progress');
+  /* CR-13 §2.4 — To close: Ended, not closed (a part of Approved) */
+  const toClose = c => c.approval === 'approved' && R.campState(c, (seedNow().plans || {})[c.id], td()).key === 'toclose';
+  const inTab = (c, k) => (k === 'all' ? true : k === 'toclose' ? toClose(c) : tabOf(c) === k);
   const yearOf = c => c.year || +String(c.start).slice(0, 4);
   function filtered(noTab) {
     const q = fold(st.q);
     return campaigns().filter(c => (st.year === 'all' || String(yearOf(c)) === String(st.year)) && (st.includeCancelled || R.statusOf(c, td()) !== R.CANCELLED)
-      && (!q || fold(c.name).includes(q) || fold(c.id).includes(q) || fold(c.owner).includes(q)) && (noTab || st.tab === 'all' || tabOf(c) === st.tab));
+      && (!q || fold(c.name).includes(q) || fold(c.id).includes(q) || fold(c.owner).includes(q)) && (noTab || inTab(c, st.tab)));
   }
   const TL_SORTS = ['start', 'status', 'name'];
   function renderTools() {
@@ -178,8 +190,8 @@ CP.screens.planning = (function () {
       `<button type="button" class="btn primary" data-knew${ro()}>${ICON.plus}<span>${esc(K.newBtn)}</span></button>`;
   }
   function renderTabs() {
-    const rows = filtered(true), n = k => (k === 'all' ? rows.length : rows.filter(c => tabOf(c) === k).length);
-    const keys = ['progress', 'approved', 'rejected', 'all'].concat(st.includeCancelled ? ['cancelled'] : []);
+    const rows = filtered(true), n = k => rows.filter(c => inTab(c, k)).length;
+    const keys = ['progress', 'approved', 'toclose', 'rejected', 'all'].concat(st.includeCancelled ? ['cancelled'] : []);
     if (!keys.includes(st.tab)) st.tab = 'progress';
     /* the Timeline shows every plan (its own title count) — the tabs are the table's */
     $('k_tabs').classList.toggle('hidden', view === 'timeline');
@@ -200,7 +212,7 @@ CP.screens.planning = (function () {
     const S = k => R.stepState(plan, k, td()), cls = s => (s.status === 'done' ? 'done' : s.status === 'returned' ? 'ret' : s.status === 'in_progress' ? 'prog' : 'todo');
     const one = (k, label) => { const s = S(k); return `<i class="pd ${cls(s)}${s.overdue ? ' late' : ''}" title="${esc(`${label} · ${C.step.state[s.status]}${s.assignee ? ' · ' + s.assignee : ''}${s.overdue ? ' · ' + C.step.overdue(s.daysLate) : ''}`)}">${s.status === 'done' ? '✓' : s.status === 'returned' ? '↩' : ''}</i>`; };
     const g4 = ['4a', '4b', '4c'].map(S), c4 = g4.every(s => s.status === 'done') ? 'done' : g4.some(s => s.status === 'returned') ? 'ret' : g4.some(s => s.status !== 'not_started') ? 'prog' : 'todo';
-    return `<span class="pdots">${one('1', C.step.names[1])}${one('2', C.step.names[2])}${one('3', C.step.names[3])}<i class="pd ${c4}${g4.some(s => s.overdue) ? ' late' : ''}" title="${esc(g4.map(s => `${C.step.names[s.key]} · ${C.step.state[s.status]}`).join('\n'))}">${c4 === 'done' ? '✓' : c4 === 'ret' ? '↩' : ''}</i>${one('5', C.step.names[5])}${one('6', C.step.names[6])}</span>`;
+    return `<span class="pdots">${one('1', C.step.names[1])}${one('2', C.step.names[2])}${one('3', C.step.names[3])}${one('env', C.step.names.env)}<i class="pd ${c4}${g4.some(s => s.overdue) ? ' late' : ''}" title="${esc(g4.map(s => `${C.step.names[s.key]} · ${C.step.state[s.status]}`).join('\n'))}">${c4 === 'done' ? '✓' : c4 === 'ret' ? '↩' : ''}</i>${one('5', C.step.names[5])}${one('6', C.step.names[6])}</span>`;
   }
   /* Waiting on: the first open step not done — its department · who · Due (Overdue in red) · In review → the Executive */
   function waitingHTML(c, plan) {
@@ -224,12 +236,13 @@ CP.screens.planning = (function () {
       const appr = c.approval || 'draft', N = nums.get(c.id) || {}, p = plans[c.id], live = appr === 'approved' && R.statusOf(c, td()) !== R.CANCELLED, d0 = R.dayDiff(c.start, td());
       /* Budget = the plan's (฿ + A&P) — no Used % bar, no result chips (P1 · D85) */
       const bud = N.budget ? `<div class="num"><b>${esc(R.shortBaht(N.budget))}</b></div><div class="small muted num">${esc(PL.ap(R.pct(N.ap)))}</div>` : none();
-      const prog = appr === 'approved' && N.approvedAt ? `<span class="small apok">${esc(PL.approvedOn(R.dmy(String(N.approvedAt).slice(0, 10)), N.approvedBy || '—'))}</span>` : dotsHTML(p);
+      /* CR-13 F5 — an approved row: the state of the campaign (the approval is its own column) */
+      const prog = appr === 'approved' ? `<span class="small pstate">${CP.cpage.stateChip(c, p)}</span>` : dotsHTML(p), ended = R.statusOf(c, td()) === 'complete';
       return `<tr class="click grp" tabindex="0" data-open="${esc(c.id)}"><td class="nm"><div class="nmt"><b${c.note ? ` title="${esc(c.note)}"` : ''}>${esc(c.name)}</b></div></td>` +
-        `<td>${c.owner ? `<span class="owner">${U.avatar(c.owner, true)}${esc(c.owner)}</span>` : none()}</td><td class="nowrap" title="${esc(`${R.dmy(c.start)} – ${R.dmy(c.end)}`)}"><span class="small">${esc(R.dmy(c.start))}</span><div class="small muted">${esc(PL.inDays(d0))}</div>${R.statusOf(c, td()) === R.CANCELLED ? `<div>${statusChip(R.CANCELLED)}</div>` : ''}</td>` +
+        `<td>${c.owner ? `<span class="owner">${U.avatar(c.owner, true)}${esc(c.owner)}</span>` : none()}</td><td class="nowrap" title="${esc(`${R.dmy(c.start)} – ${R.dmy(c.end)}`)}"><span class="small">${esc(R.dmy(c.start))}</span><div class="small muted">${esc(ended ? C.cpg.st.endedOn(R.dmy(c.end)) : PL.inDays(d0))}</div>${R.statusOf(c, td()) === R.CANCELLED ? `<div>${statusChip(R.CANCELLED)}</div>` : ''}</td>` +
         `<td>${prog}</td><td>${waitingHTML(c, p)}</td><td>${U.apChip(appr)}</td>` +
         `<td class="num">${N.target == null ? none() : esc(R.shortBaht(N.target))}</td><td class="bud">${bud}</td>` +
-        `<td class="kmore">${live ? `<a class="link small tomon" href="#monitor/${esc(c.id)}">${esc(PL.toMonitor)}</a>` : ''}<button type="button" class="icon-btn" data-kmore="${esc(c.id)}" aria-haspopup="menu" aria-label="${esc(`${K.menu.more} · ${c.name}`)}" title="${esc(K.menu.more)}">${ICON.more}</button></td></tr>`;
+        `<td class="kmore">${live ? `<a class="link small tomon" href="#tracking/${esc(c.id)}">${esc(PL.toMonitor)}</a>` : ''}<button type="button" class="icon-btn" data-kmore="${esc(c.id)}" aria-haspopup="menu" aria-label="${esc(`${K.menu.more} · ${c.name}`)}" title="${esc(K.menu.more)}">${ICON.more}</button></td></tr>`;
     }).join('');
     const pager = U.pagerHTML(all.length, st.page, 'data-kpage'); void pages;
     box.innerHTML = `<div class="tablewrap"><table class="tbl port klist plist"><thead><tr>${th(Kc.name)}${th(Kc.owner)}${th(PL.cols2.start)}${th(PL.cols.progress, { tip: PL.tips.progress })}${th(PL.cols.waiting, { tip: PL.tips.waiting })}${th(Kc.approval)}${th(Kc.targetV, { num: true, tip: K.colTips.target })}${th(PL.cols2.budget, { tip: PL.budgetTip })}<th></th></tr></thead><tbody>${body}</tbody></table></div>` + pager;
@@ -241,10 +254,10 @@ CP.screens.planning = (function () {
     const od = rows.filter(x => x.s.overdue).length, nd = rows.map(x => x.s.due).filter(d => d && d >= td()).sort()[0];   /* next due = the nearest Due from today on */
     const stCell = x => (x.s.open || x.s.status !== 'not_started' ? esc(C.step.state[x.s.status]) : `<span class="blk">${esc(T2.blocked(x.s.waitFor.length))}</span>${U.info(T2.blockedTip(x.s.waitFor.map(k => C.step.names[k])))}`);
     $('k_taskv').innerHTML = `<div class="card"><div class="card-head"><h3>${labelInfo(T.title, T.tip)} <span class="hnote">${esc(me().name)}</span></h3></div>` + (rows.length ? `<div class="sumline tsum" data-tsum>${esc(T2.sum(rows.length, od, nd ? R.dmy(nd) : ''))}</div><div class="tablewrap"><table class="tbl port tasktbl"><thead><tr><th>${esc(T.cols.campaign)}</th><th>${esc(T.cols.step)}</th><th>${esc(T.cols.due)}</th><th>${esc(T.cols.status)}</th><th></th></tr></thead><tbody>` +
-      rows.map(x => `<tr class="click" tabindex="0" data-task="${esc(x.c.id)}|${esc(R.STEP_PAGE[x.s.key])}"><td class="nm"><b>${esc(x.c.name)}</b><div class="muted small">${esc(`${R.dmy(x.c.start)} – ${R.dmy(x.c.end)}`)}</div></td><td>${esc(C.step.names[x.s.key])} <span class="muted small">${esc(C.step.dept[x.s.dept])}</span></td>` +
+      rows.map(x => { const pgx = x.s.key === 'close' ? 'overview' : `plan/${R.STEP_PAGE[x.s.key]}`, nm = x.s.key === 'close' ? C.cpg.items.close : `${R.STEP_NUM[x.s.key]} · ${C.step.names[x.s.key]}`; return `<tr class="click" tabindex="0" data-task="${esc(x.c.id)}|${esc(pgx)}"><td class="nm"><b>${esc(x.c.name)}</b><div class="muted small">${esc(`${R.dmy(x.c.start)} – ${R.dmy(x.c.end)}`)}</div></td><td>${esc(nm)} <span class="muted small">${esc(C.step.dept[x.s.dept])}</span></td>` +
         `<td class="${x.s.overdue ? 'neg' : x.s.soon ? 'warnx' : ''}">${esc(x.s.due ? R.dmy(x.s.due) : '—')}${x.s.overdue ? ` <span class="chip err">${esc(C.step.overdue(x.s.daysLate))}</span>` : x.s.soon ? ` <span class="chip warn">${esc(C.step.dueSoon)}</span>` : ''}</td>` +
         `<td data-tst>${stCell(x)}${x.s.refresh ? ` <span class="chip warn">${esc(C.step.refresh)}</span>` : ''}</td>` +
-        `<td><a class="btn small${x.s.open ? ' primary' : ''}" href="#planning/${esc(x.c.id)}/${esc(R.STEP_PAGE[x.s.key])}">${esc(T.open)}</a></td></tr>`).join('') + '</tbody></table></div>'
+        `<td><a class="btn small${x.s.open ? ' primary' : ''}" href="#planning/${esc(x.c.id)}/${esc(pgx)}">${esc(T.open)}</a></td></tr>`; }).join('') + '</tbody></table></div>'
       : `<div class="na-none"><span class="okm" aria-hidden="true">✓</span> ${esc(T.none)}</div>`) + '</div>';
   }
 
@@ -260,9 +273,13 @@ CP.screens.planning = (function () {
     const c = campaigns().find(x => x.id === id); if (!c) return;
     const cancelled = R.statusOf(c, td()) === R.CANCELLED, m = document.createElement('div'), live = c.approval === 'approved', off = canEdit(c) ? '' : ' disabled';
     m.id = 'k_menu'; m.className = 'menu-pop'; m.setAttribute('role', 'menu');
-    m.innerHTML = (view === 'page' ? '' : `<button type="button" role="menuitem" data-kact="page">${esc(PL.menu.plan)}</button>`) + (live ? `<button type="button" role="menuitem" data-kact="open">${esc(PL.menu.monitor)}</button>` : '') +
-      `<button type="button" role="menuitem" data-kact="edit"${off}>${esc(K.menu.edit)}</button>` +
-      (cancelled ? `<button type="button" role="menuitem" data-kact="restore"${off}>${esc(K.menu.restore)}</button>` : `<button type="button" role="menuitem" class="danger" data-kact="cancel"${off}>${esc(K.menu.cancel)}</button>`);
+    const a = me(), p = (seedNow().plans || {})[id], cs = live ? R.campState(c, p, td()) : null, X2 = k => ({ kind: k, closed: cs && cs.key === 'closed', cancelled });
+    const chg = live && cs.key !== 'closed' && !cancelled ? [['budget', C.cpg.types.budget], ['period', C.cpg.types.period], ['close', cs.key === 'toclose' ? C.cpg.types.close : C.cpg.types.closeEarly]]
+      .map(([k, l]) => { const d = R.canDo('change', a, p, X2(k)); return `<button type="button" role="menuitem" class="sub" data-kact="chg-${k}"${d.ok ? '' : ` disabled title="${esc(d.why || '')}"`}>${esc(`${C.cpg.change} › ${l}`)}</button>`; }).join('') : '';
+    m.innerHTML = (view === 'page' ? '' : `<button type="button" role="menuitem" data-kact="page">${esc(PL.menu.plan)}</button>`) + (live ? `<button type="button" role="menuitem" data-kact="open">${esc(C.cpg.toTracking)}</button>` : '') + chg +
+      (R.canDo('duplicate', a, p).ok ? `<button type="button" role="menuitem" data-kact="duplicate">${esc(C.plan.btn.duplicate)}</button>` : '') +
+      (cs && cs.key === 'closed' && R.canDo('reopen', a, p, { closed: true }).ok ? `<button type="button" role="menuitem" data-kact="reopen">${esc(C.cpg.reopen)}</button>` : '') +
+      (cs && cs.key === 'closed' ? '' : cancelled ? `<button type="button" role="menuitem" data-kact="restore"${off}>${esc(K.menu.restore)}</button>` : `<button type="button" role="menuitem" class="danger" data-kact="cancel"${off}>${esc(K.menu.cancel)}</button>`);
     m.dataset.id = id; document.body.appendChild(m);
     const r = btn.getBoundingClientRect();
     m.style.top = Math.min(innerHeight - m.offsetHeight - 8, r.bottom + 4) + 'px'; m.style.left = Math.max(8, Math.min(innerWidth - m.offsetWidth - 8, r.right - m.offsetWidth)) + 'px';
@@ -275,10 +292,12 @@ CP.screens.planning = (function () {
   function canEdit(c) { const p = (seedNow().plans || {})[c.id]; return !!p && R.canDo('details', me(), p).ok; }
   function act(what, id) {
     const c = campaigns().find(x => x.id === id); if (!c) return;
-    if (['edit', 'restore', 'cancel'].includes(what) && !canEdit(c)) return;
+    if (['restore', 'cancel'].includes(what) && !canEdit(c)) return;
     if (what === 'page') location.hash = `#planning/${id}`;
-    if (what === 'edit') openForm(id);
-    if (what === 'open') location.hash = `#monitor/${id}`;
+    if (what.startsWith('chg-')) { const k = what.slice(4); if (k === 'budget') CP.reqdraw.open(id); else if (k === 'period') CP.chgdraw.period(id); else CP.chgdraw.close(id); }
+    if (what === 'duplicate') duplicate(id);
+    if (what === 'reopen') CP.chgdraw.reopen(id);
+    if (what === 'open') location.hash = `#tracking/${id}`;
     if (what === 'restore') run({ action: 'restore', id, values: {} }, c.name);
     if (what === 'cancel') askCancel(c);
   }
@@ -333,9 +352,9 @@ CP.screens.planning = (function () {
       `<div class="field"><label for="k_t_end">${esc(Dd.end)} <span class="req">*</span></label>${U.dateHTML('id="k_f_end"', f.end, { textId: 'k_t_end' })}<div class="ferr" id="k_e_end"></div></div></div>` +
       `<div class="help" id="k_f_days"></div>` +
       `<div class="field"><label for="k_t_endm">${esc(Dd.endMkt)}</label>${U.dateHTML('id="k_f_endm"', f.end_marketing, { textId: 'k_t_endm' })}<div class="help">${esc(Dd.endMktHelp)}</div><div class="ferr" id="k_e_end_marketing"></div></div>` +
-      `<div class="field"><label for="k_f_status">${esc(Dd.status)}</label><select id="k_f_status" class="inp"><option value="auto"${f.status === 'auto' ? ' selected' : ''} id="k_f_auto">${esc(Dd.statusAuto(autoWord()))}</option>` +
+      (edit ? `<div class="field"><label for="k_f_status">${esc(Dd.status)}</label><select id="k_f_status" class="inp"><option value="auto"${f.status === 'auto' ? ' selected' : ''} id="k_f_auto">${esc(Dd.statusAuto(autoWord()))}</option>` +
       `<option value="complete"${f.status === 'complete' ? ' selected' : ''}>${esc(Dd.statusComplete)}</option><option value="cancelled"${f.status === 'cancelled' ? ' selected' : ''}>${esc(Dd.statusCancelled)}</option></select>` +
-      `<div class="field sub${f.status === 'cancelled' ? '' : ' hidden'}" id="k_f_reasonw"><label for="k_f_reason">${esc(Dd.reason)}</label><textarea id="k_f_reason" class="inp" rows="2" maxlength="300" placeholder="${esc(Dd.reasonPh)}">${esc(f.reason)}</textarea></div></div>` +
+      `<div class="field sub${f.status === 'cancelled' ? '' : ' hidden'}" id="k_f_reasonw"><label for="k_f_reason">${esc(Dd.reason)}</label><textarea id="k_f_reason" class="inp" rows="2" maxlength="300" placeholder="${esc(Dd.reasonPh)}">${esc(f.reason)}</textarea></div></div>` : '') +
       `</form><div class="dr-foot"><div class="ferr fmsg" id="k_f_msg"></div><button type="button" class="btn" data-dr-close>${esc(Dd.cancel)}</button><button type="button" class="btn primary" id="k_f_save">${esc(Dd.save)}</button></div>`;
   }
   function wireForm() {
@@ -357,7 +376,7 @@ CP.screens.planning = (function () {
     if (!F.id) $('k_f_idhelp').textContent = K.d.idHelp(R.campaignId(f.name, listRows(), td()));
     $('k_f_days').textContent = dateOk(f.start) && dateOk(f.end) && f.end >= f.start ? K.d.days(R.dayDiff(f.end, f.start) + 1, f.start.slice(0, 4)) : '';
     const auto = $('k_f_auto'); if (auto) auto.textContent = K.d.statusAuto(autoWord());
-    $('k_f_reasonw').classList.toggle('hidden', f.status !== 'cancelled');
+    if ($('k_f_reasonw')) $('k_f_reasonw').classList.toggle('hidden', f.status !== 'cancelled');
     $('k_f_save').disabled = Object.keys(e).length > 0 || !!F.saving;
   }
   function onKey(e) {
@@ -386,7 +405,7 @@ CP.screens.planning = (function () {
     try { await S.savePlan(id, p => { const q = from ? Object.assign(p, { versions: [Object.assign(R.clonePlan(from), { v: 1, status: 'draft', submitted_at: null, submitted_by: null, decided_at: null, decided_by: null, comment: '' })] }) : p;
       q.steps = R.newSteps(start, a.name, CP.actor.people()); if (from) ['1', '2', '3', '4a', '4b', '4c'].forEach(k => { q.steps[k].status = 'in_progress'; }); return q; }, { create: R.newPlan(id, a.name, at, a.name) }); }
     catch (x) { U.toast(AP.toast.failed); return; }
-    location.hash = `#planning/${id}/details`;
+    location.hash = `#planning/${id}/plan/details`;
   }
   /* a Rejected plan → Duplicate as draft: a new Campaign (name (2)) with the plan's last version as v1 */
   async function duplicate(id) {

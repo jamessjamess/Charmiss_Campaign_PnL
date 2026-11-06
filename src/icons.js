@@ -18,9 +18,14 @@ CP.icons = (function () {
     search: s16('<circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4 14 14"/>'),
     sun: s20('<circle cx="10" cy="10" r="3.2"/><path d="M10 2.2v1.6M10 16.2v1.6M2.2 10h1.6M16.2 10h1.6M4.5 4.5l1.1 1.1M14.4 14.4l1.1 1.1M4.5 15.5l1.1-1.1M14.4 5.6l1.1-1.1"/>'),
     moon: s20('<path d="M16.2 12.4A6.6 6.6 0 0 1 7.6 3.8a6.6 6.6 0 1 0 8.6 8.6z"/>'),
+    /* CR-12 §3 — System theme (a screen — not the menu's monitor gauge) · Display (the language + theme on a phone: sliders) */
+    system: s20('<rect x="2.5" y="3.5" width="15" height="10" rx="1.5"/><path d="M7 17h6M10 13.5V17"/>'),
+    display: s20('<path d="M3 6h8M15 6h2M3 14h2M9 14h8"/><circle cx="13" cy="6" r="2"/><circle cx="7" cy="14" r="2"/>'),
     menu: s20('<path d="M3 5.5h14M3 10h14M3 14.5h14"/>'),
     /* CR-03 — + New · ⋯ · copy */
     plus: s16('<path d="M8 3v10M3 8h10"/>'),
+    /* CR-11 — View plan (a page with lines) on the Campaign Tracking toolbar */
+    plan: s16('<rect x="3.5" y="2" width="9" height="12" rx="1.5"/><path d="M6 5.5h4M6 8h4M6 10.5h2.5"/>'),
     more: s16('<circle cx="3.5" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="12.5" cy="8" r="1.1" fill="currentColor" stroke="none"/>'),
     copy: s16('<rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 3.5V3a1 1 0 0 0-1-1H3.5a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h.5"/>'),
     /* the panel with its edge and an arrow: fold the menu (‹) · open it (› — the same icon turned round by CSS) */

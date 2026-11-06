@@ -159,12 +159,8 @@ CP.tabs.overview = (function () {
   /* ---------- Row 5 — Where each ฿100 of sales goes (CR-10 §3.2 · D95): the statement as ฿ of each ฿100 — Actual YTD · Plan (full) ---------- */
   const P100 = [['cogs', '--series-grey'], ['mkt', '--mkt'], ['sls', '--sls'], ['oth', '--oth'], ['profit', '--ok']];
   const p100Of = () => R.per100(R.statement(U.seed(), rng(), null, 'full'));
-  function renderP100() {
-    const box = $('o_p100'); if (!box) return;
-    const T = D.p100, p = p100Of(), row = (side, label, faded) => ({ label, faded, parts: P100.map(([key, color]) => ({ key, label: T.parts[key], v: side[key], color, money: R.baht(side.money[key]) })) });
-    box.innerHTML = `<div class="card-head"><h3>${labelInfo(T.title, T.tip)}</h3>${p.actual ? `<div class="ctl"><span class="p1right">${esc(T.right(Math.round(p.actual.profit), p.plan ? Math.round(p.plan.profit) : '—'))}</span></div>` : ''}</div>` +
-      (p.actual ? U.spendPer100([row(p.actual, T.actual), p.plan ? row(p.plan, T.plan, true) : null].filter(Boolean)) : `<div class="foldl">${esc(T.none)}</div>`);
-  }
+  /* CR-11 — the card is U.p100Card (Campaign Tracking › P&L shows it for one Campaign) */
+  function renderP100() { const box = $('o_p100'); if (box) box.innerHTML = U.p100Card(p100Of()); }
 
   /* ---------- events ---------- */
   const meta = () => P.metaRows([[D.meta.tab, `${D.title} › ${D.tabs.overview}`], [D.meta.scope, P.periodWords()], [D.meta.status, P.statusWords()]]);
@@ -186,7 +182,7 @@ CP.tabs.overview = (function () {
   }
   /* ---------- Export: KPI · by month · Watchlist · Campaign timeline ---------- */
   X.register('o_watch', x => { const iss = R.issues(x.seed, x), yb = new Map(R.budgetTrack(x.seed, x).rows.map(t => [t.id, t])), used = r => { const t = yb.get(r.id); return t && t.current > 0 ? t.used : r.budget ? r.budget.used : null; };
-    return { key: 'o_watch', title: C.yr.file.watch, header: [C.yr.pace.cols.campaign, 'Severity', 'Problems', 'Used %', 'Ach %', C.yr.timeGone], cols: ['text', 'text', 'text', 'pct', 'pct', 'pct'],
+    return { key: 'o_watch', title: C.yr.file.watch, header: [C.yr.pace.cols.campaign, C.xl.severity, C.xl.problems, C.money.used.h, C.money.ach.h, C.yr.timeGone], cols: ['text', 'text', 'text', 'pct', 'pct', 'pct'],
       rows: iss.rows.map(r => [{ v: r.c.name, bold: true }, C.yr.sev[r.severity], r.chips.map(c => C.yr.st[c.key]).join(' · '), used(r), r.sales ? r.sales.ach : null, r.sales ? r.sales.timeGone : null]),
       notes: iss.rows.length ? [] : [C.yr.watch.budget.none] }; });
   /* CR-10 — All campaigns (full baht) · Where each ฿100 goes */

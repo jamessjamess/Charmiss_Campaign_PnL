@@ -107,8 +107,8 @@ CP.pnl = (function () {
       const add = (cls, t) => { const e = document.createElement('div'); e.className = cls; e.textContent = t; tip.appendChild(e); return e; };
       const row = (l, v, cls) => { const e = add('r' + (cls ? ' ' + cls : ''), ''); const a = document.createElement('span'); a.textContent = l; const b = document.createElement('b'); b.textContent = v; e.appendChild(a); e.appendChild(b); };
       add('h', Ch.steps[s.label] || s.label); add('d', Ch.groups[s.group] || '');
-      row(s.kind === 'sub' || s.kind === 'total' ? 'Amount' : s.kind === 'up' ? Ch.legend.up : Ch.legend.down, R.baht(s.value));
-      row('% of revenue', R.pct(s.pctRev, 1)); row('Running total', R.baht(s.to), 'tot');
+      row(s.kind === 'sub' || s.kind === 'total' ? C.xl.amount : s.kind === 'up' ? Ch.legend.up : Ch.legend.down, R.baht(s.value));
+      row(C.xl.pctRev, R.pct(s.pctRev, 1)); row(C.xl.running, R.baht(s.to), 'tot');
       const bx = box.getBoundingClientRect(), sc = bx.width / W; let left = cx(i) * sc + 14; if (left + 230 > bx.width) left = cx(i) * sc - 244;
       tip.style.left = Math.max(0, left) + 'px'; tip.style.top = (m.t + 4) + 'px'; tip.classList.add('show');
     };
@@ -144,7 +144,7 @@ CP.pnl = (function () {
       const isO = open.has(t.id), ir = iss.byId.get(t.id), bs = ir && ir.budget ? ir.budget.status : null, tg = R.timeGone(t.c, td);
       const lines = isO ? ['marketing', 'sales', 'other'].map(ty => { const ls = t.lines.filter(l => l.type === ty); if (!ls.length) return '';
         return `<tr class="sub grp"><td class="lbl" colspan="${nc}"><b>${esc(C.plan.grid.groups[ty])}</b></td></tr>` + ls.map(l => `<tr class="sub"><td class="lbl">${esc(l.line)}</td>${cells(l, undefined, tg)}</tr>`).join(''); }).join('') : '';
-      return `<tr class="click" tabindex="0" data-mon="${esc(t.id)}|budget" title="${esc(PL.tbl.open(t.c.name))}"><td class="nm"><div class="nmt"><span class="bnm"><button type="button" class="chev" data-bopen="${esc(t.id)}" aria-expanded="${isO}" aria-label="${esc((isO ? B.collapse : B.expand)(t.c.name))}">${ICON.chevronDown}</button><b>${esc(t.c.name)}</b></span></div></td>${cells(t, bs || 'ok', tg)}</tr>` + lines;
+      return `<tr class="click" tabindex="0" data-mon="${esc(t.id)}|expenses" title="${esc(PL.tbl.open(t.c.name))}"><td class="nm"><div class="nmt"><span class="bnm"><button type="button" class="chev" data-bopen="${esc(t.id)}" aria-expanded="${isO}" aria-label="${esc((isO ? B.collapse : B.expand)(t.c.name))}">${ICON.chevronDown}</button><b>${esc(t.c.name)}</b></span></div></td>${cells(t, bs || 'ok', tg)}</tr>` + lines;
     }).join('');
     const tot = bt.total;
     return `<div class="legend bbleg" style="margin-top:6px"><span><i class="bar" style="--sw:var(--ok)"></i>${esc(K2.used)}</span><span><i class="bar" style="--sw:var(--err)"></i>${esc(C.yr.st.over)}</span><span><i class="tick"></i>${esc(C.yr.timeGone)}</span></div>` +
@@ -251,11 +251,11 @@ CP.tabs.pnl = (function () {
 
   /* ---------- Export: 4 sheets (KPI · statement · P&L by campaign · Profit by campaign) ---------- */
   X.register('p_kpi', x => { const k = R.kpis(x.seed, x).pnl, A = k.actual, Pl = k.plan, K = PL.k;
-    return { key: 'p_kpi', title: PL.file.kpi, header: ['Metric', 'Actual YTD', 'Plan (full)'], cols: ['text', 'money', 'money'],
+    return { key: 'p_kpi', title: PL.file.kpi, header: [C.xl.metric, C.xl.actualYTD, C.xl.planFull], cols: ['text', 'money', 'money'],
       rows: [[K.revenue, A.rev, Pl.rev], [K.gp, A.gp, Pl.gp], [`${K.exp} · ${C.plan.grid.groups.marketing}`, A.mkt, Pl.mkt], [`${K.exp} · ${C.plan.grid.groups.sales}`, A.sls, Pl.sls], [`${K.exp} · ${C.plan.grid.groups.other}`, A.oth, Pl.oth], [K.exp, A.spend, Pl.spend], [K.profit, A.profit, Pl.profit]] }; });
   X.register('p_table', x => { const f = R.pnlForecast(x.seed, x), K = PL.tbl.cols, rows = [];
     f.rows.forEach(r => ['actual', 'plan', 'forecast'].forEach(sd => { const a = r[sd]; rows.push([{ v: r.c.name, bold: true }, PL.wf[sd === 'forecast' ? 'fc' : sd], a.rev, a.cogs, a.gp, a.spend, a.mkt, a.sls, a.oth, a.profit, R.ratio(a.profit, a.rev), R.ratio(a.profit, a.spend)]); }));
-    return { key: 'p_table', title: PL.tbl.title, header: [K.campaign, 'Set', K.rev, K.cogs, K.gp, K.exp, K.mkt, K.sls, K.oth, K.profit, K.margin, K.roi], cols: ['text', 'text', 'money', 'money', 'money', 'money', 'money', 'money', 'money', 'money', 'pct', 'num'], rows }; });
+    return { key: 'p_table', title: PL.tbl.title, header: [K.campaign, C.xl.set, K.rev, K.cogs, K.gp, K.exp, K.mkt, K.sls, K.oth, K.profit, K.margin, K.roi], cols: ['text', 'text', 'money', 'money', 'money', 'money', 'money', 'money', 'money', 'money', 'pct', 'num'], rows }; });
   X.register('p_profit', () => ({ key: 'p_profit', title: PL.bars.title, header: [PL.tbl.cols.campaign, PL.bars.actual, PL.bars.plan], cols: ['text', 'money', 'money'], rows: barRows().map(r => [{ v: r.c.name, bold: true }, r.actual.profit, r.plan.profit]) }));
   X.register('p_eff', x => { const T = PL.eff, K = T.cols, e = R.mktEfficiency(x.seed, x);
     return { key: 'p_eff', title: T.title, header: [K.campaign, K.rev, K.mkt, K.actual, K.plan, K.vsPlan, K.share], cols: ['text', 'money', 'money', 'x', 'x', 'pct', 'pct'],
@@ -274,7 +274,7 @@ CP.tabs.pnl = (function () {
     const sg = t.closest('.seg[data-wside] button'); if (sg) { st.side = sg.dataset.v; save(); renderWf(); return; }
     const ts = t.closest('.seg[data-tside] button'); if (ts) { st.tSide = ts.dataset.v; save(); renderTbl(); return; }
     if (t.closest('[data-expcols]')) { st.expOpen = !st.expOpen; save(); renderTbl(); const b = el.querySelector('[data-expcols]'); if (b) b.focus(); return; }
-    const m = t.closest('[data-mon], [data-monrow]'); if (m && !t.closest('button:not(.click), a')) { const [id, tab] = (m.dataset.mon || m.dataset.monrow).split('|'); location.hash = `#monitor/${id}/${tab}`; }
+    const m = t.closest('[data-mon], [data-monrow]'); if (m && !t.closest('button:not(.click), a')) { const [id, tab] = (m.dataset.mon || m.dataset.monrow).split('|'); location.hash = `#tracking/${id}/${tab}`; }
   }
   return { render };
 })();

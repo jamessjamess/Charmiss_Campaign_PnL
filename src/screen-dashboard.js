@@ -121,7 +121,7 @@ CP.screens.dashboard = (function () {
     sec = $('tab-dashboard'); if (!sec.dataset.built) build();
     const [t0, ...rest] = String(sub || '').split('/');
     /* By campaign moved to Campaign Monitor (D61) */
-    if (t0 === 'campaign') { location.replace('#monitor' + (rest.length && rest[0] ? '/' + rest.join('/') : '')); return; }
+    if (t0 === 'campaign') { location.replace('#tracking' + (rest.length && rest[0] ? '/' + rest.join('/') : '')); return; }
     const t = ALIAS[t0] || t0, tab = TABS.includes(t) ? t : prefTab();
     cur = tab; pref.set('dashtab', tab);
     sec.querySelectorAll('#d_tabs [data-tab]').forEach(a => { const on = a.dataset.tab === tab; a.classList.toggle('on', on); a.setAttribute('aria-selected', String(on)); a.tabIndex = on ? 0 : -1; if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
@@ -138,8 +138,8 @@ CP.screens.dashboard = (function () {
     go(t); setTimeout(() => { const n = $('dtab_' + t); if (n) n.focus(); }, 0);
   });
   /* a tab (By campaign: the Campaign last seen) */
-  function go(tab, id) { if (tab === 'campaign') { location.hash = '#monitor' + (id ? '/' + id : ''); return; } location.hash = '#dashboard/' + (ALIAS[tab] || tab); }
-  /* a Campaign of the Dashboard → Campaign Monitor (tab: summary · sales · budget · pnl · history) */
-  const openCampaign = (id, tab) => { location.hash = `#monitor/${id}${tab ? '/' + tab : ''}`; };
+  function go(tab, id) { if (tab === 'campaign') { location.hash = '#tracking' + (id ? '/' + id : ''); return; } location.hash = '#dashboard/' + (ALIAS[tab] || tab); }
+  /* a Campaign of the Dashboard → Campaign Tracking (tab: summary · pnl · sales · expenses · history — CR-11) */
+  const openCampaign = (id, tab) => { const t = tab === 'budget' ? 'expenses' : tab; location.hash = `#tracking/${id}${t ? '/' + t : ''}`; };
   return { render, go, openCampaign, current: () => cur, TABS };
 })();

@@ -217,6 +217,7 @@ CP.mock = (function () {
   function stepsDone(c, owner, people, sentAt) {
     const s = R.newSteps(c.start, owner, people), sent = String(sentAt || '').slice(0, 10);
     Object.keys(s).forEach(k => { const d = s[k].due < sent || !sent ? s[k].due : sent; Object.assign(s[k], { status: 'done', done_at: `${d}T16:00:00`, by: s[k].assignee }); });
+    delete s.env;   /* CR-13 (D121) — the plans of the story were made before the envelope step: env = done (R.stepState) */
     return s;
   }
 
@@ -240,6 +241,10 @@ CP.mock = (function () {
   ];
   const price3 = v => ({ MT: v, TT: v, ECOM: v });
 
+  /* CR-13 §5.5 — the closed Campaigns of the story: days after End (or the date) · their closing note */
+  const CLOSED = { 'm-blush-mochi-launch': 20, 'm-songkran-lip-splash': 20, 'm-summer-sun-shield': '2026-09-30' };
+  const CLOSE_NOTE = { 'm-blush-mochi-launch': 'All invoices in — the launch sold ahead of the target; Mochi #02 carried the line.', 'm-songkran-lip-splash': 'Short Songkran push closed — the late KOL invoice is in.',
+    'm-summer-sun-shield': 'All invoices in — sales below the target after the rainy June; the ADS stopped on time.' };
   const dcache = new Map();
   function data(today) {
     const SC = window.CP_MOCK_SCENARIO || { campaigns: [] }, hit = dcache.get(today); if (hit && hit.sc === SC) return hit.d;
@@ -273,6 +278,18 @@ CP.mock = (function () {
       requests.forEach(q => { log.push({ at: q.at, by: q.by, action: 'request', detail: `#${q.no} ${q.type} ${R.baht(R.sumLines(q.lines))}` }); if (q.decided_at) log.push({ at: q.decided_at, by: q.decided_by, action: 'request.' + q.status, detail: `#${q.no} ${R.baht(R.sumLines(q.lines))}` }); });
       log.sort((a, b) => a.at.localeCompare(b.at));
       plans[c.id] = { id: c.id, rev: 1, source: 'web', owner, approval: 'approved', versions, requests, log, steps: stepsDone(c, owner, people, versions[versions.length - 1].submitted_at) };
+      /* CR-13 §5.5 (D125) — closed by the Executive: the 2025 campaigns (End + 20 days) · Summer Sun Shield (30/09/2026) — an approved close request, nothing waiting ·
+         the unused budget written down, not released (D120) · Airy Kiss Tint stays Ended · to close */
+      const cdays = CLOSED[c.id], cAt = cdays == null ? null : typeof cdays === 'number' ? R.addDays(c.end, cdays) : cdays;
+      if (cAt && cAt < today && !c.cancelled) {
+        const cur = budget.reduce((t, b) => t + b.amount, 0) + reqs.filter(q => q.status === 'approved').reduce((t, q) => t + q.lines.reduce((u, l) => u + l.amount, 0), 0),
+          spent = base.expenses.filter(r => r.campaign_id === c.id && r.scenario === 'actual').reduce((t, r) => t + (r.amount || 0), 0), unused = Math.max(0, Math.round(cur - spent)), no = requests.length + 1;
+        const note = CLOSE_NOTE[c.id] || 'Closed — all invoices in.', sentAt = at(R.addDays(cAt, -3), '10:30:00'), doneAt = at(cAt, '16:00:00');
+        requests.push({ no, type: 'close', status: 'approved', reason: note, lines: [], close: { early: false, close_date: null, note, checks: { unused, sure: true } }, by: owner, at: sentAt, decided_by: appr, decided_at: doneAt, comment: '' });
+        plans[c.id].closure = { status: 'closed', closed_at: doneAt, closed_by: appr, note, unused, early: false, req: no };
+        log.push({ at: sentAt, by: owner, action: 'close', detail: `#${no} ${R.reqWords(requests[requests.length - 1])}` }, { at: doneAt, by: appr, action: 'closed', detail: `#${no} ${R.reqWords(requests[requests.length - 1])}` });
+        log.sort((a, b) => a.at.localeCompare(b.at));
+      }
       list.push(listRow(camp));
     });
     (SC.drafts || []).forEach((d, di) => {
@@ -290,6 +307,7 @@ CP.mock = (function () {
         details: details(d, LINES[d.line]), skus, target, budget, forecast: d.approval === 'draft' ? Object.assign(FC(), { comment: '' }) : FC(), review: { comment: d.submitted ? 'All steps done — please approve.' : '' } };
       /* the steps (CR-07 §10): sent ones = every step done · a returned one = its steps back · a draft = as the scenario says */
       const steps = d.submitted ? stepsDone(d, d.owner, people, d.submitted) : R.newSteps(d.start, d.owner, people);
+      delete steps.env;   /* CR-13 — made before the envelope step */
       if (!d.submitted) Object.entries(d.steps || {}).forEach(([k, s2]) => { const s = steps[k]; s.status = s2; if (s2 === 'done') Object.assign(s, { done_at: `${R.addDays(today, -6)}T15:00:00`, by: s.assignee }); });
       if (d.due3 != null) steps['3'].due = R.addDays(today, d.due3);
       if (d.approval === 'returned') { (d.revise || []).forEach(k => { steps[k].status = 'returned'; steps[k].done_at = null; }); Object.assign(steps['5'], { status: 'in_progress', refresh: true, done_at: null }); Object.assign(steps['6'], { status: 'not_started', done_at: null }); }

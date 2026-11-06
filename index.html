@@ -8,6 +8,8 @@
      CR-06 (D51): demo data only — made up in the browser from data/mock-scenario.js · what people click stays in their own browser (localStorage) until
      Reset demo data (the Acting as menu). The way of the real P&L files (build_seed.py · seed.js · the file writes) is kept in archive/v0.5-real/. -->
 <link rel="stylesheet" href="src/styles.css">
+<!-- CR-12 §4.1 — the language and the theme before the page draws (no white flash) -->
+<script src="src/boot.js"></script>
 </head>
 <body>
 <div class="shell" id="shell">
@@ -28,11 +30,15 @@
       <span class="devb" id="topDev"></span>
       <span class="spacer"></span>
       <button type="button" class="actorbtn" id="actorBtn" aria-haspopup="menu" aria-expanded="false"></button>
-      <button type="button" class="icon-btn tb-theme" id="themeBtn"></button>
+      <!-- CR-12 §2 · §3 — ไทย │ EN · Light │ Dark │ System (a phone: one Display button → a popover) -->
+      <div class="seg tbseg" id="langSeg" role="radiogroup"></div>
+      <div class="seg tbseg tb-theme" id="themeSeg" role="radiogroup"></div>
+      <button type="button" class="icon-btn tb-disp" id="dispBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="dispPop"></button>
+      <div class="disppop hidden" id="dispPop" role="dialog"></div>
     </header>
     <main>
       <section id="tab-dashboard" class="hidden"></section>
-      <section id="tab-monitor" class="hidden"></section>
+      <section id="tab-tracking" class="hidden"></section>
       <section id="tab-planning" class="hidden"></section>
       <section id="tab-products" class="hidden"></section>
     </main>
@@ -44,6 +50,8 @@
 <dialog id="cmdk" class="cmdk" aria-label="Search or jump to"></dialog>
 <script src="data/mock-scenario.js"></script>
 <script src="src/content.js"></script>
+<script src="src/content.th.js"></script>
+<script src="src/i18n.js"></script>
 <script src="src/icons.js"></script>
 <script src="src/rules-pnl.js"></script>
 <script src="src/rules-list.js"></script>
@@ -60,7 +68,7 @@
 <script src="src/screen-pnl.js"></script>
 <script src="src/screen-sales.js"></script>
 <script src="src/screen-expenses-tab.js"></script>
-<script src="src/screen-monitor.js"></script>
+<script src="src/screen-tracking.js"></script>
 <script src="src/screen-planning.js"></script>
 <script src="src/screen-timeline.js"></script>
 <script src="src/screen-plan.js"></script>

@@ -104,7 +104,7 @@ CP.tabs.expenses = (function () {
 
   /* ---------- Export: KPI · by month · Budget by campaign · Spend by group · Spend by line ---------- */
   X.register('b_kpi', x => { const k = R.kpis(x.seed, x), A = k.pnl.actual, Pl = k.pnl.plan, K = SB.bk, iss = R.issues(x.seed, x), wr = watchRows(iss), pd = pending(), left = Pl.spend == null ? null : Pl.spend - (A.spend || 0);
-    return { key: 'b_kpi', title: D.file.b_kpi, header: ['Metric', 'Value', 'Of', '%', 'Note'], cols: ['text', 'money', 'money', 'pct', 'text'],
+    return { key: 'b_kpi', title: D.file.b_kpi, header: [C.xl.metric, C.xl.value, C.xl.of, '%', C.xl.note], cols: ['text', 'money', 'money', 'pct', 'text'],
       rows: [[C.yr.k.budget, A.spend, Pl.spend, R.ratio(A.spend, Pl.spend), `${C.yr.timeGone} ${R.pct(R.yearGone(x.year, x.today))}`], [K.remaining, left, Pl.spend, R.ratio(left, Pl.spend), K.remTip.f],
         [`${K.watch} (${K.watchOf})`, { v: wr.length, fmt: 'num' }, null, null, wr.map(r => `${r.c.name}: ${r.chips.filter(c => BKEYS.includes(c.key)).map(c => C.yr.st[c.key]).join(' · ')}`).join(' | ')],
         [K.pend, pd.amount, null, null, pd.n ? K.pendCap(pd.n, pd.oldest || 0) : K.pendNone]] }; });

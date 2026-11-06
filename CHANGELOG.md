@@ -1,5 +1,91 @@
 # Changelog
 
+## v0.13.0 — 06/11/2026 · CR-13 Campaign Planning: one page a campaign · Period change · Close campaign · History · 7 steps with helpers
+
+- **The campaign page** (`#planning/<id>` · D114): one page, two modes — a Draft / In review / Returned plan = **Plan** (the steps) ·
+  an approved plan = **Overview · Plan · Requests · History** (`#planning/<id>/overview|plan|requests|history` · the old step routes
+  `#planning/<id>/budget` … go to `…/plan/<step>`) · the head: the approval chip (`Approved v1`) + the state of the campaign
+  (`On going · 26 days left` · `Ended · to close · 5 days late` · `Closed 30/09/2026` · `Cancelled`) + `Period change pending` /
+  `Close requested` · **Request change ▾** · Campaign Tracking › · ⋯.
+- **Overview**: the details (Name · Brand · Category · Objective · Channels · Owner) — **Edit** in place, no approval, in History (D115) ·
+  the Campaign period bar of CR-11 (`U.periodHTML`, shared) · **Plan in use** (v · Target · Budget original + changes · Plan profit · A&P) ·
+  **Open items** (the requests waiting · the task *Close campaign*) · **Latest activity** (5 + All history ›). **Plan** = the version in
+  use read only (version ▾ · Compare · Products · Target · Budget Original / Changes / Current / Spent / Remaining · the summary).
+  **Requests** = every request (# · Type · Summary · By · Sent · Status · Decided) + New request ▾.
+- **Plans**: a click on the row opens the page (Approved → Overview · a draft → Plan at my step) · ⋯ = Open · Campaign Tracking ›
+  · Request change › · Duplicate as draft (also an approved plan) · Cancel campaign… / Admin: Reopen · **no Open plan · no Edit details**
+  (the drawer is New campaign only, no Status) · Progress of an approved plan = the state of the campaign · Start of an ended one =
+  `Ended 30/09/2026` · the tab **To close n** · 7 dots.
+- **Request change** (D117): Budget change (as before) · **Period change** · **Close campaign / Close early** — the owner or Admin ·
+  the Executive decides every one (never their own) · Approve · Return · Reject · Withdraw · Undo · Approvals types *Period change* ·
+  *Close*.
+- **Period change** (§4 · D116): Start (locked once started) · End marketing · End · Reason ≥ 10 · **Impact** now → after (days · Time
+  gone · Ach · Pace · Status · sales a month · moves) + *Status improves because the period is longer, not because sales went up.* ·
+  a month with actuals cannot be cut · the target / budget of the months cut move into the nearest month · approved = the dates change
+  everywhere (no new version) — `R.periodImpact` · `R.periodMoves`.
+- **Close** (§5 · D118 – D120): Ended ≠ Closed — no auto close · the task *Close campaign* (the owner · Due = End + 30 · late in red) ·
+  the close request: checks · *No more expenses are expected* · a note ≥ 20 (`Explain the gap: …`) · not with another request waiting ·
+  approved = **Closed** (read only · `Closed 30/09/2026 · Ann` in Tracking) · the unused budget stays in the numbers · **Close early**
+  (a close date ≥ today → End changes, the months after move in) · Admin **Reopen** (a reason) — `plan.closure` · `R.campState` ·
+  `R.closeChecks`. Seed (D125): Blush Mochi · Songkran Lip Splash · Summer Sun Shield closed (approved close requests) · Airy Kiss Tint
+  to close (5 days late) · no request waiting added.
+- **History** (§6): one helper (`U.historyHTML`) for Tracking › History · the campaign page › History · Latest activity — newest first, a
+  month a group · All · Approvals · Changes · Budget · Steps · Compare v1 ↔ v2 · Open request #n · the new events (Details · Period ·
+  Close · Closed · Reopened …).
+- **7 steps** (§7 · D121 – D124): 1 Campaign details · 2 Products · 3 Sales target · **4 Budget envelope** (new key `env`, the owner,
+  −45) · 5 Budget lines 5a · 5b · 5c (−40) · 6 Forecast & summary (−35) · 7 Review & submit (−30) — the keys kept, an old plan's envelope
+  = Done · the stepper one row ≤ 72 px · **Target builder** (Full target · Channel split · SKU split Hero 2 / Core 1 / GWP 0 · Not sold
+  = 0 · Even / Launch / Follow marketing / Custom · Copy mix from · Fill the grid = qty `round(฿ ÷ price)` · kept with the version) ·
+  **Budget envelope** (% ↔ ฿ · Phasing · Reference = the average of the approved plans of the category · a guide only — the plan budget =
+  Σ lines) · the lines: Envelope · Allocated · Left · **Spread** · **Fill the rest** · **Forecast & summary** (by SKU · by channel · by
+  month — one set for steps 6 · 7 · the Executive · the Plan tab) · F2 (no-marketing months only up to End marketing, as ranges) · F6
+  (plain ticks).
+- Words: ~170 new words EN + TH (`content.js` / `content.th.js`) · `?i18n=check` = 0 · keyboard names *Tab · Delete · Shift* kept in Thai.
+- Numbers: none changed — Mock anchor v0.7 the same · Pending the same as v0.12.0.
+
+## v0.12.0 — 06/11/2026 · CR-12 ไทย │ EN · Thai on every page · Light │ Dark │ System · Lite
+
+- **Language** (D106 · D107 · D108): **ไทย │ EN** on the top bar (each language written in itself · tooltip *ภาษา · Language* · a
+  radiogroup, ←/→ · Enter) · a new browser opens in **Thai** · remembered (pref `lang`) · `?lang=` for one load only · a switch loads the
+  same page again (route · tab · scroll · Acting as · filters stay — a grid with changes asks first) · `<html lang>` · Ctrl+K *Switch to
+  English* / *เปลี่ยนเป็นภาษาไทย*.
+- **Thai** (`src/content.th.js` + `src/i18n.js` — merged into `CP.content` before the screens load · a missing Thai = English): every page,
+  tab, dialog, toast, tooltip ⓘ and export · the team's short words kept (P&L · GP · COGS · A&P · ROI · SKU · MT / TT / ECOM · Ach % ·
+  Pace …) · the data not translated · dates A.D., Thai month names (`มี.ค. 2026` · `คุ้มทุน มี.ค. 2026`) · Noto Sans Thai (in the project).
+- **Theme** (D111): **☀ Light │ ☾ Dark │ 🖥 System** (System follows the computer at once and the charts are drawn again · the default of a
+  new browser · the old pref light / dark kept) · `src/boot.js` sets the theme and the language in `<head>` (no white flash) · `?theme=`
+  for one load only · a phone (< 640 px): one **Display** button → both (D112).
+- **Words out of the code** (§4.3): the export words (`C.xl` — Metric · Value · … — actual · — target to date · the waterfall sheet …) ·
+  the step names (`R.STEP_NAMES` = `C.step.names`) · `pts` · the label of the Ctrl+K dialog.
+- **Export** (D110): file · sheet · header in the language on screen (`Campaign PnL - ภาพรวม …`) · the same numbers · English the same
+  as v0.11.0 to the cell.
+- `?i18n=check` (dev): (a) (b) (c) (d) in a corner panel + `console.table` · `docs/CR-11 (1).md` (a copy) → `archive/docs-duplicates/`.
+- Numbers: none changed — Mock anchor v0.7 the same in both languages.
+
+## v0.11.0 — 06/11/2026 · CR-11 Campaign Tracking (was Monitor): the name · the tab order · a clean Summary · Sales / Expenses / P&L charts · Planning tabs · Lite
+
+- **Name** (D99 · D100): Campaign Monitor → **Campaign Tracking** (the menu · the banner · Ctrl+K · every link and word) · `#tracking/<id>/<tab>` ·
+  `#monitor/…` goes there · the tabs **Summary · P&L · Sales · Expenses · History** (route `expenses` — `budget` and a remembered "budget" go
+  there) · `screen-monitor.js` renamed `screen-tracking.js`.
+- **Toolbar** (D101): the Campaign field ≥ 360 px (the longest name on one line) · its list 520 px (name · `01/03 – 30/11` · status + issue,
+  rows of 40 px) · **Request budget · View plan · Export** on the right of every tab · stuck (≥ 1280 px) the buttons show their icon only ·
+  **no head card** (no Owner).
+- **Summary**: **Campaign period** — one bar Start → End marketing → End (Marketing dark · Sell-through light · solid to today, faded
+  after · the Today line) · `Start 01/03/2026` · `End marketing 30/06/2026` · `End 30/11/2026` · `91% of time gone · 26 days left` /
+  `Ended 30/09/2026` / `Starts in 58 days` · Burn-up: the Marketing period shaded · the legend Time gone (a dashed diagonal) · Forecast
+  (dashed in its 2 colours) · End marketing only on the chart.
+- **P&L** (D104): KPI Net revenue · Gross profit (`GP 67% · plan 67%`) · Total expenses (`A&P 24% · plan 18%`) · Campaign profit ·
+  waterfall | statement · **Where each ฿100 of sales goes** (`U.p100Card`, shared with Overview) · **Cumulative profit by month** (the bars
+  = the profit of each month, a loss red · the running profit · the plan dashed · **Break-even in Mar 2026** / *Not yet — ฿x to break
+  even* — `R.profitByMonth`) · Sales vs Marketing by month.
+- **Sales** (D102 · D103): SKU × Channel + **Rank** (Share % in every mode · its tooltip *Top 2 SKUs = 61%*) · **Sub-channel share** = a
+  100% bar a channel (the largest at the left · 2 or more under 5% = Other n · the channel's actual at the end · as tall as its rows) ·
+  **SKU trend** (Ach % a SKU a month · ≥ 100 / 90 – 99 / < 90 · this month hatched · the End marketing line · a row → that SKU in the matrix —
+  `R.skuTrend`) · SKU contribution removed.
+- **Expenses**: Budget · Budget vs Actual by month | Spend by group · Budget by line · Budget requests.
+- **Campaign Planning** (D105): Plans · **Timeline** · My tasks · My requests (an Executive / Manager: Approvals) · Tracking ›.
+- Rules: `R.profitByMonth` · `R.skuTrend` (no formula changed) · Mock anchor v0.7 the same to the baht.
+
 ## v0.10.0 — 06/11/2026 · CR-10 Dashboard: tab order + the tab bar that stays · Overview All campaigns · P&L by campaign · Sales by campaign · Lite
 
 - **Tabs** (D90 · D91 · D92): **Overview · P&L · Sales · Expenses** · *Budget* → **Expenses** (the Dashboard tab · *Expenses to watch* ·

@@ -240,11 +240,12 @@ CP.ui = (function () {
     const main = x => (o.seg === 'ach' ? R.pct(x.achF) : o.seg === 'share' ? R.pct(x.share, 1) : o.fmt(x.actual)), sub = x => (o.seg === 'actual' ? R.pct(x.achF) : o.fmt(x.actual));
     const cell = (x, r, k) => (!x ? '<td class="mxc empty"></td>' : `<td class="mxc ${esc(x.status ? 'st-' + x.status : '')}" title="${esc(o.cellTip ? o.cellTip(r, k, x) : '')}"><b>${esc(main(x))}</b><small>${esc(sub(x))}</small></td>`);
     const tail = (t, tg) => (o.cols.ach ? `<td>${t.achF == null ? none() : paceBar(t.achF, tg, o.stCls(t.status) || 'ok', 50)}</td>` : '') + (o.cols.status ? `<td>${paceChip(t.status)}</td>` : '');
+    /* CR-11 §5.3 — o.rank: a Rank column after Share % (r.rank = #1 the largest) · o.shareTip(r): the running share in the Share % tooltip */
     const body = o.rows.map(r => { const t = r.total || {};
       return `<tr${r.attrs || ''}><td class="nm sku"><b>${esc(r.name)}</b>${r.sub ? `<span class="sk2">${esc(r.sub)}</span>` : ''}</td>${o.channels.map(k => cell(r.byCh[k], r, k)).join('')}` +
-        `<td class="num"><b>${esc(o.fmt(t.actual))}</b></td><td class="num">${esc(R.pct(t.share, 1))}</td>${tail(t, r.tg)}</tr>`; }).join('');
-    const T = o.totals, totRow = T ? `<tr class="total"><td>${esc(o.cols.totalRow || o.cols.total)}</td>${o.channels.map(k => `<td class="num" data-mxtot="${esc(k)}"><b>${esc(o.fmt(T[k] && T[k].actual))}</b></td>`).join('')}<td class="num" data-mxtot="all"><b>${esc(o.fmt(T.all.actual))}</b></td><td class="num">${esc(R.pct(T.all.actual ? 1 : null, 1))}</td>${tail(T.all, o.tg)}</tr>` : '';
-    return `<div class="tablewrap mxwrap"><table class="tbl port mxtbl"><thead><tr><th>${esc(o.cols.name)}</th>${o.channels.map(k => `<th class="num">${esc(C.channel[k])}</th>`).join('')}<th class="num">${esc(o.cols.total)}</th><th class="num">${esc(o.cols.share)}</th>` +
+        `<td class="num"><b>${esc(o.fmt(t.actual))}</b></td><td class="num"${o.shareTip ? ` title="${esc(o.shareTip(r))}" data-mxshare` : ''}>${esc(R.pct(t.share, 1))}</td>${o.rank ? `<td class="num rk" data-rank="${r.rank}">#${esc(r.rank)}</td>` : ''}${tail(t, r.tg)}</tr>`; }).join('');
+    const T = o.totals, totRow = T ? `<tr class="total"><td>${esc(o.cols.totalRow || o.cols.total)}</td>${o.channels.map(k => `<td class="num" data-mxtot="${esc(k)}"><b>${esc(o.fmt(T[k] && T[k].actual))}</b></td>`).join('')}<td class="num" data-mxtot="all"><b>${esc(o.fmt(T.all.actual))}</b></td><td class="num">${esc(R.pct(T.all.actual ? 1 : null, 1))}</td>${o.rank ? '<td></td>' : ''}${tail(T.all, o.tg)}</tr>` : '';
+    return `<div class="tablewrap mxwrap"><table class="tbl port mxtbl"><thead><tr><th>${esc(o.cols.name)}</th>${o.channels.map(k => `<th class="num">${esc(C.channel[k])}</th>`).join('')}<th class="num">${esc(o.cols.total)}</th><th class="num">${esc(o.cols.share)}</th>${o.rank ? `<th class="num">${esc(o.cols.rank)}</th>` : ''}` +
       `${o.cols.ach ? `<th>${esc(o.cols.ach)}</th>` : ''}${o.cols.status ? `<th>${esc(o.cols.status)}</th>` : ''}</tr></thead><tbody>${body}${totRow}</tbody></table></div>`;
   }
 
@@ -255,6 +256,78 @@ CP.ui = (function () {
       const segs = r.parts.map(x => { const w = Math.max(0, x.v || 0) / tot * 100; return w > 0 ? `<i class="p1s ${esc(x.key)}" data-p100="${esc(x.key)}" data-v="${(x.v || 0).toFixed(6)}" style="width:${w.toFixed(3)}%;background:var(${x.color})" title="${esc(`${x.label} ฿${(x.v || 0).toFixed(1)} of ฿100 · ${x.money}`)}">${w >= 7 ? `<b>฿${Math.round(x.v)}</b>` : ''}</i>` : ''; }).join('');
       const under = r.parts.filter(x => { const w = Math.max(0, x.v || 0) / tot * 100; return w > 0 && w < 7; }).map(x => `<span><i style="background:var(${x.color})"></i>${esc(x.label)} ฿${Math.round(x.v)}</span>`).join('');
       return `<div class="p1r${r.faded ? ' faded' : ''}"><span class="p1l">${esc(r.label)}</span><span class="p1t" role="img" aria-label="${esc(r.label + ': ' + r.parts.map(x => `${x.label} ฿${Math.round(x.v || 0)}`).join(' · '))}">${segs}</span><span class="p1v">${r.right || ''}</span>${under ? `<span class="p1u">${under}</span>` : ''}</div>`; }).join('')}</div>`;
+  }
+
+  /* ===================== CR-11 §4.1 · CR-13 §2.3 — Campaign period (one helper: Campaign Tracking › Summary · Campaign Planning › Overview) ===================== */
+  /* one bar Start → End · Marketing (Start → End marketing, dark) · Sell-through (light) · solid to today, faded after · the Today line · the full dates at the ends and
+     under the joint · o.chips (the status + issue chips, left) · one sentence (right): 91% of time gone · 24 days left | Ended 30/09/2026 | Starts in 56 days ·
+     the places are the ones of the Burn-up (a day = its end) */
+  const periodPos = (c, iso) => { const span = R.dayDiff(R.addDays(c.end, 1), c.start); return Math.max(0, Math.min(1, (R.dayDiff(iso, c.start) + 1) / span)); };
+  function periodOf(c, td) {
+    const tp = R.timeProgress(c, td), dl = R.daysLeft(c, td), em = c.end_marketing && c.end_marketing >= c.start && c.end_marketing <= c.end ? c.end_marketing : null;
+    return { t: td, tp, dl, em, now: td < c.start ? 0 : td > c.end ? 1 : periodPos(c, td), emp: em ? periodPos(c, em) : null, ended: td > c.end, started: td >= c.start };
+  }
+  function periodHTML(c, o = {}) {
+    const T = C.mon.period, p = periodOf(c, o.today || today()), pc = v => (v * 100).toFixed(3);
+    const words = p.ended ? T.ended(R.dmy(c.end)) : !p.started ? T.starts(p.dl.n) : T.going(R.pct(p.tp.pct), p.dl.n === 0 ? T.endsToday : T.left(p.dl.n));
+    const cut = p.emp == null ? [[0, 1, 'm']] : [[0, p.emp, 'm'], [p.emp, 1, 's']], pieces = [];
+    cut.forEach(([a, b, k]) => { const mid = Math.max(a, Math.min(b, p.now)); if (mid > a) pieces.push([a, mid, k, 'on']); if (b > mid) pieces.push([mid, b, k, 'off']); });
+    const seg = ([a, b, k, s]) => `<i class="cp-p ${k} ${s}" style="left:${pc(a)}%;width:${pc(b - a)}%"></i>`;
+    const name = (a, b, k, word) => (p.emp == null || b - a < 0.14 ? '' : `<span class="cp-n ${k}${(a + b) / 2 < p.now ? ' on' : ''}" style="left:${pc(a)}%;width:${pc(b - a)}%">${esc(word)}</span>`);
+    const td = p.started && !p.ended ? `<i class="cp-today" data-today="${p.now}" style="left:${pc(p.now)}%"></i>` : '';
+    return `<div class="cp-top"><span class="cp-chips">${o.chips || ''}</span><b class="cp-w" data-cpwords>${esc(words)}</b></div>` +
+      `<div class="cp-row"><span class="cp-end">${esc(T.start)} <b>${esc(R.dmy(c.start))}</b></span>` +
+      `<div class="cp-bar" data-emp="${p.emp == null ? '' : p.emp}" data-now="${p.now}" role="img" aria-label="${esc(`${T.start} ${R.dmy(c.start)} · ${p.em ? `${C.mon.burn2.endMkt} ${R.dmy(p.em)} · ` : ''}${T.end} ${R.dmy(c.end)} · ${words}`)}">` +
+      pieces.map(seg).join('') + (p.emp == null ? '' : name(0, p.emp, 'm', T.mkt) + name(p.emp, 1, 's', T.sell) + `<i class="cp-j" style="left:${pc(p.emp)}%"></i>`) + td + `</div>` +
+      `<span class="cp-end">${esc(T.end)} <b>${esc(R.dmy(c.end))}</b></span>` +
+      `<div class="cp-under">${p.em ? `<span class="cp-l em" data-emlab style="left:${pc(p.emp)}%">${esc(C.mon.burn2.endMkt)} ${esc(R.dmy(p.em))}</span>` : ''}` +
+      (td ? `<span class="cp-l td" data-tdlab style="left:${pc(p.now)}%">${esc(C.dash.m.today)} ${esc(R.dm(p.t))}</span>` : '') + `</div></div>`;
+  }
+  /* two labels under the bar too close: the one on the left ends at its line, the one on the right starts at its line · still too close: Today one line lower */
+  function periodFit(box) {
+    if (!box) return; const a = box.querySelector('[data-emlab]'), b = box.querySelector('[data-tdlab]'), bar = box.querySelector('.cp-bar'); if (!a || !b || !bar) return;
+    const emp = +bar.dataset.emp, now = +bar.dataset.now, ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+    if (ra.right > rb.left - 8 && rb.right > ra.left - 8) { const right = now >= emp; a.classList.add(right ? 'toL' : 'toR'); b.classList.add(right ? 'toR' : 'toL');
+      const ra2 = a.getBoundingClientRect(), rb2 = b.getBoundingClientRect(); if (ra2.right > rb2.left - 6 && rb2.right > ra2.left - 6) b.classList.add('low'); }
+  }
+
+  /* ===================== CR-13 §6 — the history of a plan (one helper: Campaign Tracking › History · Campaign Planning › History · Overview › Latest activity) ===================== */
+  /* newest first · a group a month · filter chips All · Approvals · Changes · Budget · Steps · a row: the icon of its kind · dd/mm/yyyy hh:mm · who · the words ·
+     the detail (comment · reason · old → new) · Compare v1 ↔ v2 (an approval of v2+) · Open request #n · o = { filter, limit, chips } */
+  const HIST_KIND = {
+    approvals: ['submitted', 'resubmitted', 'withdrawn', 'approved', 'returned', 'revise', 'rejected', 'undo', 'close', 'closed', 'close.returned', 'close.rejected', 'close.withdrawn', 'reopened'],
+    changes: ['created', 'saved', 'details', 'period', 'period.approved', 'period.returned', 'period.rejected', 'period.withdrawn', 'cancelled', 'restored', 'duplicated'],
+    budget: ['request', 'request.approved', 'request.returned', 'request.rejected', 'request.withdrawn'], steps: ['step.done', 'step.assign'] };
+  const HIST_ICON = { created: '+', saved: '✎', details: '✎', submitted: '↑', resubmitted: '↑', approved: '✓', returned: '↩', revise: '↩', rejected: '✕', withdrawn: '↓', undo: '↶', duplicated: '⧉',
+    cancelled: '⊘', restored: '↺', request: '฿', 'request.approved': '฿', 'request.returned': '฿', 'request.rejected': '฿', 'request.withdrawn': '฿', 'step.done': '✓', 'step.assign': '→',
+    period: '⇆', 'period.approved': '⇆', 'period.returned': '⇆', 'period.rejected': '⇆', 'period.withdrawn': '⇆', close: '■', closed: '■', 'close.returned': '■', 'close.rejected': '■', 'close.withdrawn': '■', reopened: '↺' };
+  const histCls = a => (/^request/.test(a) ? 'req' : ['approved', 'step.done', 'closed', 'period.approved'].includes(a) ? 'ok' : /returned|revise|rejected/.test(a) ? 'back' : ['submitted', 'resubmitted', 'close', 'period'].includes(a) ? 'sub' : 'other');
+  const histGroup = a => Object.keys(HIST_KIND).find(k => HIST_KIND[k].includes(a)) || 'changes';
+  function historyHTML(plan, o = {}) {
+    const H = C.hist, f = o.filter || 'all', all = ((plan && plan.log) || []).slice().sort((a, b) => String(b.at).localeCompare(String(a.at)));
+    const list = all.filter(x => f === 'all' || histGroup(x.action) === f).slice(0, o.limit || 1e9), n = k => (k === 'all' ? all.length : all.filter(x => histGroup(x.action) === k).length);
+    const chips = o.chips === false ? '' : `<div class="sttabs hchips" role="tablist">${['all', 'approvals', 'changes', 'budget', 'steps'].map(k => `<button type="button" role="tab" data-hfilter="${k}" class="${f === k ? 'on' : ''}" aria-selected="${f === k}">${esc(H.f[k])} <span class="n">${n(k)}</span></button>`).join('')}</div>`;
+    if (!list.length) return chips + `<div class="c3-empty">${esc(H.none)}</div>`;
+    const vs = ((plan && plan.versions) || []).filter(v => v.status !== 'draft').map(v => v.v);
+    const link = x => { const d = String(x.detail || ''), m = d.match(/^#(\d+)/), v = d.match(/^v(\d+)/);
+      if (m && /^(request|period|close)/.test(x.action)) return `<button type="button" class="link small" data-openreq="${m[1]}">${esc(H.openReq(m[1]))}</button>`;
+      if (m && x.action === 'closed') return `<button type="button" class="link small" data-openreq="${m[1]}">${esc(H.openReq(m[1]))}</button>`;
+      if (v && +v[1] > 1 && ['submitted', 'resubmitted', 'approved', 'returned', 'revise', 'rejected'].includes(x.action) && vs.includes(+v[1] - 1)) return `<button type="button" class="link small" data-cmp="${+v[1] - 1}|${v[1]}">${esc(H.compare(+v[1] - 1, v[1]))}</button>`;
+      return ''; };
+    let mo = '', out = '';
+    list.forEach(x => { const m = String(x.at).slice(0, 7);
+      if (m !== mo && o.limit == null) { out += `<li class="hmon">${esc(R.monthName(m))}</li>`; mo = m; }
+      out += `<li data-hk="${esc(histGroup(x.action))}" data-ha="${esc(x.action)}"><span class="hic ${histCls(x.action)}" aria-hidden="true">${esc(HIST_ICON[x.action] || '•')}</span><div class="hrow"><div class="hl"><span class="hw">${esc(C.appr.log[x.action] || x.action)}</span>` +
+        `<span class="muted"> · ${x.by ? avatar(x.by, true) : ''}${esc(x.by || '—')} · ${esc(R.dmy(String(x.at).slice(0, 10)))} ${esc(String(x.at).slice(11, 16))}</span> ${link(x)}</div>${x.detail ? `<div class="hd">${esc(x.detail)}</div>` : ''}</div></li>`; });
+    return chips + `<ul class="hist h9 h13">${out}</ul>`;
+  }
+
+  /* CR-11 §5.2 — the card "Where each ฿100 of sales goes" (one place: Overview = the year · Campaign Tracking › P&L = one Campaign) · p = R.per100(statement) */
+  const P100 = [['cogs', '--series-grey'], ['mkt', '--mkt'], ['sls', '--sls'], ['oth', '--oth'], ['profit', '--ok']];
+  function p100Card(p) {
+    const T = C.dash.p100, row = (side, label, faded) => ({ label, faded, parts: P100.map(([key, color]) => ({ key, label: T.parts[key], v: side[key], color, money: R.baht(side.money[key]) })) });
+    return `<div class="card-head"><h3>${labelInfo(T.title, T.tip)}</h3>${p.actual ? `<div class="ctl"><span class="p1right">${esc(T.right(Math.round(p.actual.profit), p.plan ? Math.round(p.plan.profit) : '—'))}</span></div>` : ''}</div>` +
+      (p.actual ? spendPer100([row(p.actual, T.actual), p.plan ? row(p.plan, T.plan, true) : null].filter(Boolean)) : `<div class="foldl">${esc(T.none)}</div>`);
   }
 
   /* ===================== CR-08 §6.3 · §6.4 — the bars of a list of campaigns (Profit by campaign · Marketing efficiency): rows of 32 px in the same order ===================== */
@@ -455,7 +528,7 @@ CP.ui = (function () {
     const shown = new Set(R.msFilter(o.options, st.q).map(x => String(x.value)));
     const opt = x => `<button type="button" class="ms-opt pick${x.value === o.value ? ' on' : ''}${shown.has(String(x.value)) ? '' : ' hidden'}" data-msv="${esc(x.value)}" data-mspick role="option" aria-selected="${x.value === o.value}">` +
       `<span class="ms-name">${esc(x.label)}</span>${x.sub ? `<span class="ms-sub">${esc(x.sub)}</span>` : ''}${x.chip || ''}</button>`;
-    return `<div class="ms single${o.fit ? ' fit' : ''}" data-ms="${esc(o.id)}"><button type="button" class="ms-trigger" data-mst aria-haspopup="listbox" aria-expanded="${st.open}"${o.aria ? ` aria-label="${esc(o.aria)}"` : ''}><span class="ms-l">${o.labelHTML || esc(o.label)}</span><span class="ms-caret">${ICON.chevronDown}</span></button>` +
+    return `<div class="ms single${o.fit ? ' fit' : ''}${o.cls ? ' ' + esc(o.cls) : ''}" data-ms="${esc(o.id)}"><button type="button" class="ms-trigger" data-mst aria-haspopup="listbox" aria-expanded="${st.open}"${o.aria ? ` aria-label="${esc(o.aria)}"` : ''}><span class="ms-l">${o.labelHTML || esc(o.label)}</span><span class="ms-caret">${ICON.chevronDown}</span></button>` +
       `<div class="ms-pop${st.open ? ' open' : ''}" role="listbox" aria-label="${esc(o.aria || '')}"><div class="ms-qw">${ICON.search}<input type="text" class="ms-q" data-msq value="${esc(st.q)}" placeholder="${esc(o.placeholder || C.ms.search)}" aria-label="${esc(o.placeholder || C.ms.search)}" autocomplete="off"></div>` +
       `<div class="ms-list">${o.options.map(x => (x.group ? `<div class="ms-grp${o.options.some(y => y.inGroup === x.group && shown.has(String(y.value))) ? '' : ' hidden'}" data-msgrp="${esc(x.group)}">${esc(x.group)}</div>` : '') + opt(x)).join('')}<div class="ms-none${shown.size ? ' hidden' : ''}">${esc(C.ms.noMatches)}</div></div></div></div>`;
   }
@@ -668,7 +741,7 @@ CP.ui = (function () {
 
   return { C, R, $, esc, today, seed, actualWord, pref, shortNum, bahtShort, ICON, info, infoObj, isFormulaInfo, tipText, labelInfo, toast, download, downloadCSV,
     none, moneyCell, statusChip, attChip, pctBar, paceBar, paceChip, issueChip, pagerHTML, pageOf, PAGE, emptyState, noSalesBand, foldedLine, timeCell, segHTML, checksHTML, multiSelect, singleSelect, msLabel, ganttAxis, barSeg, kpiCard, estBadge, cogsEstTip, cogsEstBadge, hbars, tableHTML, monthChart, monthLegend, saveXlsx,
-    stickyTabs, spendPer100, channelMatrix, trimMoney, textW, axisLeft, donutHTML, drawDonut, timelineLite, rowBars, efficiencyBars, comboChart, mixBars, paretoBars,
+    stickyTabs, spendPer100, p100Card, periodHTML, periodFit, historyHTML, channelMatrix, trimMoney, textW, axisLeft, donutHTML, drawDonut, timelineLite, rowBars, efficiencyBars, comboChart, mixBars, paretoBars,
     dateHTML, parseDmy, openDialog, closeDialog, confirmDialog, openDrawer, fillDrawer, closeDrawer, requestCloseDrawer, drawerOwner, copyText,
     budgetBar, budgetCap, budgetTip, apChip, roleChip, avatar, openModal, closeModal, toastAction };
 })();
