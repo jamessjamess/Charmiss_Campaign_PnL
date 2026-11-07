@@ -1537,3 +1537,139 @@ table.grid.ro td.on{outline:none}
 .sumset .sumh{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:12px 0 4px;font-size:13.5px}
 .sumtbl td.num,.sumtbl th.num{text-align:right}
 .pstate .st{height:21px;font-size:12.5px}
+
+/* ===================== CR-14 — the plan in 4 steps (screen-steps.js) ===================== */
+/* §2.2 — the stepper in one row ≤ 72 px: ① Brief ─ [② Sales target over ③ Expense lines] ─ ④ Summary & submit */
+.stepper.s14{display:flex;align-items:center;gap:0;overflow-x:auto;padding:4px 2px 6px;margin-top:12px;border-bottom:1px solid var(--border);max-height:72px}
+.s14par{display:flex;flex-direction:column;justify-content:center;gap:0;flex:0 0 auto;padding-left:6px;border-left:1px solid var(--border-strong)}
+.s14par .s7{padding:1px 5px 2px} .s14par .s7t{flex-direction:row;align-items:baseline;gap:8px} .s14par .s7n{flex-basis:18px;height:18px;font-size:11px}
+.stepper.s14 .s7l{max-width:40px}
+/* §9 — the P&L bar (one line under the stepper) · its popover */
+.plbar{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin-top:10px;padding:8px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;font-size:13px}
+.plbar b{font-weight:600;color:var(--text-2)} .plbar .sep{color:var(--muted)} .plbar .plsee{margin-left:auto}
+.plpop{position:absolute;right:0;top:100%;z-index:40;width:min(820px,94vw);margin-top:6px;box-shadow:var(--shadow-lg)}
+/* §9 — the bar at the bottom: the checks of the page · Save draft · Mark step done */
+.bbar{position:sticky;bottom:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;margin-top:16px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:12px 12px 0 0;box-shadow:0 -4px 14px rgba(0,0,0,.07)}
+.bb-l,.bb-r{display:flex;align-items:center;gap:8px;flex-wrap:wrap} .bb-ck{font-size:13.5px;font-weight:600}
+.bb-pop{position:absolute;left:8px;bottom:100%;margin-bottom:6px;width:min(600px,94vw);max-height:55vh;overflow:auto;box-shadow:var(--shadow-lg)}
+.bck-g + .bck-g{margin-top:10px}
+.s14body > .card:first-child{margin-top:14px}
+/* §4 — Brief: the 4 cards */
+.bf-due{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin:4px 0}
+.bf-due .nsband{margin-top:0;align-self:stretch}
+.bsearch{position:relative;margin:8px 0}
+.bsearch .bs-i{position:absolute;left:10px;top:50%;transform:translateY(-50%);display:inline-grid;color:var(--muted);pointer-events:none}
+.bsearch .bs-i svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round}
+.bsearch .inp{width:100%;padding-left:34px}
+.bhits{list-style:none;margin:0 0 8px;padding:4px;border:1px solid var(--border);border-radius:10px;max-height:340px;overflow:auto}
+.bhit{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:0 6px;border-radius:8px;font-size:13px}
+.bhit.hi{background:var(--row-hover)} .bhit.dim{opacity:.55} .bhit .bh-n{flex:1 1 200px;min-width:0} .bh-nf{padding:6px}
+.bhit .num{margin-left:auto}
+.btemp{margin:8px 0 10px;box-shadow:none;background:var(--surface-2)}
+.bskus td{vertical-align:middle}
+.bf-est{max-width:340px} .bf-h4{margin:14px 0 6px;font-size:14px;font-weight:600}
+.benvtbl input{width:120px} .benvtbl input.benvp{width:72px}
+.bassign .dfield,.bassign .dpick{min-width:150px}
+/* §6 — Sales target */
+.tgband{display:flex;gap:6px 10px;flex-wrap:wrap;align-items:center;margin-top:10px;font-size:13.5px}
+.tsubs{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.tsrow{display:flex;align-items:flex-start;gap:6px 10px;flex-wrap:wrap} .tsch{min-width:86px}
+.tschips{display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0;padding-top:1px}
+.tsub{height:30px;padding:0 11px;border-radius:15px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text-2);font:inherit;font-size:13px;cursor:pointer}
+.tsub:hover{background:var(--row-hover)} .tsub.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+.tsub.off{opacity:.6} .tsub:disabled{cursor:default}
+.tpd > summary,.fill > summary{cursor:pointer;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tptools{display:flex;gap:6px 8px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.tptools .inp[data-tdpct]{width:64px}
+.tptbl th small{display:block;font-weight:400;color:var(--muted)}
+.tpc{white-space:nowrap} .tpc .inp{width:90px} .tpc.nop{background:var(--err-soft)}
+.tp-std{display:block;font-size:11.5px;color:var(--muted)} .tp-std.x{text-decoration:line-through}
+.fsum{font-size:12.5px;font-weight:600;margin:4px 0}
+.fchtbl input,.fsktbl input,.fmtbl input{width:72px} .fchtbl input.wide{width:124px}
+.fchtbl td.num,.fchtbl th.num,.fsktbl td.num,.fsktbl th.num,.fmtbl td,.fmtbl th{text-align:right}
+.fsub td:first-child{padding-left:18px;color:var(--text-2)} .fsubsum td{border-bottom:0;padding-top:0}
+.fbars td{vertical-align:bottom;height:30px} .fbars i{display:block;width:12px;margin:0 0 0 auto;background:var(--rev);opacity:.75}
+.fillrow{display:flex;gap:8px 14px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.tb-act{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tgtools{display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap;margin:10px 0 6px}
+.tgspread{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0} .tgspread .inp[data-tsamt]{width:150px}
+/* §7 — Expense lines: one card a group */
+.excard .exh{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap}
+.exh-t{flex:1 1 320px;min-width:0;font-size:14px} .exh-b{display:flex;gap:6px;align-items:center;margin-left:auto}
+.exh-n{flex:1 1 100%;display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--text-2)}
+.excard.shut .exh-n{display:none}
+.extbl input{width:72px} .extbl input.wide{width:124px} .extbl td{vertical-align:middle}
+.exl.dim td{color:var(--muted)} .exsug{margin-top:2px}
+.exms{display:flex;flex-wrap:wrap;gap:6px 12px} .exms .inp{width:100px}
+.exf{display:flex;gap:8px 14px;flex-wrap:wrap;align-items:center;margin-top:10px} .exadd{display:inline-flex;gap:6px;align-items:center}
+.exgrid{margin-top:8px}
+/* §8 — Summary & submit */
+.smhead{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;margin-top:14px}
+.smhead > div:first-child{display:flex;align-items:center;gap:8px;flex-wrap:wrap} .smbtn{display:flex;gap:8px;flex-wrap:wrap}
+.cltbl td{vertical-align:top} .cltbl tr.err td:first-child{box-shadow:inset 3px 0 0 var(--err)} .cltbl tr.warn td:first-child{box-shadow:inset 3px 0 0 var(--warn)} .cltbl tr.ok td:first-child{box-shadow:inset 3px 0 0 var(--ok)}
+.pltbl td.num,.pltbl th.num{text-align:right} .pltbl .pl0{font-weight:700;background:var(--surface-2)}
+.pltbl tr.sub td{font-weight:600} .pltbl tr.major td{font-weight:700;border-top:1px solid var(--border-strong)}
+.pl-in{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-bottom:8px} .pl-in .inp{width:64px} .pl-in .sep{color:var(--muted)}
+.pl-be{font-size:13px;color:var(--text-2);margin-top:6px}
+.sumtbl tr.grp td{font-weight:600} .sumtbl tr.sub td:first-child{padding-left:18px;color:var(--text-2)}
+.exsum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px 18px} .exsh{margin-bottom:4px;font-size:13.5px} .exstbl td.num{text-align:right}
+.smfin textarea{width:100%} .smfin .field + .field{margin-top:10px}
+.rvck > summary{cursor:pointer;font-weight:600;margin-bottom:6px}
+.ov-pl .ctl .btn,.cpro-tools .btn{display:inline-flex;align-items:center;gap:6px} .ov-ro{padding:8px 0}
+.smbtn .btn svg,.ov-btns .btn svg,.cpro-tools .btn svg,.ov-pl .btn svg{width:15px;height:15px}
+@media (max-width:767px){.exsum{grid-template-columns:minmax(0,1fr)} .plbar .plsee{margin-left:0} .bbar{border-radius:0}}
+/* §10 — Export PDF: the print page (#printDoc · hidden on the screen) · A4 · Thai from src/fonts · a table row never cut · its head on every page */
+#printDoc{display:none}
+.pd-doc{position:relative;color:#111;background:#fff;font-size:10pt;line-height:1.4}
+.pd-h{border-bottom:2px solid #111;padding-bottom:6pt;margin-bottom:6pt} .pd-brand{font-size:9pt;color:#555;letter-spacing:.02em}
+.pd-h h1{font-size:17pt;margin:2pt 0} .pd-h h1 small{font-size:11pt;color:#555;font-weight:500} .pd-meta{font-size:9.5pt;color:#333}
+.pd-sec{margin-top:10pt} .pd-sec h2{font-size:12pt;margin:0 0 4pt;padding-bottom:2pt;border-bottom:1px solid #999}
+.pd-doc table{width:100%;border-collapse:collapse;font-size:8.8pt} .pd-doc th,.pd-doc td{border-bottom:1px solid #ddd;padding:2.5pt 4pt;height:auto;white-space:normal;text-align:left}
+.pd-doc td.num,.pd-doc th.num{text-align:right} .pd-doc thead{display:table-header-group} .pd-doc tr{break-inside:avoid;page-break-inside:avoid}
+.pd-doc .tablewrap{overflow:visible} .pd-doc .sumh{margin:6pt 0 2pt;font-size:10pt} .pd-doc .legend,.pd-doc .chartbox{display:none}
+.pd-doc .pl0{background:#f1f1f1} .pd-doc .chip{border:1px solid #999;height:auto;padding:0 3pt;font-size:8pt}
+.pd-kv td:nth-child(odd){color:#555;white-space:nowrap;width:1%} .pd-ck{margin:0;padding-left:14pt}
+.pd-doc .exsum{grid-template-columns:repeat(3,1fr);gap:6pt 10pt}
+.pd-sign td{height:24pt} .pd-sign td.sign{color:#888;white-space:nowrap} .pd-note{font-size:8.5pt;color:#444;margin-top:4pt}
+.pd-wm{position:fixed;top:42%;left:-10%;right:-10%;text-align:center;transform:rotate(-28deg);font-size:34pt;font-weight:700;color:rgba(190,0,40,.10);z-index:0;pointer-events:none;white-space:nowrap}
+.pd-f{position:fixed;bottom:0;left:0;right:0;font-size:7.5pt;color:#666;text-align:center;background:#fff}
+@media print{
+  @page{size:A4 portrait;margin:12mm 12mm 14mm}
+  body.printing > *:not(#printDoc){display:none !important}
+  body.printing #printDoc{display:block}
+  body.printing{background:#fff !important}
+  .pd-sec{break-inside:auto} .pd-sec h2{break-after:avoid}
+  .pd-doc .pd-sign,.pd-doc .pd-kv{break-inside:avoid}
+}
+/* CR-14 §2.2 — Plans › Progress: dot 3 split in 3 (3a 3b 3c) · dot 4 split in 2 (Finance review · Submit) */
+.pd.pdg{background:var(--surface) !important;padding:0;gap:1px;overflow:hidden}
+.pd.pdg b{flex:1 1 0;height:100%;background:transparent} .pd.pdg b.done{background:var(--ok)} .pd.pdg b.prog{background:var(--info)} .pd.pdg b.ret{background:var(--warn)}
+/* CR-14 §5 — Product Master: Products | Sub-channels · a temporary row · the sub-channel prices of the drawer */
+.pviews{margin-top:10px} .ptmp td:first-child{box-shadow:inset 3px 0 0 var(--warn)} .st.ptemp{background:var(--warn-soft);color:var(--warn)} .st.pmerged{background:var(--surface-2);color:var(--muted)}
+.ptempchip{border:0;cursor:pointer;height:26px} .psubchip{margin-left:4px;height:18px;font-size:11.5px;background:var(--surface-2);color:var(--text-2)}
+.psubs{margin-top:8px} .psubrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:4px 0} .psubrow > b{min-width:52px;font-size:13px} .psubrow .inp{width:84px}
+.ptempl{margin-bottom:4px}
+/* CR-14 §10 — the print page: compact rows (the tables of the screen are 36 px a row) */
+.pd-doc .tbl th,.pd-doc .tbl td,.pd-doc .tbl.simple td{height:auto;padding:2pt 4pt;position:static;font-size:8.6pt;line-height:1.3;white-space:normal}
+.pd-doc .tbl th{color:#555;font-weight:600} .pd-doc .pd-sign td{height:22pt} .pd-doc .pl-be{font-size:8.6pt;margin-top:2pt}
+.pd-doc .sumh b{font-size:9.5pt} .pd-doc .exsh{font-size:9pt} .pd-doc .chartbox{display:none}
+.cltbl .link.small{font-size:12.5px;font-weight:500}
+
+/* CR-14 §8.3 — See chart ▸ (the profit by the % of the target sold) · §7.2 Copy from campaign */
+.plcurve{margin-top:8px} .plcurve > summary{cursor:pointer;font-size:13px;color:var(--accent)} .plc svg{width:100%;height:auto;max-height:220px}
+.plc-l{fill:none;stroke:var(--text);stroke-width:2} .plc-0{stroke:var(--border-strong)} .plc-100{stroke:var(--accent);stroke-dasharray:3 3} .plc-be{stroke:var(--warn);stroke-dasharray:2 3}
+[data-ecopy]{max-width:220px}
+/* CR-14.1 — under 1280 px the stepper is one row ① ─ ② ─ ③ ─ ④ (2 and 3 side by side · the tooltip says they run together) */
+@media (max-width:1279px){
+  .s14par{display:contents}
+  .s14par .s7{padding:4px 5px 6px} .s14par .s7t{flex-direction:column;align-items:stretch;gap:0} .s14par .s7n{flex-basis:20px;height:20px;font-size:12px}
+  .s14par > .s7 + .s7::before{content:'';display:block;flex:0 0 14px;height:1px;background:var(--border-strong);margin-right:4px}
+}
+/* CR-14.1 §6.3 B — SKU shares by channel */
+.fskch td,.fskch th{text-align:right} .fskch td:first-child,.fskch th:first-child{text-align:left} .fskch .fsum{text-align:right;font-size:11.5px}
+/* CR-14.1 — the PDF: the P&L and the sign-off first · the summaries and the expenses from a new page */
+@media print{ .pd-doc .pd-detail{break-before:page} }
+
+/* CR-14.2 — §6.4 the row tools · the % of target column · §7.1 the toolbar of Show all months */
+.tgrow{gap:6px 8px} .tgrow .sep{color:var(--muted)} .tgrow [data-tcopy]{max-width:260px}
+table.grid th.gs,table.grid td.gs{color:var(--text-2);font-size:12.5px;background:var(--surface)} .exgbar{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
