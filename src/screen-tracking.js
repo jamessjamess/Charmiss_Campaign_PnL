@@ -134,7 +134,7 @@ CP.screens.tracking = (function () {
   function renderPeriod(c) {
     const box = $('m_period'); if (!box) return;
     /* CR-13 §3 · §5.3 — Ended · to close / Closed 30/09/2026 · Ann · Period change pending · Close requested (the chips of the Campaign page) */
-    const r = issuesAll().byId.get(c.id), plan = plans()[c.id], cs = R.campState(c, plan, td()), pend = [...new Set(((plan && plan.requests) || []).filter(q => q.status === 'pending' && (q.type === 'period' || q.type === 'close')).map(q => q.type))];
+    const r = issuesAll().byId.get(c.id), plan = plans()[c.id], cs = R.campState(c, plan, td()), pend = [...new Set(((plan && plan.requests) || []).filter(q => q.status === 'pending' && ['period', 'close', 'cancel'].includes(q.type)).map(q => q.type))];   /* CR-15 §2.3 — + Cancel requested */
     const ended = td() > c.end, sp = ended ? R.campaignPace(U.seed(), c.id, td()) : null, endAt = ended && sp && sp.ach != null ? `<span class="chip" data-endedat>${esc(M0.endedAt(R.pct(sp.ach)))}</span>` : '';
     const chips = (cs.key === 'closed' || cs.key === 'toclose' ? CP.cpage.stateChip(c, plan, { by: true }) : statusChip(R.statusOf(c, td()))) + endAt + (r ? r.chips.filter(x => !(ended && ['behind', 'at_risk', 'on_track'].includes(x.key))).map(x => U.issueChip(x.key)).join('') : '') +
       pend.map(k => `<a class="chip warn" href="#planning/${esc(c.id)}/requests">${esc(C.cpg.pending[k])}</a>`).join('');

@@ -300,10 +300,10 @@ CP.ui = (function () {
   /* newest first · a group a month · filter chips All · Approvals · Changes · Budget · Steps · a row: the icon of its kind · dd/mm/yyyy hh:mm · who · the words ·
      the detail (comment · reason · old → new) · Compare v1 ↔ v2 (an approval of v2+) · Open request #n · o = { filter, limit, chips } */
   const HIST_KIND = {
-    approvals: ['submitted', 'resubmitted', 'withdrawn', 'approved', 'returned', 'revise', 'rejected', 'undo', 'close', 'closed', 'close.returned', 'close.rejected', 'close.withdrawn', 'reopened'],
-    changes: ['created', 'saved', 'details', 'period', 'period.approved', 'period.returned', 'period.rejected', 'period.withdrawn', 'cancelled', 'restored', 'duplicated'],
+    approvals: ['submitted', 'resubmitted', 'withdrawn', 'approved', 'returned', 'revise', 'rejected', 'undo', 'close', 'closed', 'close.returned', 'close.rejected', 'close.withdrawn', 'reopened', 'cancel', 'cancel.approved', 'cancel.returned', 'cancel.rejected', 'cancel.withdrawn'],
+    changes: ['created', 'saved', 'details', 'period', 'period.approved', 'period.returned', 'period.rejected', 'period.withdrawn', 'cancelled', 'restored', 'duplicated', 'transfer'],
     budget: ['request', 'request.approved', 'request.returned', 'request.rejected', 'request.withdrawn'], steps: ['step.done', 'step.assign'] };
-  const HIST_ICON = { created: '+', saved: '✎', details: '✎', submitted: '↑', resubmitted: '↑', approved: '✓', returned: '↩', revise: '↩', rejected: '✕', withdrawn: '↓', undo: '↶', duplicated: '⧉',
+  const HIST_ICON = { cancel: '⊘', 'cancel.approved': '⊘', 'cancel.returned': '↩', 'cancel.rejected': '✕', 'cancel.withdrawn': '↓', transfer: '⇄', created: '+', saved: '✎', details: '✎', submitted: '↑', resubmitted: '↑', approved: '✓', returned: '↩', revise: '↩', rejected: '✕', withdrawn: '↓', undo: '↶', duplicated: '⧉',
     cancelled: '⊘', restored: '↺', request: '฿', 'request.approved': '฿', 'request.returned': '฿', 'request.rejected': '฿', 'request.withdrawn': '฿', 'step.done': '✓', 'step.assign': '→',
     period: '⇆', 'period.approved': '⇆', 'period.returned': '⇆', 'period.rejected': '⇆', 'period.withdrawn': '⇆', close: '■', closed: '■', 'close.returned': '■', 'close.rejected': '■', 'close.withdrawn': '■', reopened: '↺' };
   const histCls = a => (/^request/.test(a) ? 'req' : ['approved', 'step.done', 'closed', 'period.approved'].includes(a) ? 'ok' : /returned|revise|rejected/.test(a) ? 'back' : ['submitted', 'resubmitted', 'close', 'period'].includes(a) ? 'sub' : 'other');

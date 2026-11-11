@@ -1673,3 +1673,75 @@ table.grid.ro td.on{outline:none}
 /* CR-14.2 — §6.4 the row tools · the % of target column · §7.1 the toolbar of Show all months */
 .tgrow{gap:6px 8px} .tgrow .sep{color:var(--muted)} .tgrow [data-tcopy]{max-width:260px}
 table.grid th.gs,table.grid td.gs{color:var(--text-2);font-size:12.5px;background:var(--surface)} .exgbar{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+
+/* ===================== CR-15 ===================== */
+/* §11.2 — the Acting as menu: position · department under the name */
+.amenu .am-s{display:block;font-size:11.5px;color:var(--muted);line-height:1.2}
+.rchip.ptitle{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* §10 — Settings */
+.setcard{padding:16px 18px} .setcard h3{margin:0 0 8px;font-size:14px}
+.set-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-top:1px solid var(--border);margin-top:14px;padding-top:12px} .set-foot .ferr{margin:0}
+.settbl input.inp.sm,.settbl select.inp.sm{width:100%;min-width:90px} .settbl td.c{text-align:center}
+.setgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px 18px;margin:8px 0}
+.setf{display:flex;flex-direction:column;gap:4px;font-size:13px;margin:6px 0} .setin{display:flex;align-items:center;gap:6px} .setin .inp{width:96px}
+.setex{margin:10px 0;padding:8px 10px;background:var(--surface-2);border-radius:8px;font-size:13px}
+.tplgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px} .tplg{border:1px solid var(--border);border-radius:10px;padding:10px}
+.tplg .settbl input.num{width:72px;min-width:0} .seth{margin:14px 0 4px;font-size:14px}
+.holadd{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-top:10px} .holadd .field{margin:0}
+.pmoved{display:flex;align-items:center;justify-content:space-between;margin:0 0 8px}
+.tplg table.settbl{width:100%;table-layout:fixed} .tplg .settbl th:nth-child(2),.tplg .settbl td:nth-child(2){width:84px} .tplg .settbl th:nth-child(3),.tplg .settbl td:nth-child(3){width:78px}
+.tplg .settbl th:nth-child(4),.tplg .settbl td:nth-child(4){width:34px;padding-left:0;padding-right:0} .tplg .settbl input[data-tf="line"]{min-width:0} .tplgrid{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+/* §4.1 — the head of a campaign page: one line in the banner (‹ Campaign Planning · name · chips · ⋯) + the meta line · ≤ 72 px */
+.pbanner.cpban{min-height:0;padding:8px 14px 8px 10px;max-height:none}
+.cpb{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap}
+.cpback{display:inline-flex;align-items:center;gap:4px;height:32px;padding:0 10px 0 6px;border-radius:8px;color:var(--text-2);text-decoration:none;font-size:13px;border:1px solid var(--banner-border);background:var(--surface);white-space:nowrap}
+.cpback:hover{color:var(--accent);border-color:var(--accent)} .cpb-a{font-size:18px;line-height:1}
+.cpb-main{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.cpb-r1{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap} .cpb-r1 h1{margin:0;font-size:17px;line-height:1.25}
+.cpban .cp-meta{font-size:12.5px} .cpban .cp-act{margin-left:auto}
+@media (max-width:767px){ .cpb-l{display:none} .cpback{padding:0 8px} .cpban .cp-act{width:100%;justify-content:flex-end} }
+.cx-imp{margin-top:10px;padding:8px 10px;border-radius:8px;background:var(--surface-2);font-size:12.5px;color:var(--text-2)}
+.inp.ro{background:var(--surface-2);color:var(--text-2);display:flex;align-items:center}
+/* §5.3 — the checks bar of a step: stuck to the bottom of the screen, the width of the content column · the surface · a 1 px line on top + a small shadow up ·
+   no round corners · 56 px · it sits after the content (the last field scrolls above it) · fields focused stay above it */
+.bbar.s15bar{position:sticky;bottom:0;z-index:30;min-height:56px;margin:16px 0 0;padding:8px 14px;border:0;border-top:1px solid var(--border);border-radius:0;background:var(--surface);box-shadow:0 -3px 10px rgba(16,24,40,.06)}
+.bbar.s15bar .bb-ck .sep{margin:0 4px;color:var(--muted)}
+html:has(.s15bar){scroll-padding-bottom:80px}
+/* §5.4 — the product list: a box that scrolls (≤ 360 px) · the group heads stay on top · the add bar stays at the bottom */
+.bpick{border:1px solid var(--border);border-radius:10px;max-height:360px;overflow:auto;margin:0 0 8px;background:var(--surface)}
+.bpick .bhits{border:0;border-radius:0;max-height:none;overflow:visible;margin:0;padding:0 4px 4px}
+.bh-g{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;padding:6px 8px;margin:0 -4px;background:var(--surface-2);border-bottom:1px solid var(--border);font-size:12.5px}
+.bh-g [data-bgadd]{margin-left:auto} .bh-none{padding:8px}
+.bpick-f{position:sticky;bottom:0;z-index:2;display:flex;justify-content:flex-end;padding:6px 8px;background:var(--surface);border-top:1px solid var(--border)}
+/* §6.2 — the filler in 4 parts */
+.fsteps{display:flex;align-items:stretch;gap:0;margin:10px 0 8px;flex-wrap:wrap}
+.fst{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:6px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);cursor:pointer;text-align:left;min-width:150px;color:var(--text)}
+.fst.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft, rgba(212,32,104,.12))} .fst.ok .fst-m{color:var(--good, #12805c)} .fst.bad .fst-m{color:var(--bad, #c0352b)} .fst.todo .fst-m{color:var(--muted)} .fst.on .fst-m{color:var(--accent)}
+.fst-l{flex:1 1 18px;min-width:12px;max-width:60px;align-self:center;height:1px;background:var(--border-strong)} .fst-s{max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fbody{border-top:1px solid var(--border);padding-top:10px} .fnav{display:flex;justify-content:space-between;gap:8px;margin-top:10px}
+.fsubch{margin:0 0 12px} .fsubch h5{margin:4px 0;font-size:13px} .fch.f0 td{color:var(--muted)}
+/* §6.3 — the filters of the grid */
+.tgfilt{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0} .tgfilt .spacer{flex:1} .tgshow{margin:4px 0 8px}
+/* §6.4 — the sales risk */
+.rskform .frow{align-items:flex-end} .rskform select.inp{max-width:220px}
+@media (max-width:767px){ .fst{min-width:0;flex:1 1 45%} .fst-l{display:none} }
+.tbuild .fchtbl{max-width:640px} .tbuild .fsktbl:not(.fskch){max-width:640px}
+/* §8.2 · §8.3 — the P&L in 3 columns (As planned in the middle, marked) · the break-even as a sum */
+.pltbl.pl3 th.pl0{font-weight:700} .pltbl.pl3 td.pl0{font-weight:700}
+.bes{margin-top:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2)} .bes .be-h{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.be-sum{margin:0;font-family:inherit;font-size:12.5px;line-height:1.55;white-space:pre-wrap;color:var(--text-2)} .be-line{margin-top:4px;font-size:12.5px;font-weight:600} .be-tip{font-size:8.5pt;color:#444}
+/* §8.1 — the comments · the sales risk read · the jump to what is missing */
+.smfin h4.bf-h4{display:flex;align-items:center;gap:8px;margin:12px 0 6px} .smfin h4.bf-h4:first-of-type{margin-top:2px} .smwb{margin:4px 0 8px}
+.rskro{font-size:13px;line-height:1.5} .chip.rskhigh{background:var(--warn-bg, #fff4e5);color:var(--warn, #b54708);border-color:var(--warn, #b54708)} .chip.rskmed{border-color:var(--border-strong)}
+.cltbl tr.flash td{animation:clflash 1.2s ease} @keyframes clflash{0%{background:var(--accent-soft)}100%{background:transparent}}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.exauto{margin:6px 0 2px}
+/* §9 — the PDF: the sign-off alone on the last page · a row a person a section (the section once) · ≤ 12 rows on one page */
+.pd-signpage{break-before:page;page-break-before:always;break-inside:avoid} .pd-signpage h2{margin:8pt 0 4pt} .pd-read{font-size:9.5pt;margin:2pt 0 6pt}
+.pd-doc .pd-sign tr.pd-sfirst td{border-top:1.2px solid #999} .pd-doc .pd-signpage.many .pd-sign td{height:17pt;padding-top:1pt;padding-bottom:1pt}
+#printDoc .pd-signpage{display:block}
+.ov-risk{display:flex;flex-direction:column;gap:2px;align-items:flex-start} .rv-note .rskro{display:inline}
+.cpban .cp-meta{display:flex;align-items:center;flex-wrap:wrap;gap:2px 0} .cpban .cp-chips2{margin-right:10px} .cpban .cp-chips2 .st,.cpban .cp-chips2 .chip,.cpb-r1 .st,.cpb-r1 .chip{font-size:12px;line-height:1.3;padding-top:1px;padding-bottom:1px}
+.cpb-r1 h1{white-space:normal}
+.cptabs{display:flex;align-items:center} .cptabs .spacer{flex:1} .cp-tabact{display:flex;gap:8px;align-items:center;padding:4px 0} .cp-tabact .btn{height:32px}
+@media (max-width:767px){ .cptabs{flex-wrap:wrap} .cp-tabact{width:100%;justify-content:flex-end} }

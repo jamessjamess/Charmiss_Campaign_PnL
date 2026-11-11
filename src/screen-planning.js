@@ -24,7 +24,13 @@ CP.screens.planning = (function () {
   const ro = () => (R.canDo('create', me()).ok ? '' : ` disabled aria-disabled="true" title="${esc(K.newWhy)}"`);   /* QA-v0.13 B20 */
   const fold = t => String(t || '').toLocaleLowerCase('th').replace(/\s+/g, ' ').trim();
 
-  let sec = null, view = 'plans', stickP = { toTop() {} };
+  let sec = null, view = 'plans', stickP = { toTop() {} }, listY = 0, back = null;
+  /* CR-15 §4.1 (D154) — the list the campaign page was opened from: its view (the tab · year · search · sort stay in st) and its scroll */
+  window.addEventListener('scroll', () => { if (view !== 'page' && sec && !sec.classList.contains('hidden') && sec.offsetParent) listY = scrollY; }, { passive: true });
+  function goBack() {
+    if (!back) { st.tab = 'progress'; save(); location.hash = '#planning/plans'; return; }
+    const b = back; location.hash = `#planning/${b.view}`; setTimeout(() => { scrollTo(0, b.y); }, 60);
+  }
   function render(sub) {
     sec = $('tab-planning');
     if (!sec.dataset.built) build();
@@ -32,13 +38,13 @@ CP.screens.planning = (function () {
     /* #planning/<id>[/<step>] — the plan (screen-plan.js) */
     if (parts[0] === 'table') parts[0] = 'plans';
     if (parts[0] === 'requests') parts[0] = 'approvals';   /* QA-v0.13 B34 — the old name of My requests */
-    if (parts[0] && parts[0] !== 'new' && !VIEWS.includes(parts[0])) { view = 'page'; $('k_listv').classList.add('hidden'); $('k_pagev').classList.remove('hidden'); CP.cpage.render($('k_pagev'), decodeURIComponent(parts[0]), parts.slice(1).join('/') || null); return; }
+    if (parts[0] && parts[0] !== 'new' && !VIEWS.includes(parts[0])) { if (view !== 'page') back = sec.dataset.seen ? { view, y: listY } : null; view = 'page'; $('k_listv').classList.add('hidden'); $('k_pagev').classList.remove('hidden'); CP.cpage.render($('k_pagev'), decodeURIComponent(parts[0]), parts.slice(1).join('/') || null); return; }
     /* the tab seen last (as the Dashboard) — #planning alone opens it */
     view = VIEWS.includes(parts[0]) ? parts[0] : VIEWS.includes(st.view) ? st.view : 'plans';
     if (st.view !== view) { st.view = view; save(); }
     const want = `#planning/${view}`;
     if (sub !== 'new' && location.hash !== want) history.replaceState(null, '', want);
-    $('k_pagev').classList.add('hidden'); $('k_listv').classList.remove('hidden');
+    $('k_pagev').classList.add('hidden'); $('k_listv').classList.remove('hidden'); sec.dataset.seen = '1'; if (CP.steps && CP.steps.detach) CP.steps.detach();
     renderAll();
     if (sub === 'new') { history.replaceState(null, '', '#planning/plans'); if (R.canDo('create', me()).ok) openForm(null); }
   }
@@ -116,7 +122,7 @@ CP.screens.planning = (function () {
   const ap = Object.assign({ seg: 'pending', type: 'all' }, pref.json('camps_appr', {}) || {});
   function apLists() {
     const a = me(), mgr = R.isMgr(a) || a.role === 'viewer' || a.role === 'accounting', mine = x => x.by === a.name || (x.plan && x.plan.owner === a.name);
-    const typeOf = x => (x.kind === 'plan' ? 'plan' : x.req.type === 'period' || x.req.type === 'close' ? x.req.type : 'request');
+    const typeOf = x => (x.kind === 'plan' ? 'plan' : ['period', 'close', 'cancel'].includes(x.req.type) ? x.req.type : 'request');
     const all = apItems().filter(x => (ap.type === 'all' || typeOf(x) === ap.type) && (mgr || mine(x)) && R.statusOf(x.c, td()) !== R.CANCELLED);
     const at = x => String(x.at || ''), dec = x => String(x.decided_at || '');
     return { pending: all.filter(x => x.status === 'pending' && x.latest).sort((p, q) => at(p).localeCompare(at(q))),
@@ -126,7 +132,7 @@ CP.screens.planning = (function () {
   function renderAppr() {
     const L = apLists(), segs = ['pending', 'decided', 'drafts'], list = L[ap.seg] || [];
     $('k_apprv').innerHTML = `<div class="toolbar ctools">${U.segHTML('data-apseg', segs.map(k => ({ v: k, label: `${AP.segs[k]} ${L[k].length}` })), ap.seg, { label: AP.tab })}` +
-      `<label class="ms"><select class="ms-trigger sel" data-aptype aria-label="${esc(AP.allTypes)}"><option value="all">${esc(AP.allTypes)}</option>${['plan', 'request', 'period', 'close'].map(k => `<option value="${k}"${ap.type === k ? ' selected' : ''}>${esc(AP.types[k])}</option>`).join('')}</select></label></div>` +
+      `<label class="ms"><select class="ms-trigger sel" data-aptype aria-label="${esc(AP.allTypes)}"><option value="all">${esc(AP.allTypes)}</option>${['plan', 'request', 'period', 'close', 'cancel'].map(k => `<option value="${k}"${ap.type === k ? ' selected' : ''}>${esc(AP.types[k])}</option>`).join('')}</select></label></div>` +
       (!list.length ? `<div class="card"><div class="c3-empty">${esc(AP.none[ap.seg])}</div></div>` : ap.seg === 'pending' ? `<div class="apcards">${list.map(apCard).join('')}</div>` : decTable(list));
   }
   /* CR-09 §5.4 (D87) — Decided · Drafts: a short table, one group a Campaign (the latest row on top · open it for the earlier ones) · newest first */
@@ -137,7 +143,7 @@ CP.screens.planning = (function () {
     const when = x => String(x.decided_at || x.at || ((x.plan.log || []).slice(-1)[0] || {}).at || '');
     const row = (x, sub, n, open) => { const kind = x.kind === 'plan' ? AP.kind.plan : AP.kind[x.req.type] || x.req.type, amt = x.kind === 'plan' ? R.planTotals(x.v).budget : R.sumLines(x.req.lines || []);
       return `<tr class="${sub ? 'sub' : 'grp'}"${sub ? ` data-decsub="${esc(x.c.id)}"` : ` data-decrow="${esc(x.c.id)}"`}><td class="nm">${sub ? '' : `<span class="bnm">${n > 1 ? `<button type="button" class="chev" data-decopen="${esc(x.c.id)}" aria-expanded="${open}" aria-label="${esc(open ? T.hide : T.earlier(n - 1))}">${ICON.chevronDown}</button>` : '<span class="chev ph"></span>'}<a href="#planning/${esc(x.c.id)}"><b>${esc(x.c.name)}</b></a>${n > 1 ? ` <span class="muted small">${esc(T.earlier(n - 1))}</span>` : ''}</span>`}</td>` +
-        `<td>${esc(kind)}</td><td>${esc(x.kind === 'plan' ? `v${x.v.v}` : `#${x.req.no}`)}</td><td class="num"><b class="${amt < 0 ? 'neg' : ''}">${esc(x.kind === 'plan' ? R.shortBaht(amt) : x.req.type === 'period' || x.req.type === 'close' ? '—' : CP.cpage.reqAmount(x.req))}</b></td>` +
+        `<td>${esc(kind)}</td><td>${esc(x.kind === 'plan' ? `v${x.v.v}` : `#${x.req.no}`)}</td><td class="num"><b class="${amt < 0 ? 'neg' : ''}">${esc(x.kind === 'plan' ? R.shortBaht(amt) : ['period', 'close', 'cancel'].includes(x.req.type) ? '—' : CP.cpage.reqAmount(x.req))}</b></td>` +
         `<td>${U.apChip(x.status)}</td><td>${esc(x.decided_by || x.by || '—')}</td><td class="nowrap">${esc(d(when(x)))}</td>` +
         `<td>${x.status === 'draft' ? `<a class="btn small ghost" href="#planning/${esc(x.c.id)}">${esc(AP.open)}</a>` : `<button type="button" class="btn small" data-aprev="${esc(x.kind)}|${esc(x.c.id)}|${x.req ? x.req.no : ''}">${esc(AP.review)}</button>`}</td></tr>`; };
     const body = [...groups.values()].map(g => g.sort((a, b) => when(b).localeCompare(when(a)))).sort((a, b) => when(b[0]).localeCompare(when(a[0])))
@@ -152,7 +158,10 @@ CP.screens.planning = (function () {
     if (x.kind === 'plan') {
       const T = R.planTotals(x.v), prev = x.v.v > 1 ? x.plan.versions.find(v => v.v === x.v.v - 1) : null, Tp = prev ? R.planTotals(prev) : null;
       body = kv(A.period, `${R.dmy(c.start)} – ${R.dmy(c.end)}`) + kv(A.target, R.baht(T.target)) + kv(A.budget, R.baht(T.budget) + (Tp && Math.abs(T.budget - Tp.budget) > 0.5 ? ` (${R.signedShort(T.budget - Tp.budget)} ${A.vs(prev.v)})` : '')) +
-        kv(A.ap, R.pct(T.ap, 1), T.ap > 0.2 ? 'warn' : '') + kv(A.profit, R.baht(T.profit), T.profit < 0 ? 'neg' : '');
+        kv(A.ap, R.pct(T.ap, 1), T.ap > R.apWarn() ? 'warn' : '') + kv(A.profit, R.baht(T.profit), T.profit < 0 ? 'neg' : '');
+    } else if (x.req.type === 'cancel') {
+      /* CR-15 §2.3 — a cancel request: the reason · what happens (sent with it) */
+      const q = x.req, im = q.cancel; body = kv(A.reason, q.reason) + (im ? kv(C.s15.cx.impactL, C.s15.cx.impactShort(R.shortBaht(im.sales), R.shortBaht(im.spent), im.waiting)) : '');
     } else if (x.req.type === 'period' || x.req.type === 'close') {
       /* CR-13 — a period change: the dates from → to · the Impact when pending · a close request: the note · the unused budget */
       const q = x.req; body = kv(A.reason, q.reason) + kv(C.cpg.rq.cols.summary, CP.cpage.reqSummary(q));
@@ -169,7 +178,9 @@ CP.screens.planning = (function () {
     /* P7 — Review (the review drawer) · Open plan (the plan page) */
     const btns = (x.status === 'draft' ? '' : `<button type="button" class="btn small${can.ok ? ' primary' : ''}" data-aprev="${esc(x.kind)}|${esc(c.id)}|${x.req ? x.req.no : ''}"${!can.ok && can.why ? ` title="${esc(can.why)}"` : ''}>${esc(AP.review)}</button>`) +
       `<a class="btn small ghost" href="#planning/${esc(c.id)}/${x.kind === 'request' ? 'requests' : 'plan/summary'}">${esc(AP.open)}</a>`;
-    return `<article class="apcard ${esc(x.status)}"><header><span class="apt ${esc(x.kind === 'plan' ? 'plan' : x.req.type)}">${esc(kind)}${x.req ? ` #${x.req.no}` : ''}</span>${U.apChip(x.status)}${x.status === 'pending' && x.age >= 3 ? `<span class="chip warn">${esc(AP.ago(x.age))}</span>` : ''}</header>` +
+    /* CR-15 §6.4 — a plan with a High sales risk: an orange chip on its card */
+    const hiRisk = x.kind === 'plan' && x.v && x.v.salesRisk && !x.v.salesRisk.none && x.v.salesRisk.level === 'high' ? `<span class="chip warn rskhigh" data-aprisk>${esc(C.s15.risk.high)}</span>` : '';
+    return `<article class="apcard ${esc(x.status)}"><header><span class="apt ${esc(x.kind === 'plan' ? 'plan' : x.req.type)}">${esc(kind)}${x.req ? ` #${x.req.no}` : ''}</span>${U.apChip(x.status)}${hiRisk}${x.status === 'pending' && x.age >= 3 ? `<span class="chip warn">${esc(AP.ago(x.age))}</span>` : ''}</header>` +
       `<h3><a href="#planning/${esc(c.id)}">${esc(c.name)}</a></h3><div class="apsub">${U.avatar(x.by || x.plan.owner, true)}<span>${esc(sub)}</span></div><div class="apbody">${body}</div>${decided}<footer>${btns}</footer></article>`;
   }
 
@@ -249,7 +260,8 @@ CP.screens.planning = (function () {
       const bud = N.budget ? `<div class="num"><b>${esc(R.shortBaht(N.budget))}</b></div><div class="small muted num">${esc(PL.ap(R.pct(N.ap)))}</div>` : none();
       /* CR-13 F5 — an approved row: the state of the campaign (the approval is its own column) */
       const prog = appr === 'approved' ? `<span class="small pstate">${CP.cpage.stateChip(c, p)}</span>` : dotsHTML(p), ended = R.statusOf(c, td()) === 'complete';
-      return `<tr class="click grp" tabindex="0" data-open="${esc(c.id)}"><td class="nm"><div class="nmt"><b${c.note ? ` title="${esc(c.note)}"` : ''}>${esc(c.name)}</b></div></td>` +
+      const cxw = p && R.cancelPending(p) ? `<div><span class="chip warn" data-cxchip>${esc(C.cpg.pending.cancel)}</span></div>` : '';
+      return `<tr class="click grp" tabindex="0" data-open="${esc(c.id)}"><td class="nm"><div class="nmt"><b${c.note ? ` title="${esc(c.note)}"` : ''}>${esc(c.name)}</b></div>${cxw}</td>` +
         `<td>${c.owner ? `<span class="owner">${U.avatar(c.owner, true)}${esc(c.owner)}</span>` : none()}</td><td class="nowrap" title="${esc(`${R.dmy(c.start)} – ${R.dmy(c.end)}`)}"><span class="small">${esc(R.dmy(c.start))}</span><div class="small muted">${esc(ended ? C.cpg.st.endedOn(R.dmy(c.end)) : PL.inDays(d0))}</div>${R.statusOf(c, td()) === R.CANCELLED ? `<div>${statusChip(R.CANCELLED)}</div>` : ''}</td>` +
         `<td>${prog}</td><td>${waitingHTML(c, p)}</td><td>${U.apChip(appr)}</td>` +
         `<td class="num">${N.target == null ? none() : esc(R.shortBaht(N.target))}</td><td class="bud">${bud}</td>` +
@@ -291,7 +303,7 @@ CP.screens.planning = (function () {
       (R.canDo('duplicate', a, p).ok ? `<button type="button" role="menuitem" data-kact="duplicate">${esc(C.plan.btn.duplicate)}</button>` : '') +
       (p ? `<button type="button" role="menuitem" data-kact="pdf">${esc(C.s14.pdf.btn)}</button>` : '') +
       (cs && cs.key === 'closed' && R.canDo('reopen', a, p, { closed: true }).ok ? `<button type="button" role="menuitem" data-kact="reopen">${esc(C.cpg.reopen)}</button>` : '') +
-      (cs && cs.key === 'closed' ? '' : cancelled ? `<button type="button" role="menuitem" data-kact="restore"${off}>${esc(K.menu.restore)}</button>` : `<button type="button" role="menuitem" class="danger" data-kact="cancel"${off}>${esc(K.menu.cancel)}</button>`);
+      (R.canDo('transfer', a, p, { cancelled }).ok ? `<button type="button" role="menuitem" data-kact="transfer">${esc(X15.tr.btn)}</button>` : '') + cancelItem(c, p, cs, cancelled);
     m.dataset.id = id; document.body.appendChild(m);
     const r = btn.getBoundingClientRect();
     m.style.top = Math.min(innerHeight - m.offsetHeight - 8, r.bottom + 4) + 'px'; m.style.left = Math.max(8, Math.min(innerWidth - m.offsetWidth - 8, r.right - m.offsetWidth)) + 'px';
@@ -300,27 +312,91 @@ CP.screens.planning = (function () {
     m.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); closeMenu(); btn.focus(); } if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); const b = [...m.querySelectorAll('button:not([disabled])')], i = b.indexOf(document.activeElement); b[(i + (e.key === 'ArrowDown' ? 1 : -1) + b.length) % b.length].focus(); } });
   }
   document.addEventListener('click', e => { if ($('k_menu') && !e.target.closest('#k_menu') && !e.target.closest('[data-kmore]')) closeMenu(); }, true);
-  /* Edit details · Cancel · Restore: the owner or a Manager */
+  /* Edit details: the owner or an Approver */
   function canEdit(c) { const p = (seedNow().plans || {})[c.id]; return !!p && R.canDo('details', me(), p).ok; }
+  /* CR-15 §2.1 — the cancel item: Cancel campaign… (never sent) · Request to cancel… (sent before) · disabled with its reason (a request waiting) · none when
+     closed / rejected · a cancelled one: Restore… (the Executive · Admin · the owner of a draft it cancelled itself) */
+  const X15 = C.s15;
+  function cancelItem(c, p, cs, cancelled) {
+    const a = me(), x = { cancelled, closed: !!cs && cs.key === 'closed' };
+    if (cancelled) { const d = R.canDo('restore', a, p, x); return `<button type="button" role="menuitem" data-kact="restore"${d.ok ? '' : ` disabled title="${esc(d.why || '')}"`}>${esc(X15.cx.restoreBtn)}</button>`; }
+    if (x.closed || !p || p.approval === 'rejected') return '';
+    const d = R.canDo('cancel', a, p, x), req = R.wasSent(p);
+    return `<button type="button" role="menuitem" class="danger" data-kact="cancel"${d.ok ? '' : ` disabled title="${esc(d.why || '')}"`}>${esc(req ? X15.cx.requestBtn : X15.cx.cancelBtn)}</button>`;
+  }
   function act(what, id) {
     const c = campaigns().find(x => x.id === id); if (!c) return;
-    if (['restore', 'cancel'].includes(what) && !canEdit(c)) return;
     if (what === 'page') location.hash = `#planning/${id}`;
     if (what.startsWith('chg-')) { const k = what.slice(4); if (k === 'budget') CP.reqdraw.open(id); else if (k === 'period') CP.chgdraw.period(id); else CP.chgdraw.close(id); }
     if (what === 'duplicate') duplicate(id);
     if (what === 'pdf') { const p = (seedNow().plans || {})[id]; if (p) CP.steps.pdf(p, c); }
     if (what === 'reopen') CP.chgdraw.reopen(id);
     if (what === 'open') location.hash = `#tracking/${id}`;
-    if (what === 'restore') run({ action: 'restore', id, values: {} }, c.name);
+    if (what === 'restore') askRestore(c);
     if (what === 'cancel') askCancel(c);
+    if (what === 'transfer') askTransfer(c);
   }
-  /* Cancel <name>? — a dialog in the page (never the browser's confirm) · Reason → note */
+  /* ===================== CR-15 §2 (D151 · D152) — Cancel · Request to cancel · Restore — a dialog in the page (never the browser's confirm) · a reason of
+     at least 10 characters (the button waits · "n more") · an approved campaign shows what happens (sales actual to date · spent · the requests waiting) ===================== */
+  const MIN = 10;
+  const reasonHTML = (id, ph) => `<div class="field"><label for="${id}">${esc(X15.cx.reason)} <span class="req">*</span></label><textarea id="${id}" class="inp" rows="3" maxlength="300" placeholder="${esc(ph)}"></textarea><div class="help" id="${id}_n">${esc(X15.cx.more(MIN))}</div></div>`;
+  function wireReason(id, btn) { const ta = $(id), n = $(id + '_n'), upd = () => { const k = ta.value.trim().length; btn.disabled = k < MIN; n.textContent = k < MIN ? X15.cx.more(MIN - k) : ''; }; ta.addEventListener('input', upd); upd(); ta.focus(); }
+  function cancelImpact(c, p) {
+    if (!p || p.approval !== 'approved') return null;
+    const k = R.closeChecks(seedNow(), c.id, p, td()) || {}, wait = ((p.requests) || []).filter(q => q.status === 'pending' || q.status === 'returned').length;
+    return { sales: k.rev || 0, spent: k.spent || 0, waiting: wait };
+  }
   function askCancel(c) {
-    const Q = K.cancelD;
-    U.openDialog(`<div class="dlg-h">${esc(Q.title(c.name))}</div><div class="dlg-b"><p>${esc(Q.body)}</p><div class="field"><label for="k_reason">${esc(Q.reason)}</label><textarea id="k_reason" rows="2" maxlength="300">${esc(c.note || '')}</textarea></div></div>
-      <div class="dlg-f"><button type="button" class="btn" data-r="0">${esc(Q.keep)}</button><button type="button" class="btn danger" data-r="1">${esc(Q.ok)}</button></div>`);
-    const dlg = $('dlg'); $('k_reason').focus();
-    dlg.querySelectorAll('[data-r]').forEach(b => b.addEventListener('click', () => { const reason = $('k_reason').value.trim(); U.closeDialog(); if (b.dataset.r === '1') run({ action: 'cancel', id: c.id, values: { note: reason } }, c.name); }));
+    const p = (seedNow().plans || {})[c.id], cs = c.approval === 'approved' ? R.campState(c, p, td()) : null, d = R.canDo('cancel', me(), p, { cancelled: R.statusOf(c, td()) === R.CANCELLED, closed: !!cs && cs.key === 'closed' });
+    if (!d.ok) { if (d.why) U.toast(d.why); return; }
+    const X = X15.cx, req = d.mode === 'request', im = req ? cancelImpact(c, p) : null;
+    U.openDialog(`<div class="dlg-h">${esc(req ? X.titleReq(c.name) : X.titleDirect(c.name))}</div><div class="dlg-b"><p>${esc(req ? X.bodyReq : X.bodyDirect)}</p>${reasonHTML('k_reason', X.reasonPh)}` +
+      (im ? `<div class="cx-imp" data-cximpact><b>${esc(X.impactL)}:</b> ${esc(X.impact(R.baht(im.sales), R.baht(im.spent), im.waiting))}</div>` : '') + `<div class="ferr" id="k_cx_e"></div></div>` +
+      `<div class="dlg-f"><button type="button" class="btn" data-r="0">${esc(X.keep)}</button><button type="button" class="btn danger" data-r="1" disabled>${esc(req ? X.send : X.ok)}</button></div>`);
+    const dlg = $('dlg'), ok = dlg.querySelector('[data-r="1"]'); wireReason('k_reason', ok);
+    dlg.querySelector('[data-r="0"]').addEventListener('click', () => U.closeDialog());
+    ok.addEventListener('click', async () => {
+      const reason = $('k_reason').value.trim(); if (reason.length < MIN) return; ok.disabled = true;
+      const a = me(), at = R.nowLocal();
+      try {
+        if (req) { await S.savePlan(c.id, x => R.planAct(x, { type: 'req.new', kind: 'cancel', reason, cancel: im, by: a.name, at }), { rev: p.rev || 0 }); U.closeDialog(); U.toast(X.sentT(c.name)); }
+        else { await S.saveList({ action: 'cancel', id: c.id, values: { note: reason } }, { today: td() }); await S.savePlan(c.id, x => R.planAct(x, { type: 'cancel', reason, by: a.name, at })); U.closeDialog(); U.toast(X.doneT(c.name)); }
+      } catch (e) { ok.disabled = false; $('k_cx_e').textContent = e.code === 'conflict' ? AP.toast.conflict : AP.toast.failed; return; }
+      if (CP.cpage && CP.cpage.reset) CP.cpage.reset(); CP.app.refresh();
+    });
+  }
+  /* §2.4 — Restore: the Executive / Admin (a reason · the history) · the owner of a draft it cancelled itself (never sent): as before */
+  function askRestore(c) {
+    const p = (seedNow().plans || {})[c.id], a = me(), d = R.canDo('restore', a, p, { cancelled: true }); if (!d.ok) { if (d.why) U.toast(d.why); return; }
+    const X = X15.cx, why = R.isMgr(a);
+    U.openDialog(`<div class="dlg-h">${esc(X.restoreT(c.name))}</div><div class="dlg-b"><p>${esc(X.restoreBody)}</p>${why ? reasonHTML('k_rs', '') : ''}<div class="ferr" id="k_rs_e"></div></div>` +
+      `<div class="dlg-f"><button type="button" class="btn" data-r="0">${esc(C.common.cancel)}</button><button type="button" class="btn primary" data-r="1">${esc(X.restoreOk)}</button></div>`);
+    const dlg = $('dlg'), ok = dlg.querySelector('[data-r="1"]'); if (why) wireReason('k_rs', ok);
+    dlg.querySelector('[data-r="0"]').addEventListener('click', () => U.closeDialog());
+    ok.addEventListener('click', async () => {
+      const reason = why ? $('k_rs').value.trim() : ''; if (why && reason.length < MIN) return; ok.disabled = true;
+      try { await S.saveList({ action: 'restore', id: c.id, values: {} }, { today: td() }); await S.savePlan(c.id, x => R.planAct(x, { type: 'restore', reason, by: a.name, at: R.nowLocal() })); }
+      catch (e) { ok.disabled = false; $('k_rs_e').textContent = AP.toast.failed; return; }
+      U.closeDialog(); U.toast(X.restoredT(c.name)); if (CP.cpage && CP.cpage.reset) CP.cpage.reset(); CP.app.refresh();
+    });
+  }
+  /* §3 (D153) — Transfer owner (Admin): a person of Brand (not the one now) + a reason · the steps of the owner go with it */
+  function askTransfer(c) {
+    const p = (seedNow().plans || {})[c.id], a = me(); if (!R.canDo('transfer', a, p, { cancelled: R.statusOf(c, td()) === R.CANCELLED }).ok) return;
+    const T = X15.tr, list = owners().filter(x => x.name !== p.owner);
+    U.openDialog(`<div class="dlg-h">${esc(T.title(c.name))}</div><div class="dlg-b"><p class="muted small">${esc(T.help)}</p>` +
+      (list.length ? `<div class="field"><label for="k_tr_to">${esc(T.to)} <span class="req">*</span></label><select id="k_tr_to" class="inp"><option value=""></option>${list.map(x => `<option>${esc(x.name)}</option>`).join('')}</select></div>` +
+        `<div class="field"><label for="k_tr_r">${esc(T.reason)} <span class="req">*</span></label><textarea id="k_tr_r" class="inp" rows="2" maxlength="300"></textarea></div>` : `<p>${esc(T.none)}</p>`) + `<div class="ferr" id="k_tr_e"></div></div>` +
+      `<div class="dlg-f"><button type="button" class="btn" data-r="0">${esc(C.common.cancel)}</button><button type="button" class="btn primary" data-r="1" disabled>${esc(T.ok)}</button></div>`);
+    const dlg = $('dlg'), ok = dlg.querySelector('[data-r="1"]'), upd = () => { ok.disabled = !list.length || !$('k_tr_to').value || !$('k_tr_r').value.trim(); };
+    if (list.length) { $('k_tr_to').addEventListener('change', upd); $('k_tr_r').addEventListener('input', upd); $('k_tr_to').focus(); }
+    dlg.querySelector('[data-r="0"]').addEventListener('click', () => U.closeDialog());
+    ok.addEventListener('click', async () => {
+      const to = $('k_tr_to').value, reason = $('k_tr_r').value.trim(); if (!to || !reason) return; ok.disabled = true;
+      try { await S.savePlan(c.id, x => R.planAct(x, { type: 'transfer', to, reason, by: a.name, at: R.nowLocal() }), { rev: p.rev || 0 }); }
+      catch (e) { ok.disabled = false; $('k_tr_e').textContent = e.code === 'conflict' ? AP.toast.conflict : AP.toast.failed; return; }
+      U.closeDialog(); U.toast(T.done(p.owner || '—', to)); if (CP.cpage && CP.cpage.reset) CP.cpage.reset(); CP.app.refresh();
+    });
   }
 
   /* ===================== the save of every change (CP.store — this browser) ===================== */
@@ -340,7 +416,7 @@ CP.screens.planning = (function () {
   let F = null;   // { id, form, row, touched, tried, dirty }
   const dateOk = R.isISODate;
   function formOf(row) {
-    if (!row) { const a = me(), os = owners(); return { name: '', start: '', end: '', end_marketing: '', status: 'auto', reason: '', owner: (os.find(p => a && p.name === a.name) || os[0] || { name: a ? a.name : '' }).name }; }
+    if (!row) { const a = me(), os = owners(); return { name: '', note: '', start: '', end: '', end_marketing: '', status: 'auto', reason: '', owner: a && a.role !== 'admin' && os.some(p => p.name === a.name) ? a.name : '' }; }
     const k = R.statusKey(row.status), past = row.end && td() > row.end;
     return { name: row.campaign, start: row.start, end: row.end, end_marketing: row.end_marketing || '', status: k === 'cancelled' ? 'cancelled' : k === 'complete' && !past ? 'complete' : 'auto', reason: row.note || '' };
   }
@@ -363,12 +439,16 @@ CP.screens.planning = (function () {
       `</div><button type="button" class="icon-btn" data-dr-close aria-label="${esc(C.common.close)}" title="${esc(C.common.close)} (Esc)">${ICON.close}</button></div>` +
       `<form class="dr-body kform" id="k_form" novalidate autocomplete="off">` +
       `<div class="field"><label for="k_f_name">${esc(Dd.name)} <span class="req">*</span></label><input id="k_f_name" class="inp" maxlength="120" value="${esc(f.name)}"><div class="help" id="k_f_idhelp">${esc(edit ? Dd.idLocked(idNow) : Dd.idHelp(idNow))}</div><div class="ferr" id="k_e_name"></div></div>` +
+      /* CR-15 §4.2 — the campaign details (optional) — the same field as step 1 */
+      (edit ? '' : `<div class="field"><label for="k_f_note">${esc(C.s14.brief.a.note)}</label><textarea id="k_f_note" class="inp" rows="2" maxlength="600">${esc(f.note || '')}</textarea></div>`) +
       /* QA-v0.13 B19 — the dates in their order: Start → End marketing → End campaign · a new one: Owner (Brand) */
       `<div class="frow f3"><div class="field"><label for="k_t_start">${esc(Dd.start)} <span class="req">*</span></label>${U.dateHTML('id="k_f_start"', f.start, { textId: 'k_t_start' })}<div class="ferr" id="k_e_start"></div></div>` +
       `<div class="field"><label for="k_t_endm">${esc(Dd.endMkt)}</label>${U.dateHTML('id="k_f_endm"', f.end_marketing, { textId: 'k_t_endm' })}<div class="ferr" id="k_e_end_marketing"></div></div>` +
       `<div class="field"><label for="k_t_end">${esc(Dd.end)} <span class="req">*</span></label>${U.dateHTML('id="k_f_end"', f.end, { textId: 'k_t_end' })}<div class="ferr" id="k_e_end"></div></div></div>` +
       `<div class="help">${esc(Dd.endMktHelp)}</div><div class="help" id="k_f_days"></div>${edit ? '' : '<div class="help" id="k_f_due" data-kdue></div>'}` +
-      (edit ? '' : `<div class="field"><label for="k_f_owner">${esc(C.cpg.d.f.owner)} <span class="req">*</span></label><select id="k_f_owner" class="inp">${owners().map(p => `<option${p.name === f.owner ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div>`) +
+      /* CR-15 §3 (D153) — the owner: a person of Brand = the one acting (read only) · Admin picks a person of Brand (required) */
+      (edit ? '' : me().role !== 'admin' ? `<div class="field"><label>${esc(C.s15.hd.owner)}</label><div class="inp ro" id="k_f_ownerro" data-owner="${esc(f.owner)}">${esc(C.s15.you(f.owner))}</div></div>`
+        : `<div class="field"><label for="k_f_owner">${esc(C.s15.hd.owner)} <span class="req">*</span></label><select id="k_f_owner" class="inp"><option value=""${f.owner ? '' : ' selected'}></option>${owners().map(p => `<option${p.name === f.owner ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select><div class="ferr" id="k_e_owner"></div></div>`) +
       (edit ? `<div class="field"><label for="k_f_status">${esc(Dd.status)}</label><select id="k_f_status" class="inp"><option value="auto"${f.status === 'auto' ? ' selected' : ''} id="k_f_auto">${esc(Dd.statusAuto(autoWord()))}</option>` +
       `<option value="complete"${f.status === 'complete' ? ' selected' : ''}>${esc(Dd.statusComplete)}</option><option value="cancelled"${f.status === 'cancelled' ? ' selected' : ''}>${esc(Dd.statusCancelled)}</option></select>` +
       `<div class="field sub${f.status === 'cancelled' ? '' : ' hidden'}" id="k_f_reasonw"><label for="k_f_reason">${esc(Dd.reason)}</label><textarea id="k_f_reason" class="inp" rows="2" maxlength="300" placeholder="${esc(Dd.reasonPh)}">${esc(f.reason)}</textarea></div></div>` : '') +
@@ -382,7 +462,7 @@ CP.screens.planning = (function () {
   }
   function read() {
     const v = id => { const el = $(id); return el ? el.value : ''; }, f = F.form;
-    f.name = v('k_f_name'); f.start = v('k_f_start'); f.end = v('k_f_end'); if ($('k_f_owner')) f.owner = v('k_f_owner'); f.end_marketing = v('k_f_endm'); f.status = v('k_f_status') || 'auto'; f.reason = v('k_f_reason');
+    f.name = v('k_f_name'); f.start = v('k_f_start'); f.end = v('k_f_end'); if ($('k_f_owner')) f.owner = v('k_f_owner'); if ($('k_f_note')) f.note = v('k_f_note'); f.end_marketing = v('k_f_endm'); f.status = v('k_f_status') || 'auto'; f.reason = v('k_f_reason');
   }
   const errorsNow = () => R.validateCampaign(F.form, listRows(), F.id);
   /* the parts that follow what is typed — the focus stays where it is */
@@ -398,7 +478,7 @@ CP.screens.planning = (function () {
       du.className = `help${D && D.mode === 'squeeze' ? ' warnx' : D && D.mode === 'urgent' ? ' neg' : ''}`; du.dataset.mode = D ? D.mode : '';
       du.textContent = !D ? '' : D.mode === 'urgent' ? (D.late ? W.startedBand(D.late) : W.urgentBand(D.A)) : (D.mode === 'squeeze' ? W.squeezeBand(D.A, D.total) + ' · ' : '') + W.dueLine(R.dmy(D.submit), R.dmy(D.planFrom), R.dmy(D.approveBy)); }
     if ($('k_f_reasonw')) $('k_f_reasonw').classList.toggle('hidden', f.status !== 'cancelled');
-    $('k_f_save').disabled = Object.keys(e).length > 0 || !!F.saving;
+    $('k_f_save').disabled = Object.keys(e).length > 0 || !!F.saving || (!F.id && !F.form.owner);
   }
   function onKey(e) {
     if (e.key !== 'Enter' || e.target.matches('textarea, button, select') || e.shiftKey) return;
@@ -418,13 +498,14 @@ CP.screens.planning = (function () {
     } });
     if (F && !res) { F.saving = false; $('k_f_save').textContent = K.d.save; update(); }
     /* CR-05 — a new Campaign is a Draft plan: the plan, then its page */
-    if (res && !edit && res.row) await newPlanFor(res.row.id, null, values.owner);
+    if (res && !edit && res.row) await newPlanFor(res.row.id, null, values.owner, (f.note || '').trim());
   }
-  async function newPlanFor(id, from, ownerName) {
+  async function newPlanFor(id, from, ownerName, note) {
     const a = me(), at = R.nowLocal(), owner = ownerName || a.name;
     const c = campaigns().find(x => x.id === id) || S.data().list.rows.find(x => x.id === id) || {}, start = c.start;
     try { await S.savePlan(id, p => { const q = from ? Object.assign(p, { versions: [Object.assign(R.clonePlan(from), { v: 1, status: 'draft', submitted_at: null, submitted_by: null, decided_at: null, decided_by: null, comment: '' })] }) : p;
-      q.steps = R.newSteps(start, owner, CP.actor.people(), td()); if (from) ['brief', 'target', 'exp_mkt', 'exp_sls', 'exp_oth'].forEach(k => { q.steps[k].status = 'in_progress'; }); q.schema = R.PLAN_SCHEMA; return q; }, { create: R.newPlan(id, owner, at, a.name) }); }
+      q.steps = R.newSteps(start, owner, CP.actor.people(), td()); if (from) ['brief', 'target', 'exp_mkt', 'exp_sls', 'exp_oth'].forEach(k => { q.steps[k].status = 'in_progress'; }); q.schema = R.PLAN_SCHEMA;
+      if (note) { const w = R.working(q); w.details = Object.assign({}, w.details || {}, { note }); } return q; }, { create: R.newPlan(id, owner, at, a.name) }); }
     catch (x) { U.toast(AP.toast.failed); return; }
     location.hash = `#planning/${id}/plan/brief`;
   }
@@ -464,5 +545,5 @@ CP.screens.planning = (function () {
     if (t.matches('[data-ksort]')) { if (view === 'timeline') st.tsort = t.value; else st.sort = t.value; save(); renderRows(); }
     if (t.matches('[data-aptype]')) { ap.type = t.value; pref.setJson('camps_appr', ap); renderAppr(); }
   }
-  return { render, openNew: () => openForm(null), openForm, run, duplicate, menuFor: (btn, id) => openMenu(btn, id), approvalsCount: apCount, tabOf, renderTimeline, taskRows, openRow };
+  return { render, openNew: () => openForm(null), openForm, run, duplicate, menuFor: (btn, id) => openMenu(btn, id), approvalsCount: apCount, tabOf, renderTimeline, taskRows, openRow, goBack, askCancel, askRestore };
 })();

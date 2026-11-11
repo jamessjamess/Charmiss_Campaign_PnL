@@ -42,6 +42,8 @@ CP.icons = (function () {
       campaigns: s20('<rect x="3" y="3.5" width="14" height="13" rx="2"/><path d="M6.5 7.5h7M6.5 10.5h7M6.5 13.5h4"/>'),
       /* CR-06 — Product Master (a box) · Timeline (bars on a calendar) · Operations (a checklist) */
       products: s20('<path d="M10 2.8 16.5 6v8L10 17.2 3.5 14V6z"/><path d="M3.5 6 10 9.2 16.5 6M10 9.2v8"/>'),
+    /* CR-15 §10 — Settings (a gear) */
+    settings: s20('<circle cx="10" cy="10" r="2.6"/><path d="M10 1.8v2.4M10 15.8v2.4M1.8 10h2.4M15.8 10h2.4M4.2 4.2l1.7 1.7M14.1 14.1l1.7 1.7M4.2 15.8l1.7-1.7M14.1 5.9l1.7-1.7"/><circle cx="10" cy="10" r="5.4"/>'),
       timeline: s20('<path d="M3 3.5v13h14"/><path d="M6 7h6M8.5 10.5h6.5M6.5 14h4"/>'),
       operations: s20('<rect x="3.5" y="3" width="13" height="14" rx="2"/><path d="M6.5 7.5l1.2 1.2L10 6.5M6.5 12l1.2 1.2L10 11M12 7.8h2M12 12.3h2"/>'),
       plus: s20('<circle cx="10" cy="10" r="7"/><path d="M10 6.5v7M6.5 10h7"/>'),

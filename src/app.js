@@ -88,10 +88,12 @@
 
   /* ===================== pages · menu · hash ===================== */
   const PAGES = C.nav.flatMap(g => g.items.map(it => Object.assign({ group: g.group }, it)));
+  /* CR-15 §10.1 — Settings: in the menu and Ctrl+K for the Admin only (another person opening #settings sees "no access") */
+  const seeable = key => key !== 'settings' || (!!CP.actor && R.canDo('settings', CP.actor.get()).ok);
   let current = null;
   function renderNav() {
     const q = R.foldText($('navSearch').value);
-    const groups = C.nav.map(g => ({ g, items: g.items.filter(it => !q || R.foldText(it.label).includes(q) || R.foldText(g.group).includes(q)) })).filter(x => x.items.length);
+    const groups = C.nav.map(g => ({ g, items: g.items.filter(it => seeable(it.key) && (!q || R.foldText(it.label).includes(q) || R.foldText(g.group).includes(q))) })).filter(x => x.items.length);
     $('nav').innerHTML = groups.map(x => `<div class="sn-group"><div class="sn-gl">${esc(x.g.group)}</div>` + x.items.map(it =>
       `<a class="sn-item${it.key === current ? ' active' : ''}" href="#${esc(it.route)}" data-page="${esc(it.key)}"${it.key === current ? ' aria-current="page"' : ''}><span class="ic">${ICON.nav[it.icon] || ''}</span><span class="lb">${esc(it.label)}</span>${badge(it.key)}</a>`).join('') + '</div>').join('') ||
       `<div class="sn-none">${esc(A.noMenuMatch)}</div>`;
@@ -158,7 +160,7 @@
     const pc = pid ? (seed.allCampaigns || []).find(c => c.id === pid) : null, onPage = pc ? { c: pc, plan: (seed.plans || {})[pid] || null } : null;
     /* CR-07 §11 — Overview · P&L · Sales & Budget · Campaign Monitor · Campaign Planning · My tasks · Approvals · Timeline · Product Master · New campaign · New product */
     const pages = K.pages.map(p => ({ kind: 'tab', key: p.key, label: p.label, right: p.right, icon: ICON.nav[p.icon] }))
-      .concat(PAGES.filter(p => p.key !== 'dashboard').map(p => ({ kind: 'page', key: p.key, label: p.label, right: p.group, icon: ICON.nav[p.icon] })))
+      .concat(PAGES.filter(p => p.key !== 'dashboard' && seeable(p.key)).map(p => ({ kind: 'page', key: p.key, label: p.label, right: p.group, icon: ICON.nav[p.icon] })))
       .concat(K.routes.map(p => ({ kind: 'route', key: p.key, hash: p.hash, label: p.label, right: p.right, icon: ICON.nav[p.icon] })))
       .concat(K.actions.filter(p => (p.key === 'new' ? R.canDo('create', a).ok : p.key === 'newProduct' ? R.canDo('product', a).ok : false))
         .map(p => ({ kind: 'action', key: p.key, label: p.label, right: p.right, icon: ICON.nav[p.icon] })))

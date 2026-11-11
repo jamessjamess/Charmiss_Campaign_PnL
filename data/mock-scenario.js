@@ -62,9 +62,11 @@ window.CP_MOCK_SCENARIO = {
      requests: approved ones are already inside the budget above (the first version had less) · pending ones are not counted
      drafts: Campaigns not approved yet — never on the Dashboard (D50) */
   /* CR-07 §10 — every person has a department: Brand · Sales · Marketing · Finance · Executive (Ann approves) · Admin (+ the role of KOL) */
-  people: [{ id: 'ploy', name: 'Ploy', role: 'staff', dept: 'brand' }, { id: 'nok', name: 'Nok', role: 'staff', dept: 'brand' }, { id: 'beam', name: 'Beam', role: 'staff', dept: 'sales' },
-    { id: 'fah', name: 'Fah', role: 'staff', dept: 'marketing' }, { id: 'mai', name: 'Mai', role: 'staff', dept: 'finance' }, { id: 'ann', name: 'Ann', role: 'manager', dept: 'executive' },
-    { id: 'admin', name: 'Admin', role: 'admin', dept: 'admin' }],
+  /* CR-15 §11.2 — a position each (free text: the sign-off rows of the PDF) · Golf (Sales Director) new: no task in the system — signs the PDF only */
+  people: [{ id: 'ploy', name: 'Ploy', title: 'Brand Manager', role: 'staff', dept: 'brand' }, { id: 'nok', name: 'Nok', title: 'Brand Manager', role: 'staff', dept: 'brand' },
+    { id: 'beam', name: 'Beam', title: 'Sales Manager', role: 'staff', dept: 'sales' }, { id: 'golf', name: 'Golf', title: 'Sales Director', role: 'staff', dept: 'sales' },
+    { id: 'fah', name: 'Fah', title: 'Marketing Manager', role: 'staff', dept: 'marketing' }, { id: 'mai', name: 'Mai', title: 'Finance Manager', role: 'staff', dept: 'finance' },
+    { id: 'ann', name: 'Ann', title: 'Managing Director', role: 'manager', dept: 'executive' }, { id: 'admin', name: 'Admin', title: 'System Admin', role: 'admin', dept: 'admin' }],
   /* the one who does each step when nothing else says (CR-07 §7): Products / details = the owner (Brand) · Sales target · Sales exp = Sales · Marketing exp = Marketing · Other exp · Forecast = Finance */
   stepPeople: { sales: 'Beam', marketing: 'Fah', finance: 'Mai' },
   actor: 'Ann',

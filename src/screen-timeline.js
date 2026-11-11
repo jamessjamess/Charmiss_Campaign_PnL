@@ -83,7 +83,7 @@ CP.ktimeline = (function () {
     const before = all.filter(c => c.end < Rg.from), after = all.filter(c => c.start > Rg.to), inside = all.filter(c => c.end >= Rg.from && c.start <= Rg.to);
     const months = R.monthsIn(Rg.from, Rg.to).filter((m, i) => st.scale !== 'quarter' || i % 3 === 0);
     const cols = months.map((m, i) => ({ from: m, to: st.scale === 'quarter' ? R.addMonths(m, 2) : m })), run = running(x.all, cols, td), max = Math.max(1, ...run);
-    const rowOf = c => { const cls = planCls(c, td), a = apprOf(c), sum = summary(c, td), N = (x.nums && x.nums.get(c.id)) || {}, chip = cls === 'cancelled' ? U.statusChip(R.CANCELLED) : a === 'approved' ? '' : U.apChip(a);
+    const rowOf = c => { const cls = planCls(c, td), a = apprOf(c), sum = summary(c, td), N = (x.nums && x.nums.get(c.id)) || {}, chip = (cls === 'cancelled' ? U.statusChip(R.CANCELLED) : a === 'approved' ? '' : U.apChip(a)) + (x.seed && x.seed.plans && R.cancelPending(x.seed.plans[c.id]) ? `<span class="chip warn" data-cxchip>${esc(C.cpg.pending.cancel)}</span>` : '');   /* CR-15 §2.3 */
       const tip = [c.name, `${T.tip2.approval} ${AP.state[a] || a} · ${T.tip2.status} ${C.status[R.statusOf(c, td)]}`, `${R.dmy(c.start)} – ${R.dmy(c.end)}`, c.end_marketing ? `${C.dash.t.span.marketing} ${R.dmy(c.end_marketing)}` : T.tip2.noEndMkt,
         `${T.tip2.owner} ${c.owner || '—'}`, `${T.tip2.target} ${N.target == null ? '—' : R.baht(N.target)} · ${T.tip2.budget} ${N.budget == null ? '—' : R.baht(N.budget)}`].join('\n');
       return { id: c.id, open: true, name: c.name, nameHTML: `<div class="kgn">${U.avatar(c.owner, true)}<b>${esc(c.name)}</b></div>${chip ? `<div class="kgc">${chip}</div>` : ''}`, start: c.start, end: c.end, endMkt: c.end_marketing || null,

@@ -25,7 +25,7 @@ CP.steps = (function () {
   const pref = U.pref;
   let host = null, cpHost = null;
   let st = { id: null, page: 'brief', F: null, tab: 'all', group: 'sub', unit: (pref.get('s14unit') || 'baht'), hideEmpty: false, folded: new Set(), q: '', sel: new Set(), hi: 0, showAll: false,
-    temp: null, paste: null, rmSub: null, priceOpen: null, fillOpen: null, fillMode: 'replace', expOpen: new Set(), monthsOpen: new Set(), gridAll: {}, plPop: false, g: null, gx: {} };
+    temp: null, paste: null, rmSub: null, priceOpen: null, pick: false, fillOpen: null, fillMode: 'replace', expOpen: new Set(), monthsOpen: new Set(), gridAll: {}, plPop: false, g: null, gx: {} };
 
   /* ===================== the working copy of the version (the page edits it) ===================== */
   const cellKey = (code, ch, sub, m) => `${code}|${ch}|${sub || ''}|${m}`;
@@ -33,7 +33,7 @@ CP.steps = (function () {
     const plan = planOf(id), ver = plan ? R.working(plan) : null, c = campOf(id), v = ver || {};
     const F = { id, rev: plan ? plan.rev || 0 : 0, ver, skus: R.clonePlan(v.skus || []).map(s => Object.assign({ prices: {} }, s)), cells: new Map(), subs: (v.subs || []).slice(),
       details: R.clonePlan(v.details || { note: '', brand: 'Charmiss', category: '', channels: [] }), brief: R.clonePlan(v.brief || { targetEst: null, envelope: {} }),
-      forecast: R.clonePlan(v.forecast || { ach: { MT: 1, TT: 1, ECOM: 1 }, worst: 0.8, best: 1.1, comment: '' }), review: R.clonePlan(v.review || { comment: '' }), builder: v.builder ? R.clonePlan(v.builder) : null,
+      forecast: R.clonePlan(v.forecast || { ach: { MT: 1, TT: 1, ECOM: 1 }, worst: R.cfg().defaults.worst / 100, best: R.cfg().defaults.best / 100, comment: '' }), review: R.clonePlan(v.review || { comment: '' }), builder: v.builder ? R.clonePlan(v.builder) : null, salesRisk: v.salesRisk ? R.clonePlan(v.salesRisk) : null,
       lines: [], list: c ? { name: c.name, start: c.start, end: c.end, end_marketing: c.end_marketing || '' } : null, owner: plan ? plan.owner : '', assign: new Map(), dirty: 0, dirtySteps: new Set(), flags: { skus: false, dates: false, env: new Set() } };
     GROUPS.forEach(g => { F.brief.envelope = F.brief.envelope || {}; const e = R.envOf(v)[g]; if (!F.brief.envelope[g]) F.brief.envelope[g] = { pct: e.pct == null ? null : Math.round(e.pct * 1000) / 1000, phasing: e.phasing, none: e.none }; });
     (v.target || []).forEach(r => { const k = cellKey(r.code, r.channel, r.sub, r.month), o = F.cells.get(k) || { amount: 0, qty: 0, basis: r.basis || 'amount' };
@@ -54,7 +54,7 @@ CP.steps = (function () {
     const details = Object.assign(R.clonePlan(F.details), { channels: R.CHANNELS.filter(k => chs.has(k)) });
     const hero = F.skus.find(s => s.role === 'hero') || F.skus[0]; if (hero && !F.details.categoryKept) details.category = details.category || hero.category || '';
     return { skus: F.skus.map(s => Object.assign({}, s, { cogs: s.cogs === '' || s.cogs == null ? null : +s.cogs })), target, budget, subs: F.subs.slice(), details, brief: R.clonePlan(F.brief),
-      forecast: R.clonePlan(F.forecast), review: R.clonePlan(F.review), builder: F.builder ? R.clonePlan(F.builder) : undefined };
+      forecast: R.clonePlan(F.forecast), review: R.clonePlan(F.review), builder: F.builder ? R.clonePlan(F.builder) : undefined, salesRisk: F.salesRisk ? R.clonePlan(F.salesRisk) : undefined };
   }
   /* the version as it is typed · the plan with it (the checks · the P&L bar) */
   const liveVer = () => Object.assign({}, st.F.ver || {}, serialize(st.F), { schema14: true });
@@ -73,7 +73,7 @@ CP.steps = (function () {
   const pct1 = v => (v == null || !isFinite(v) ? '' : (Math.round(v * 10) / 10).toFixed(1));
   const num = v => { const x = U.parseNum(v); return x == null || Number.isNaN(x) ? null : x; };
   /* the default phasing of an expense line (the template · else the group's) */
-  function defPhase(type, line) { const t = (R.EXP_TEMPLATE[type] || []).find(x => x[0] === line); return t ? t[2] : type === 'marketing' ? 'mkt' : type === 'sales' ? 'sales' : 'even'; }
+  function defPhase(type) { return type === 'marketing' ? 'mkt' : type === 'sales' ? 'sales' : 'even'; }   /* CR-15 §7.2 (D161) — the group's rule only */
 
   /* ===================== prices (§5.3 · D131): a SKU in a sub-channel = its campaign price ?? its standard (the master: sub price ?? channel price) ===================== */
   function stdOf(sk, sub) { const x = subOf(sub), m = master().get(sk.code); if (!x) return null;
@@ -95,18 +95,28 @@ CP.steps = (function () {
     const cogs = est ? 0 : T.cogs, gp = tgt - cogs, profit = gp - spend;
     return { fc, T, E, tgt, spend, est, envUse, ap: R.ratio(spend, tgt), profit, margin: R.ratio(profit, tgt), roi: R.ratio(profit, spend) };
   }
-  /* the P&L table: As planned (100%) · Finance forecast · Worst · Best — the expenses stay · no GP % (D137) · o.edit = the Finance fields above it */
+  /* CR-15 §8.2 (D162) — the P&L in 3 columns: Worst (80%) · As planned (100%, in the middle, marked) · Best (110%) — the expenses stay · no GP % (D137) ·
+     the % of Worst / Best are typed in the Comments of step 4 (Finance · the owner · Admin) · the same table in step 4 · the review · Overview · the PDF */
   function plTable(ver, o = {}) {
-    const fc = R.planForecast(ver), T = fc.totals, X = W.pl, cols = [['plan', X.plan], ['base', X.fc(R.pct(fc.baseAch == null ? 1 : fc.baseAch, 1))], ['worst', X.worst(R.pct(fc.f.worst))], ['best', X.best(R.pct(fc.f.best))]];
+    const fc = R.planForecast(ver), T = fc.totals, X = W.pl, cols = [['worst', X.worst(R.pct(fc.f.worst))], ['plan', X.plan], ['best', X.best(R.pct(fc.f.best))]];
     const f = (k, fn) => cols.map(([c]) => `<td class="num${c === 'plan' ? ' pl0' : ''}">${esc(fn(fc[c][k], fc[c]))}</td>`).join('');
     const row = (l, k, fn, cls) => `<tr${cls ? ` class="${cls}"` : ''}><td>${l}</td>${f(k, fn)}</tr>`, B = v => R.baht(v), pc = v => R.pct(v, 1);
-    const be = fc.breakEven.rev == null || !(T.budget > 0) ? '' : `<div class="pl-be" data-be>${esc(X.be(R.pct(fc.breakEven.ach, 1), R.baht(fc.breakEven.rev)))}</div>`;
-    const inputs = o.edit ? `<div class="pl-in"><span class="muted small">${esc(X.achL)}</span>${R.CHANNELS.filter(k => T.byChannel[k]).map(k => `<label class="tb-pin"><span>${esc(C.channel[k])}</span><input class="inp sm num" data-fach="${k}" inputmode="decimal" value="${esc(Math.round(fc.achOf(k) * 1000) / 10)}"><span class="muted">%</span></label>`).join('')}` +
-      `<span class="sep">·</span><label class="tb-pin"><span>${esc(X.worstL)}</span><input class="inp sm num" data-fworst inputmode="decimal" value="${esc(Math.round(fc.f.worst * 100))}"><span class="muted">%</span></label><label class="tb-pin"><span>${esc(X.bestL)}</span><input class="inp sm num" data-fbest inputmode="decimal" value="${esc(Math.round(fc.f.best * 100))}"><span class="muted">%</span></label></div>` : '';
-    return inputs + `<div class="tablewrap"><table class="tbl simple pltbl" data-pltbl><thead><tr><th></th>${cols.map(([c, l]) => `<th class="num${c === 'plan' ? ' pl0' : ''}">${esc(l)}</th>`).join('')}</tr></thead><tbody>` +
+    return `<div class="tablewrap"><table class="tbl simple pltbl pl3" data-pltbl><thead><tr><th></th>${cols.map(([c, l]) => `<th class="num${c === 'plan' ? ' pl0' : ''}" data-plcol="${c}">${esc(l)}</th>`).join('')}</tr></thead><tbody>` +
       row(esc(X.rev), 'rev', B) + row('COGS', 'cogs', B) + row(esc(X.gp), 'gp', B) + row(esc(X.mkt), 'mkt', B) + row(esc(X.sls), 'sls', B) + row(esc(X.oth), 'oth', B) + row(`<b>${esc(X.spend)}</b>`, 'spend', B, 'sub') +
-      row(labelInfo(X.ap, C.money.ap), 'ap', pc, 'sub') + row(`<b>${esc(X.profit)}</b>`, 'profit', B, 'major') + row(esc(X.margin), 'margin', pc) + row('ROI', 'roi', v => R.times(v)) + '</tbody></table></div>' + be +
+      row(labelInfo(X.ap, C.money.ap), 'ap', pc, 'sub') + row(`<b>${esc(X.profit)}</b>`, 'profit', B, 'major') + row(esc(X.margin), 'margin', pc) + row('ROI', 'roi', v => R.times(v)) + '</tbody></table></div>' +
+      (o.be === false || !(T.target > 0) ? '' : beHTML(fc, o)) +
       (o.chart === false || !(T.target > 0) ? '' : `<details class="plcurve"><summary>${esc(X.chart)}</summary>${curveSVG(fc)}</details>`);
+  }
+  /* §8.3 (D163) — the break-even as a sum, line by line (the numbers of As planned) · the ratio 4 decimals · ฿ whole · % one decimal · no "GP %" */
+  function beHTML(fc, o = {}) {
+    const Z = C.s15.be, x = fc.plan, B = v => R.baht(Math.round(v)), ratio = x.rev > 0 ? x.gp / x.rev : null;
+    if (ratio == null || ratio <= 0) return `<div class="pl-be bes" data-be data-benone>${esc(Z.none)}</div>`;
+    if (!(x.spend > 0)) return `<div class="pl-be bes" data-be>${esc(Z.noSpend)}</div>`;
+    const be = x.spend / ratio, ach = be / x.rev, r4 = ratio.toFixed(4);
+    const tip = Z.tip(`฿${(ratio * 100).toFixed(2)}`);
+    return `<div class="pl-be bes" data-be><div class="be-h"><b>${esc(Z.title)}</b> ${o.print ? '' : U.info(tip)}</div><pre class="be-sum" data-besum>` +
+      esc(`${Z.l1}\n= ${Z.l2}\n= ${B(x.spend)} ÷ (${B(x.gp)} ÷ ${B(x.rev)})\n= ${B(x.spend)} ÷ ${r4}\n= ${B(be)}   → ${Z.ofT(R.pct(ach, 1), B(x.rev))}`) +
+      `</pre><div class="be-line" data-beline>${esc(Z.line(B(be), R.pct(ach, 1), B(x.spend)))}</div>${o.print ? `<div class="be-tip">${esc(tip)}</div>` : ''}</div>`;
   }
   /* §8.3 — the profit by the % of the target sold (folded under the table · the curve of CR-07 step 5): 50 % … 120 % · 0 · break-even · 100 % */
   function curveSVG(fc) {
@@ -157,10 +167,10 @@ CP.steps = (function () {
   /* ===================== the P&L bar (§9 — one line under the stepper · live while typing) ===================== */
   function plBarHTML() {
     if (!st.F) return ''; const x = plOf(liveVer()), X = W.bar, sh = v => R.shortBaht(v);
-    const pop = st.plPop ? `<div class="plpop card" data-plpop>${plTable(liveVer(), { chart: false })}</div>` : '';
+    const pop = st.plPop ? `<div class="plpop card" data-plpop>${plTable(liveVer(), { chart: false, be: false })}</div>` : '';
     return `<div class="plbar" id="cp_plbar"><span><b>${esc(X.target)}</b> ${esc(sh(x.tgt))}${x.est ? ` <span class="muted small">${esc(X.est)}</span>` : ''}</span><span class="sep">·</span>` +
       `<span><b>${esc(X.spend)}</b> ${esc(sh(x.spend))}${x.envUse ? ` <span class="muted small">${esc(X.env)}</span>` : ''}</span><span class="sep">·</span>` +
-      `<span class="${x.ap > 0.2 ? 'warnx' : ''}"><b>A&amp;P</b> ${esc(R.pct(x.ap, 1))}</span><span class="sep">·</span><span><b>${esc(X.profit)}</b> ${esc(sh(x.profit))}</span><span class="sep">·</span>` +
+      `<span class="${x.ap > R.apWarn() ? 'warnx' : ''}"><b>A&amp;P</b> ${esc(R.pct(x.ap, 1))}</span><span class="sep">·</span><span><b>${esc(X.profit)}</b> ${esc(sh(x.profit))}</span><span class="sep">·</span>` +
       `<span><b>${esc(X.margin)}</b> ${esc(R.pct(x.margin, 1))}</span><span class="sep">·</span><span><b>ROI</b> ${esc(R.times(x.roi))}</span>` +
       `<button type="button" class="link small plsee" data-plsee aria-expanded="${st.plPop}">${esc(st.plPop ? X.hide : X.see)}</button>${pop}</div>`;
   }
@@ -177,7 +187,8 @@ CP.steps = (function () {
       if (!w.ok && w.reopen) b.push(`<button type="button" class="btn" data-reopen="${k}">${esc(W.reopen)}</button>`); }
     const list = ck.map(x => `<div class="bck-g"><b>${esc(R.STEP_NUM[x.key] + ' ' + SP.names[x.key])}</b><ul class="checks2">${x.list.map(y => `<li class="${y.ok ? 'ok' : 'err'}"><span class="ci">${y.ok ? '✓' : '✕'}</span>${esc(y.text)}${y.detail ? ` <span class="muted">— ${esc(y.detail)}</span>` : ''}</li>`).join('')}` +
       x.warns.map(y => `<li class="warn"><span class="ci">⚠</span>${esc(y.text)}</li>`).join('') + '</ul></div>').join('');
-    return `<div class="bbar" id="cp_bbar"><div class="bb-l"><button type="button" class="link bb-ck" data-bbck aria-expanded="${!!st.ckOpen}">${esc(W.bar.checks)} <span class="okx">✓ ${okN}</span> <span class="${errN ? 'neg' : 'muted'}">✕ ${errN}</span> <span class="${wnN ? 'warnx' : 'muted'}">⚠ ${wnN}</span></button></div>` +
+    const cnt = [okN ? `<span class="okx">✓ ${okN}</span>` : '', errN ? `<span class="neg">✕ ${errN}</span>` : '', wnN ? `<span class="warnx">⚠ ${wnN}</span>` : ''].filter(Boolean).join('<span class="sep">·</span>');
+    return `<div class="bbar s15bar" id="cp_bbar"><div class="bb-l"><button type="button" class="link bb-ck" data-bbck aria-expanded="${!!st.ckOpen}">${esc(W.bar.checks)} ${cnt}</button></div>` +
       `<div class="bb-r">${b.join('')}</div>${st.ckOpen ? `<div class="bb-pop card">${list}</div>` : ''}</div>`;
   }
   function renderBar() { const b = $('cp_bbar'); if (b && st.F) { const plan = planOf(st.id), c = campOf(st.id); if (plan && c) b.outerHTML = barHTML(plan, c); } }
@@ -192,10 +203,10 @@ CP.steps = (function () {
   const pageOf = p => (PAGES.includes(p) ? p : OLD_PAGE[p] || null);
   function render(main, c, plan, page, root) {
     host = main; cpHost = root || host;
-    if (st.id !== c.id) { st.id = c.id; st.F = null; st.q = ''; st.sel = new Set(); st.temp = null; st.paste = null; st.rmSub = null; st.expOpen = new Set(); st.monthsOpen = new Set(); st.gridAll = {}; st.plPop = false; st.ckOpen = false; st.fillOpen = null; st.priceOpen = null; }
+    if (st.id !== c.id) { st.id = c.id; st.F = null; st.q = ''; st.pick = false; st.sel = new Set(); st.temp = null; st.paste = null; st.rmSub = null; st.expOpen = new Set(); st.monthsOpen = new Set(); st.gridAll = {}; st.plPop = false; st.ckOpen = false; st.fillOpen = null; st.priceOpen = null; }
     /* another person acting: their own cards open (3 — mine first) */
     const who = (me() || {}).name || ''; if (st.who !== who) { st.who = who; st.expOpen = new Set(); st.monthsOpen = new Set(); st.gridAll = {}; st.prefilled = new Set(); st.ckOpen = false; }
-    st.page = pageOf(page) || firstPage(plan);
+    const was = st.page; st.page = pageOf(page) || firstPage(plan); if (was !== st.page || !host) st.finFocus = null;   /* CR-15 §8.1 — the Finance review gets the cursor once each visit of step 4 */
     if (!st.F || (!st.F.dirty && st.F.rev !== (plan.rev || 0))) st.F = draftOf(c.id);
     const mob = innerWidth < 768;
     main.innerHTML = bandsHTML(c, plan) + stepperHTML(plan) + plBarHTML() + `<div id="cp_body" class="cp-body s14body${mob ? ' mob' : ''}"></div>` + barHTML(plan, c);
@@ -219,8 +230,9 @@ CP.steps = (function () {
       try { await CP.store.saveList({ action: 'edit', id: st.id, values: { campaign: L.name, start: L.start, end: L.end, end_marketing: L.end_marketing, status: 'auto' } }, { today: U.today() }); }
       catch (x) { U.toast(A.toast.failed); return false; }
     }
+    if (c) syncSales(c);
     const v = serialize(F), steps = [...F.dirtySteps], assign = [...F.assign.entries()], owner = F.owner, flags = { skus: F.flags.skus, dates: F.flags.dates, env: [...F.flags.env] };
-    const p = await save(st.id, x => { let y = R.planAct(x, { type: 'save', by: a.name, at: at(), skus: v.skus, target: v.target, budget: v.budget, details: v.details, forecast: v.forecast, review: v.review, builder: v.builder, brief: v.brief, subs: v.subs, steps, flags });
+    const p = await save(st.id, x => { let y = R.planAct(x, { type: 'save', by: a.name, at: at(), skus: v.skus, target: v.target, budget: v.budget, details: v.details, forecast: v.forecast, review: v.review, builder: v.builder, brief: v.brief, subs: v.subs, salesRisk: v.salesRisk, steps, flags });
       assign.forEach(([k, z]) => { const s = y.steps[k] || {}; if ((z.assignee != null && z.assignee !== s.assignee) || (z.due != null && z.due !== s.due)) y = R.planAct(y, { type: 'step.assign', step: k, assignee: z.assignee, due: z.due, manual: z.manual !== false, by: a.name, at: at() }); });
       if (startChanged) y = R.planAct(y, { type: 'dues', start: L.start, today: U.today(), by: a.name, at: at() });
       if (owner && owner !== y.owner) { const was = y.owner; y.owner = owner; R.STEP_KEYS.forEach(k => { if (y.steps[k] && y.steps[k].assignee === was && R.STEP_DEPT[k] === 'brand') y.steps[k].assignee = owner; }); }
@@ -255,38 +267,41 @@ CP.steps = (function () {
   }
 
 
-  /* ===================== 1 · Brief (§4 — the owner · one page, 4 cards) ===================== */
+  /* ===================== 1 · Campaign setup (CR-15 §5 — was Brief · the owner · one page, 4 cards) ===================== */
   const fold = t => String(t == null ? '' : t).toLocaleLowerCase('th').replace(/\s+/g, '');
   const roleGuess = (m, k) => (k === 0 ? 'hero' : /puff|brush|box|mini/i.test(`${m.nickname || ''} ${m.name || ''}`) ? 'gwp' : 'core');
   function renderBrief(c, plan) {
     const F = st.F, ed = !ro(plan, 'brief'), dis = ed ? '' : ' disabled', B = W.brief, L = F.list || {}, lc = liveCamp(c);
-    const brands = people().filter(p => p.active !== false && p.dept === 'brand');
-    /* A — the campaign */
-    const a = `<div class="card bfa"><div class="card-head"><h3>${esc(B.a.title)}</h3></div><div class="kform"><div class="frow"><div class="field"><label for="bf_name">${esc(B.a.name)} <span class="req">*</span></label><input id="bf_name" class="inp" maxlength="120" value="${esc(L.name || '')}"${dis}></div>` +
-      `<div class="field"><label>${esc(B.a.brand)}</label><input class="inp" value="${esc(F.details.brand || 'Charmiss')}" disabled></div></div>` +
+    /* A — the campaign (CR-15 §5.1: no Brand — the data keeps Charmiss · no Owner — it is on the head of the page, locked to the one who made it) */
+    const a = `<div class="card bfa"><div class="card-head"><h3>${esc(B.a.title)}</h3></div><div class="kform"><div class="field"><label for="bf_name">${esc(B.a.name)} <span class="req">*</span></label><input id="bf_name" class="inp" maxlength="120" value="${esc(L.name || '')}"${dis}></div>` +
       `<div class="field"><label for="bf_note">${esc(B.a.note)}</label><textarea id="bf_note" class="inp" rows="2" maxlength="400" placeholder="${esc(B.a.notePh)}"${dis}>${esc(F.details.note || '')}</textarea></div>` +
       `<div class="frow f3">${[['start', B.a.start, true], ['end_marketing', B.a.endMkt, false], ['end', B.a.end, true]].map(([k, l, req]) => `<div class="field"><label for="bf_t_${k}">${esc(l)}${req ? ' <span class="req">*</span>' : ''}</label>${U.dateHTML(`data-bfd="${k}"${dis}`, L[k] || '', { textId: 'bf_t_' + k })}</div>`).join('')}</div>` +
-      `<div class="bf-due">${modeBand(lc)}${lc.start < U.today() ? `<div class="nsband warnb"><span class="nsb-t">${esc(W.ck.started(R.dayDiff(U.today(), lc.start)))}</span></div>` : ''}<a class="link small" href="#bf_d" data-bfgo>${esc(B.seeDues)}</a></div>` +
-      `<div class="field"><label for="bf_owner">${esc(B.a.owner)}</label><select id="bf_owner" class="inp"${dis}>${brands.map(p => `<option${p.name === F.owner ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}${brands.some(p => p.name === F.owner) ? '' : `<option selected>${esc(F.owner || '—')}</option>`}</select></div></div></div>`;
+      `<div class="bf-due">${modeBand(lc)}${lc.start < U.today() ? `<div class="nsband warnb"><span class="nsb-t">${esc(W.ck.started(R.dayDiff(U.today(), lc.start)))}</span></div>` : ''}<a class="link small" href="#bf_d" data-bfgo>${esc(B.seeDues)}</a></div></div></div>`;
     $('cp_body').innerHTML = a + `<div class="card bfb" id="bf_b"></div><div class="card bfc" id="bf_c"></div><div class="card bfd" id="bf_d"></div>`;
     drawProducts(c, plan, ed); drawEnvelope(c, plan, ed); drawAssign(c, plan, ed);
   }
   /* B — the products: one search (code · name · nickname · barcode) · tick several · a whole group · paste codes · a temporary SKU (§4.2 · §5.4) */
   function searchHits() {
-    const q = fold(st.q); if (!q) return [];
-    return (CP.store.data().products || []).filter(p => p.status !== 'merged' && [p.code, p.name, p.nickname, p.barcode].some(x => fold(x).includes(q)));
+    const q = fold(st.q); if (!q && !st.pick) return [];
+    const g = p => String(p.group || ''), all = (CP.store.data().products || []).filter(p => p.status !== 'merged' && p.status !== 'discontinued' && (!q || [p.code, p.name, p.nickname, p.barcode].some(x => fold(x).includes(q))));
+    return all.sort((a, b) => g(a).localeCompare(g(b)) || String(a.code).localeCompare(String(b.code)));
   }
   function drawProducts(c, plan, ed) {
     const F = st.F, X = W.brief.b, box = $('bf_b'); if (!box) return; const dis = ed ? '' : ' disabled', inPlan = new Set(F.skus.map(s => s.code)), M = master();
     const groups = [...(CP.store.data().products || []).reduce((m, p) => { if (p.status !== 'discontinued' && p.status !== 'merged') m.set(p.group, (m.get(p.group) || 0) + 1); return m; }, new Map())].sort((x, y) => String(x[0]).localeCompare(String(y[0])));
-    const hits = searchHits(), shown = st.showAll ? hits : hits.slice(0, 8);
+    const hits = searchHits(), shown = hits, X15 = C.s15.pick;
     const hitRow = (p, i) => { const inn = inPlan.has(p.code), off = p.status === 'discontinued', tmp = p.status === 'temp';
       return `<li class="bhit${inn || off ? ' dim' : ''}${i === st.hi ? ' hi' : ''}" data-bhit="${esc(p.code)}"><label class="chk"><input type="checkbox" data-bsel="${esc(p.code)}"${st.sel.has(p.code) ? ' checked' : ''}${inn || off || !ed ? ' disabled' : ''}><span></span></label>` +
         `<b class="bh-c">${esc(p.code)}</b><span class="bh-n">${esc(p.name)}</span><span class="muted small">${esc(p.group || '')}</span>${tmp ? `<span class="chip warn">${esc(X.tempTag)}</span>` : `<span class="muted small">${esc((C.prod.state || {})[p.status] || p.status)}</span>`}` +
         `<span class="num small">${esc(p.price && p.price.MT !== '' && p.price.MT != null ? R.baht(+p.price.MT) : '—')}</span>${inn ? `<span class="muted small">${esc(X.inPlan)}</span>` : ''}</li>`; };
-    const res = st.q ? `<ul class="bhits" role="listbox">${shown.map(hitRow).join('')}${hits.length > shown.length ? `<li><button type="button" class="link small" data-ball>${esc(X.seeAll(hits.length))}</button></li>` : ''}` +
+    /* the groups (their head stays on top while it scrolls · Add the whole group) · the ones in the plan dim · the add bar stays at the bottom of the box */
+    let lastG = null, body = '';
+    shown.forEach((p, i) => { const g0 = p.group || '—'; if (g0 !== lastG) { lastG = g0; const free = shown.filter(x => (x.group || '—') === g0 && !inPlan.has(x.code)).length;
+      body += `<li class="bh-g" data-bhg="${esc(g0)}"><b>${esc(g0)}</b><span class="muted small">${esc(String(shown.filter(x => (x.group || '—') === g0).length))}</span>${ed && free ? `<button type="button" class="link small" data-bgadd="${esc(g0)}">${esc(X15.addGroup)}</button>` : ''}</li>`; }
+      body += hitRow(p, i); });
+    const res = st.pick ? `<div class="bpick" id="bf_pick"><ul class="bhits" role="listbox" aria-label="${esc(X.title)}">${body || `<li class="bh-none muted small">${esc(C.ms.noMatches)}</li>`}` +
       `<li class="bh-nf"><span class="muted small">${esc(X.notFound)}</span> <button type="button" class="link small" data-btemp${dis}>${esc(X.createTemp(st.q))}</button></li></ul>` +
-      (st.sel.size ? `<button type="button" class="btn small primary" data-badd>${esc(X.addSel(st.sel.size))}</button>` : '') : '';
+      (st.sel.size ? `<div class="bpick-f"><button type="button" class="btn small primary" data-badd>${esc(X.addSel(st.sel.size))}</button></div>` : '') + '</div>' : '';
     const T = st.temp ? tempForm() : '';
     const drift = s => { const m = M.get(s.code); return m && s.cogs != null && Math.abs(+m.cogs - +s.cogs) > 0.005 ? ` <span class="chip warn" title="${esc(P.grid.drift(R.fmtNum(+m.cogs, 2)))}">⚠</span>${ed ? ` <button type="button" class="link small" data-bdrift="${esc(s.code)}">${esc(P.grid.driftUse)}</button>` : ''}` : ''; };
     const stdTxt = s => R.CHANNELS.filter(k => s.price && s.price[k] !== '' && s.price[k] != null).map(k => `${k} ${R.baht(+s.price[k])}`).join(' · ') || '—';
@@ -351,15 +366,14 @@ CP.steps = (function () {
     const row = g => { const e = F.brief.envelope[g] || {}, none = !!e.none, pv = e.pct == null ? '' : pct1(+e.pct), amt = none ? 0 : E[g].amount, err = st.envErr && st.envErr[g];
       return `<tr data-benv="${g}"><td><b>${esc(G[g])}</b></td><td class="num"><input class="inp sm num benvp" data-bpct="${g}" inputmode="decimal" value="${esc(none ? '0.0' : pv)}"${dis || (none ? ' disabled' : '')}> %</td>` +
         `<td class="num"><input class="inp sm num" data-bamt="${g}" inputmode="decimal" value="${esc(none ? '0' : base > 0 && e.pct != null ? fmtB(amt) : '')}"${dis || (none || !(base > 0) ? ' disabled' : '')}${!(base > 0) ? ` title="${esc(X.noEst)}"` : ''}></td>` +
-        `<td><select class="inp sm" data-bph="${g}"${dis}>${['mkt', 'sales', 'even'].map(p => `<option value="${p}"${E[g].phasing === p ? ' selected' : ''}>${esc(SP.env.ph[p])}</option>`).join('')}</select></td>` +
         `<td class="num muted small">${ref[g] == null ? '—' : esc(`${R.pct(ref[g], 1)}${base > 0 ? ' · ' + R.shortBaht(ref[g] * base) : ''}`)}</td><td><label class="chk"><input type="checkbox" data-bnone="${g}"${none ? ' checked' : ''}${dis}><span>${esc(X.none)}</span></label></td>` +
         `${err ? `<td class="ferr small" data-benverr="${g}">✕ ${esc(err)}</td>` : '<td></td>'}</tr>`; };
     const tot = R.envTotal(v), src = E.marketing.src === 'target' ? X.fromTarget : E.marketing.src === 'est' ? X.fromEst : '';
     const vs = est > 0 && T.target > 0 ? `<div class="muted small" data-bvs>${esc(X.estVsSet(R.baht(est), R.baht(T.target), R.pct((T.target - est) / est, 1)))}</div>` : '';
     box.innerHTML = `<div class="card-head"><h3>${esc(X.title)}</h3></div><div class="kform"><div class="field bf-est"><label for="bf_est">${esc(X.est)}</label><input id="bf_est" class="inp num" inputmode="decimal" value="${esc(est > 0 ? fmtB(est) : '')}"${dis}><div class="help">${esc(X.estHelp)}</div>${vs}</div></div>` +
       `<h4 class="bf-h4">${labelInfo(X.envTitle, C.s14.envTip)}${src ? ` <span class="muted small">· ${esc(src)}</span>` : ''}</h4>` + (base > 0 ? '' : `<div class="muted small">${esc(X.noEst)}</div>`) +
-      `<div class="tablewrap"><table class="tbl simple envtbl benvtbl"><thead><tr><th>${esc(SP.env.cols.group)}</th><th class="num">${esc(X.pctOf)}</th><th class="num">฿</th><th>${esc(SP.env.cols.phasing)}</th><th class="num">${esc(SP.env.cols.ref)}</th><th></th><th></th></tr></thead>` +
-      `<tbody>${GROUPS.map(row).join('')}<tr class="total"><td>${labelInfo(X.total, C.money.ap)}</td><td class="num" data-benvpct>${esc(R.pct(tot.pct, 1))}</td><td class="num" data-benvtot>${esc(base > 0 ? R.baht(tot.amount) : '—')}</td><td colspan="4">${tot.pct > 0.2 ? `<span class="chip warn">${esc(P.checks.apHigh(R.pct(tot.pct, 1)))}</span>` : ''}</td></tr></tbody></table></div>`;
+      `<div class="tablewrap"><table class="tbl simple envtbl benvtbl"><thead><tr><th>${esc(SP.env.cols.group)}</th><th class="num">${esc(X.pctOf)}</th><th class="num">฿</th><th class="num">${esc(SP.env.cols.ref)}</th><th></th><th></th></tr></thead>` +
+      `<tbody>${GROUPS.map(row).join('')}<tr class="total"><td>${labelInfo(X.total, C.money.ap)}</td><td class="num" data-benvpct>${esc(R.pct(tot.pct, 1))}</td><td class="num" data-benvtot>${esc(base > 0 ? R.baht(tot.amount) : '—')}</td><td colspan="3">${tot.pct > R.apWarn() ? `<span class="chip warn">${esc(P.checks.apHigh(R.pct(tot.pct, 1)))}</span>` : ''}</td></tr></tbody></table></div>`;
   }
   /* a % or ฿ typed: 0 – 100 with one decimal · ฿ ≤ the target · else ✕ in the row and the value is not taken */
   function readEnv(t) {
@@ -388,9 +402,8 @@ CP.steps = (function () {
     const t = e.target, F = st.F, c = campOf(st.id), plan = planOf(st.id), ed = !ro(plan, 'brief');
     if (t.id === 'bf_name') { F.list.name = t.value; touch('brief'); return; }
     if (t.id === 'bf_note') { F.details.note = t.value; touch('brief'); return; }
-    if (t.id === 'bf_owner') { F.owner = t.value; touch('brief'); return; }
     if (t.matches('[data-bfd]')) { if (t.value === 'invalid') return; F.list[t.dataset.bfd] = t.value || (t.dataset.bfd === 'end_marketing' ? '' : F.list[t.dataset.bfd]); F.flags.dates = true; touch('brief'); if (e.type === 'change') { renderBrief(c, plan); } return; }
-    if (t.id === 'bf_q') { st.q = t.value; st.hi = 0; st.showAll = false; drawProducts(c, plan, ed); const q = $('bf_q'); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } return; }
+    if (t.id === 'bf_q') { st.q = t.value; st.hi = 0; st.pick = true; drawProducts(c, plan, ed); const q = $('bf_q'); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } return; }
     if (t.matches('[data-bsel]')) { if (t.checked) st.sel.add(t.dataset.bsel); else st.sel.delete(t.dataset.bsel); drawProducts(c, plan, ed); return; }
     if (t.matches('[data-bgroup]') && e.type === 'change') { const g = t.value; if (g) { const n = addSkus((CP.store.data().products || []).filter(p => p.group === g && p.status !== 'discontinued' && p.status !== 'merged').map(p => p.code)); U.toast(W.brief.b.added(n)); } drawProducts(c, plan, ed); drawEnvelope(c, plan, ed); return; }
     if (t.matches('[data-bt]')) { st.temp[t.dataset.bt] = t.value; return; }
@@ -411,8 +424,8 @@ CP.steps = (function () {
   async function onBriefClick(t) {
     const F = st.F, c = campOf(st.id), plan = planOf(st.id), ed = !ro(plan, 'brief');
     if (t.closest('[data-bfgo]')) { const d = $('bf_d'); if (d) d.scrollIntoView({ behavior: 'smooth', block: 'start' }); return true; }
-    if (t.closest('[data-badd]')) { const n = addSkus([...st.sel]); st.sel = new Set(); st.q = ''; U.toast(W.brief.b.added(n)); drawProducts(c, plan, ed); drawEnvelope(c, plan, ed); return true; }
-    if (t.closest('[data-ball]')) { st.showAll = true; drawProducts(c, plan, ed); return true; }
+    if (t.closest('[data-badd]')) { const n = addSkus([...st.sel]); st.sel = new Set(); st.q = ''; st.pick = false; U.toast(W.brief.b.added(n)); drawProducts(c, plan, ed); drawEnvelope(c, plan, ed); return true; }
+    const ga = t.closest('[data-bgadd]'); if (ga) { const g0 = ga.dataset.bgadd, n = addSkus(searchHits().filter(x => (x.group || '—') === g0).map(x => x.code)); U.toast(W.brief.b.added(n)); drawProducts(c, plan, ed); drawEnvelope(c, plan, ed); const q = $('bf_q'); if (q) q.focus(); return true; }
     if (t.closest('[data-btemp]')) { st.temp = { name: st.q, nickname: '', group: '', category: '', cogs: '', MT: '', TT: '', ECOM: '' }; drawProducts(c, plan, ed); const x = $('bt_group'); if (x) x.focus(); return true; }
     if (t.closest('[data-btcancel]')) { st.temp = null; drawProducts(c, plan, ed); return true; }
     if (t.closest('[data-btsave]')) { await createTemp(); return true; }
@@ -426,17 +439,22 @@ CP.steps = (function () {
     if (t.closest('[data-brecalc]')) { st.F.assign.forEach(z => { delete z.due; delete z.manual; }); await recalcDues(); return true; }
     return false;
   }
+  /* CR-15 §5.4 — the list opens on a click / focus of the search (nothing typed yet) · a click outside closes it */
+  document.addEventListener('focusin', e => { if (e.target && e.target.id === 'bf_q' && !st.pick && st.page === 'brief' && st.F) { st.pick = true; drawProducts(campOf(st.id), planOf(st.id), !ro(planOf(st.id), 'brief')); const q = $('bf_q'); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } } });
+  const openPick = () => { st.pick = true; drawProducts(campOf(st.id), planOf(st.id), !ro(planOf(st.id), 'brief')); const q = $('bf_q'); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } };
+  document.addEventListener('click', e => { if (e.target && e.target.id === 'bf_q' && !st.pick && st.page === 'brief' && st.F) openPick(); });
+  document.addEventListener('mousedown', e => { if (st.pick && !e.target.closest('.bsearch, #bf_pick')) { st.pick = false; st.q = st.q || ''; const c = campOf(st.id); if (c && $('bf_b')) drawProducts(c, planOf(st.id), !ro(planOf(st.id), 'brief')); } });
   function onBriefKey(e) {
-    if (e.target.id !== 'bf_q') return; const hits = searchHits(), shown = st.showAll ? hits : hits.slice(0, 8);
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); st.hi = Math.max(0, Math.min(shown.length - 1, st.hi + (e.key === 'ArrowDown' ? 1 : -1))); drawProducts(campOf(st.id), planOf(st.id), true); const q = $('bf_q'); if (q) q.focus(); }
+    if (e.target.id !== 'bf_q') return; const shown = searchHits();
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); st.pick = true; st.hi = Math.max(0, Math.min(shown.length - 1, st.hi + (e.key === 'ArrowDown' ? 1 : -1))); drawProducts(campOf(st.id), planOf(st.id), true); const q = $('bf_q'); if (q) q.focus(); const h = document.querySelector('#bf_pick .bhit.hi'); if (h) h.scrollIntoView({ block: 'nearest' }); }
     else if (e.key === 'Enter') { e.preventDefault(); const p = shown[st.hi]; if (p) { const n = addSkus([p.code]); if (n) U.toast(W.brief.b.added(n)); } st.q = ''; drawProducts(campOf(st.id), planOf(st.id), true); drawEnvelope(campOf(st.id), planOf(st.id), true); const q = $('bf_q'); if (q) q.focus(); }
-    else if (e.key === 'Escape') { st.q = ''; st.sel = new Set(); drawProducts(campOf(st.id), planOf(st.id), true); }
+    else if (e.key === 'Escape') { st.q = ''; st.pick = false; drawProducts(campOf(st.id), planOf(st.id), true); }
   }
 
 
   /* ===================== 2 · Sales target (§6 — Sales · the sub-channels sold · the prices used · the target filler · SKU × sub-channel × month) ===================== */
   const CH_SHARE = () => ((window.CP_MOCK_SCENARIO || {}).channels || { MT: 45, TT: 20, ECOM: 35 });
-  const ROLE_W = { hero: 2, core: 1, gwp: 0 };
+  const ROLE_W = new Proxy({}, { get: (o, k) => (R.cfg().defaults.roleW || {})[k] });   /* CR-15 §10.2 — Settings › Plan defaults */
   const unitKey = () => `s14unit.${(me() || {}).id || ''}`;
   /* largest remainder: whole baht over weights → Σ = the total to the baht (D133) */
   function lrSplit(total, w) { const T = Math.round(total), t = w.reduce((a, b) => a + b, 0); if (!(t > 0)) return w.map(() => 0); const raw = w.map(x => T * x / t), out = raw.map(Math.floor);
@@ -452,9 +470,11 @@ CP.steps = (function () {
      is changed by R.migratePlan (its total only) */
   const okLvl = (o, keys) => !!o && keys.length > 0 && keys.every(k => o[k] != null && o[k] !== '' && isFinite(+o[k]));
   function builderOf(c) {
-    const F = st.F, b = F.builder || {}, chs = chsOfSubs(F.subs), ms = months(liveCamp(c)), B = {};
+    const F = st.F, b = F.builder || {}, chs = R.CHANNELS, sold = chsOfSubs(F.subs), ms = months(liveCamp(c)), B = {};
     B.total = b.total != null ? b.total : num(F.brief.targetEst) || null; B.from = b.from || 'suggest'; B.copy = b.copy || ''; B.preset = ['even', 'launch', 'follow', 'custom'].includes(b.preset) ? b.preset : 'even'; B.filledAt = b.filledAt || null; B.edited = !!b.edited; B.skuByCh = !!b.skuByCh;
-    B.ch = okLvl(b.ch, chs) ? Object.fromEntries(chs.map(k => [k, +b.ch[k]])) : norm100(chs, CH_SHARE());
+    /* CR-15 §6.2 — ① every channel (0 % = not sold) · a level kept for the channels sold before: the others 0 */
+    B.ch = okLvl(b.ch, chs) ? Object.fromEntries(chs.map(k => [k, +b.ch[k]])) : okLvl(b.ch, sold) ? Object.fromEntries(chs.map(k => [k, b.ch[k] != null && b.ch[k] !== '' && isFinite(+b.ch[k]) ? +b.ch[k] : 0]))
+      : (d => Object.fromEntries(chs.map(k => [k, d[k] || 0])))(norm100(sold.length ? sold : chs, CH_SHARE()));
     B.sub = {}; chs.forEach(ch => { const ids = F.subs.filter(id => (subOf(id) || {}).ch === ch), d = norm100(ids, Object.fromEntries(ids.map(id => [id, (subOf(id) || {}).share || 0])));
       ids.forEach(id => { B.sub[id] = okLvl(b.sub, ids) ? +b.sub[id] : d[id]; }); });
     const codes = F.skus.map(s => s.code), sd = norm100(codes, Object.fromEntries(F.skus.map(s => [s.code, ROLE_W[s.role || 'core'] ?? 1])));
@@ -486,8 +506,9 @@ CP.steps = (function () {
     const T = R.planTotals(liveVer()), est = num(F.brief.targetEst), d = est > 0 ? T.target - est : null;
     const band = `<div class="tgband" data-tgband>${est > 0 ? `<span>${esc(X.est)} <b>${esc(R.baht(est))}</b></span><span class="sep">·</span>` : ''}<span>${esc(X.set)} <b>${esc(R.baht(T.target))}</b></span>` +
       (d != null ? `<span class="sep">·</span><span class="${Math.abs(d) / est > 0.1 ? 'warnx' : 'muted'}">${esc(X.diff(R.signedShort(d), R.pct(d / est, 1)))}</span>` : '') + '</div>';
-    $('cp_body').innerHTML = band + `<div class="card" id="tg_subs"></div><div class="card" id="tg_price"></div><div class="card tbuild" id="tg_fill"></div><div class="card" id="tg_grid"></div>`;
-    drawSubs(c, plan, ed); drawPrices(c, plan, ed); drawFiller(c, plan, ed); drawGrid(c, plan, ed); void lc;
+    /* CR-15 §6 — the sub-channels sold are in ② of the filler · the prices · the filler · the grid (filters) · the sales risk */
+    $('cp_body').innerHTML = band + `<div class="card" id="tg_price"></div><div class="card tbuild" id="tg_fill"></div><div class="card" id="tg_grid"></div><div class="card" id="tg_risk"></div>`;
+    drawPrices(c, plan, ed); drawFiller(c, plan, ed); drawGrid(c, plan, ed); drawRisk(c, plan); void lc;
   }
   /* 6.1 — the sub-channels sold (the channels of the plan come from them) · a sub-channel with a target taken out asks in place */
   function drawSubs(c, plan, ed) {
@@ -500,7 +521,7 @@ CP.steps = (function () {
         xs.map(x => `<button type="button" class="tsub${on.has(x.id) ? ' on' : ''}${x.active === false ? ' off' : ''}" data-tsub="${esc(x.id)}" aria-pressed="${on.has(x.id)}"${dis}>${on.has(x.id) ? '✓ ' : ''}${esc(x.name)}${x.active === false ? ` <span class="muted small">${esc(X.notUsed)}</span>` : ''}</button>`).join('') + '</span></div>'; }).join('') + '</div>';
     R.CHANNELS.forEach(ch => { const cb = box.querySelector(`[data-tsch="${ch}"]`), xs = all.filter(x => x.ch === ch && x.active !== false), n = xs.filter(x => on.has(x.id)).length; if (cb) cb.indeterminate = n > 0 && n < xs.length; });
   }
-  function setSubs(ids) { const F = st.F, before = new Set(F.subs); F.subs = subsAll().filter(x => ids.includes(x.id)).map(x => x.id); ensurePrices(); if (F.builder) { F.builder.ch = null; F.builder.sub = null; } touch('target'); void before; }
+  function setSubs(ids) { const F = st.F, before = new Set(F.subs); F.subs = subsAll().filter(x => ids.includes(x.id)).map(x => x.id); ensurePrices(); if (F.builder) F.builder.sub = null; touch('target'); void before; }
   /* 6.2 — the prices used: grey = the standard (Product Master) · bold = the campaign price + % off · a standard changed → ⚠ Use the new price · the whole channel −% · clear */
   function drawPrices(c, plan, ed) {
     const F = st.F, X = W.tgt, box = $('tg_price'); if (!box) return; const dis = ed ? '' : ' disabled', subs = F.subs.map(subOf).filter(Boolean);
@@ -519,42 +540,64 @@ CP.steps = (function () {
   function sumState(vals) { const t = vals.reduce((a, b) => a + (+b || 0), 0), d = Math.round((100 - t) * 10) / 10; return { t, d, ok: Math.abs(d) < 0.05, near: Math.abs(d) <= 0.5 }; }
   function sumLine(key, vals) { const s = sumState(vals), X = W.tgt.f;
     return `<div class="fsum ${s.ok ? 'okx' : s.near ? 'warnx' : 'neg'}" data-fsum="${esc(key)}">${s.ok ? esc(X.sumOk(pct1(s.t))) : esc(s.d > 0 ? X.sumShort(pct1(s.t), pct1(s.d)) : X.sumOver(pct1(s.t), pct1(-s.d)))}${!s.ok && s.near ? ` <button type="button" class="link small" data-fspread="${esc(key)}">${esc(X.spreadIt)}</button>` : !s.ok && /^skuch:/.test(key) && s.t > 0 ? ` <button type="button" class="link small" data-fspread="${esc(key)}">${esc(X.rescaleIt)}</button>` : ''}</div>`; }
+  /* CR-15 §6.2 (D158) — the filler in 4 parts, one at a time (any head opens its part · ‹ Back · Next ›) · ✓ = adds up to 100.0 · ● = open · ✕ = not 100 · ○ = not seen ·
+     ② holds the sub-channels sold (the chips of a channel > 0 %) · Fill (at the end of ④) works when ① – ④ are ✓ */
+  function fillState(c) {
+    const F = st.F, B = F.builder || builderOf(c), ms = months(liveCamp(c)), live = R.CHANNELS.filter(ch => (B.ch[ch] || 0) > 0), subsOf = ch => F.subs.filter(id => (subOf(id) || {}).ch === ch), codes = F.skus.map(s => s.code);
+    const byCh = !!B.skuByCh && live.length > 0, s1 = sumState(R.CHANNELS.map(k => B.ch[k]));
+    const ok = [s1.ok && live.length > 0, live.length > 0 && live.every(ch => subsOf(ch).length && sumState(subsOf(ch).map(id => B.sub[id])).ok),
+      codes.length > 0 && (byCh ? live.every(ch => sumState(codes.map(k => (B.skuCh[ch] || {})[k])).ok) : sumState(codes.map(k => B.sku[k])).ok), sumState(ms.map(m => B.months[m])).ok];
+    const skuIn = ch => codes.filter(k => ((byCh ? (B.skuCh[ch] || {}) : B.sku)[k] || 0) > 0).length, mOn = ms.filter(m => (B.months[m] || 0) > 0).length;
+    const nCells = live.reduce((a, ch) => a + subsOf(ch).filter(id => (B.sub[id] || 0) > 0).length * skuIn(ch), 0) * mOn;
+    /* the line of ④ counts the grid it fills: every SKU × the sub-channels sold × the months (a cell of 0 % stays empty) — §6.2: 5 SKU × 12 × 6 = 360 */
+    const nSubs = live.reduce((a, ch) => a + subsOf(ch).length, 0); void nCells; void skuIn;
+    return { B, ms, live, subsOf, codes, byCh, ok, nSubs, nSku: codes.length, mOn: ms.length, nCells: codes.length * nSubs * ms.length };
+  }
   function drawFiller(c, plan, ed) {
-    const F = st.F, X = W.tgt.f, box = $('tg_fill'); if (!box) return; const dis = ed ? '' : ' disabled', B = builderOf(c), tot = num(B.total) || 0, chs = chsOfSubs(F.subs), ms = months(liveCamp(c));
+    const F = st.F, X = W.tgt.f, Y = C.s15.fill, box = $('tg_fill'); if (!box) return; const dis = ed ? '' : ' disabled', B = builderOf(c), tot = num(B.total) || 0, ms = months(liveCamp(c));
     F.builder = Object.assign({}, F.builder || {}, B);
+    const S = fillState(c), cur = st.fstep || 1; st.fseen = st.fseen || new Set(); st.fseen.add(cur);
     const open = st.fillOpen != null ? st.fillOpen : !R.planTotals(liveVer()).target;
     const others = allCamps().filter(x => x.id !== c.id && x.approval === 'approved').sort((a, b) => b.start.localeCompare(a.start));
     const inp = (attr, v, w) => `<input class="inp sm num${w ? ' ' + w : ''}" ${attr} inputmode="decimal" value="${esc(v)}"${dis}>`;
-    const chRows = chs.map(ch => { const p = B.ch[ch], amt = tot * p / 100, ids = F.subs.filter(id => (subOf(id) || {}).ch === ch);
-      return `<tr class="fch"><td><b>${esc(C.channel[ch])}</b></td><td class="num">${inp(`data-fch="${ch}"`, pct1(p))}</td><td class="num">${inp(`data-fchb="${ch}"`, fmtB(amt), 'wide')}</td><td class="num muted">${esc(pct1(p))}</td></tr>` +
-        ids.map(id => { const sp = B.sub[id] || 0, sa = amt * sp / 100; return `<tr class="fsub"><td>┗ ${esc((subOf(id) || {}).name || id)}</td><td class="num">${inp(`data-fsb="${esc(id)}"`, pct1(sp))}</td><td class="num">${inp(`data-fsbb="${esc(id)}"`, fmtB(sa), 'wide')}</td><td class="num muted">${esc(pct1(p * sp / 100))}</td></tr>`; }).join('') +
-        `<tr class="fsubsum"><td colspan="4">${sumLine('sub:' + ch, ids.map(id => B.sub[id]))}</td></tr>`; }).join('');
-    const codes = F.skus.map(s => s.code), byCh = !!B.skuByCh && chs.length > 0;
-    const skuChTbl = byCh ? `<div class="tablewrap"><table class="tbl simple fsktbl fskch"><thead><tr><th>SKU</th>${chs.map(ch => `<th class="num">${esc(C.channel[ch])} %</th>`).join('')}</tr></thead><tbody>` +
-      F.skus.map(sk => `<tr><td>${esc(sk.nickname || sk.name)} <span class="muted small">${esc(C.step.p.roles[sk.role || 'core'])}</span></td>${chs.map(ch => `<td class="num">${inp(`data-fskc="${esc(sk.code)}|${ch}"`, pct1((B.skuCh[ch] || {})[sk.code]))}</td>`).join('')}</tr>`).join('') +
-      `<tr class="fsubsum"><td></td>${chs.map(ch => `<td>${sumLine('skuch:' + ch, codes.map(k => (B.skuCh[ch] || {})[k]))}</td>`).join('')}</tr></tbody></table></div>` : '';
-    const skuRows = F.skus.map(sk => `<tr><td>${esc(sk.nickname || sk.name)} <span class="muted small">${esc(C.step.p.roles[sk.role || 'core'])}</span></td><td class="num">${inp(`data-fsk="${esc(sk.code)}"`, pct1(B.sku[sk.code]))}</td><td class="num">${inp(`data-fskb="${esc(sk.code)}"`, fmtB(tot * (B.sku[sk.code] || 0) / 100), 'wide')}</td></tr>`).join('');
-    const mx = Math.max(...ms.map(m => B.months[m] || 0), 0.0001);
-    const mCols = `<div class="tablewrap"><table class="tbl simple fmtbl"><thead><tr><th></th>${ms.map(m => `<th class="num">${esc(R.monthShort(m))}${m.slice(5) === '01' || m === ms[0] ? `<small>${m.slice(0, 4)}</small>` : ''}</th>`).join('')}<th class="num">${esc(C.common.total)}</th></tr></thead><tbody>` +
-      `<tr><td>%</td>${ms.map(m => `<td class="num">${inp(`data-fm="${m}"`, pct1(B.months[m]))}</td>`).join('')}<td class="num"><b>${esc(pct1(ms.reduce((a, m) => a + (B.months[m] || 0), 0)))}</b></td></tr>` +
-      `<tr><td>฿</td>${ms.map(m => `<td class="num">${inp(`data-fmb="${m}"`, fmtB(tot * (B.months[m] || 0) / 100), 'wide')}</td>`).join('')}<td class="num"><b>${esc(fmtB(tot))}</b></td></tr>` +
-      `<tr class="fbars"><td></td>${ms.map(m => `<td><i style="height:${Math.round(4 + (B.months[m] || 0) / mx * 22)}px"></i></td>`).join('')}<td></td></tr></tbody></table></div>`;
-    const skuSums = byCh ? chs.map(ch => sumState(codes.map(k => (B.skuCh[ch] || {})[k]))) : [sumState(F.skus.map(s => B.sku[s.code]))];
-    const sums = [sumState(chs.map(k => B.ch[k])), ...chs.map(ch => sumState(F.subs.filter(id => (subOf(id) || {}).ch === ch).map(id => B.sub[id]))), ...skuSums, sumState(ms.map(m => B.months[m]))];
-    const nSku = ch => F.skus.filter(s => ((byCh ? (B.skuCh[ch] || {}) : B.sku)[s.code] || 0) > 0).length;
-    const bad = sums.some(s => !s.near), nCells = F.subs.filter(id => (B.ch[(subOf(id) || {}).ch] || 0) > 0 && (B.sub[id] || 0) > 0).reduce((a, id) => a + nSku((subOf(id) || {}).ch), 0) * ms.filter(m => (B.months[m] || 0) > 0).length;
-    const filled = B.filledAt ? `<span class="muted small">${esc(X.filledAt(R.dmy(String(B.filledAt).slice(0, 10))))}</span>${B.edited ? ` <span class="chip warn">${esc(SP.tb.edited)}</span>` : ''}` : '';
+    const summ = [S.live.map(ch => `${C.channel[ch]} ${R.fmtNum(Math.round(B.ch[ch] * 10) / 10)}`).join(' · ') || '—', Y.subsN(S.nSubs), Y.skuN(S.nSku), SP.tb.curves[B.preset]];
+    const head = [1, 2, 3, 4].map(n => { const okN = S.ok[n - 1], mk = n === cur ? '●' : okN ? '✓' : st.fseen.has(n) ? '✕' : '○', cls = n === cur ? 'on' : okN ? 'ok' : st.fseen.has(n) ? 'bad' : 'todo';
+      return `<button type="button" class="fst ${cls}" data-fstep="${n}" aria-current="${n === cur ? 'step' : 'false'}" title="${esc(n === cur ? Y.state.now : okN ? Y.state.ok : st.fseen.has(n) ? Y.state.bad : Y.state.todo)}"><span class="fst-h"><b>${'①②③④'[n - 1]} ${esc(Y.steps[n - 1])}</b> <span class="fst-m">${mk}</span></span><span class="fst-s muted small">${esc(summ[n - 1])}</span></button>`; }).join('<span class="fst-l" aria-hidden="true"></span>');
+    let body = '';
+    if (cur === 1) body = `<div class="tablewrap"><table class="tbl simple fchtbl"><thead><tr><th>${esc(X.chCol)}</th><th class="num">%</th><th class="num">฿</th></tr></thead><tbody>` +
+      R.CHANNELS.map(ch => `<tr class="fch${(B.ch[ch] || 0) > 0 ? '' : ' f0'}"><td><b>${esc(C.channel[ch])}</b> <span class="muted small">${esc(C.channelLong[ch])}</span></td><td class="num">${inp(`data-fch="${ch}"`, pct1(B.ch[ch]))}</td><td class="num">${inp(`data-fchb="${ch}"`, fmtB(tot * (B.ch[ch] || 0) / 100), 'wide')}</td></tr>`).join('') +
+      `</tbody></table></div>${sumLine('ch', R.CHANNELS.map(k => B.ch[k]))}<div class="muted small">${esc(Y.chZero)}</div>`;
+    if (cur === 2) { const all = subsAll(), on = new Set(F.subs);
+      const rm = st.rmSub ? (() => { const x = subOf(st.rmSub), t = [...F.cells].filter(([k]) => k.split('|')[2] === st.rmSub).reduce((a, [, o]) => a + (o.amount || 0), 0);
+        return `<div class="nsband warnb"><span class="nsb-t">${esc(W.tgt.rmHas(x ? R.subLabel(x) : st.rmSub, R.baht(t)))}</span> <button type="button" class="btn small danger" data-tsrmyes>${esc(W.tgt.rmYes)}</button> <button type="button" class="btn small" data-tsrmno>${esc(C.common.cancel)}</button></div>`; })() : '';
+      body = rm + (S.live.length ? S.live.map(ch => { const ids = S.subsOf(ch), amt = tot * (B.ch[ch] || 0) / 100, xs = all.filter(x => x.ch === ch && (x.active !== false || on.has(x.id)));
+        return `<div class="fsubch" data-fsubch="${ch}"><h5>${esc(C.channel[ch])} <span class="muted small">${esc(`${pct1(B.ch[ch])}% · ${R.baht(amt)}`)}</span></h5><div class="tsrow"><span class="muted small">${esc(Y.pickSubs)}</span><span class="tschips">` +
+          xs.map(x => `<button type="button" class="tsub${on.has(x.id) ? ' on' : ''}${x.active === false ? ' off' : ''}" data-tsub="${esc(x.id)}" aria-pressed="${on.has(x.id)}"${dis}>${on.has(x.id) ? '✓ ' : ''}${esc(R.subLabel(x))}</button>`).join('') + '</span></div>' +
+          (ids.length ? `<div class="tablewrap"><table class="tbl simple fchtbl"><tbody>${ids.map(id => { const sp = B.sub[id] || 0; return `<tr class="fsub"><td>${esc(R.subName(id))}</td><td class="num">${inp(`data-fsb="${esc(id)}"`, pct1(sp))}</td><td class="num">${inp(`data-fsbb="${esc(id)}"`, fmtB(amt * sp / 100), 'wide')}</td></tr>`; }).join('')}</tbody></table></div>${sumLine('sub:' + ch, ids.map(id => B.sub[id]))}`
+            : `<div class="neg small">✕ ${esc(Y.noSubCh(C.channel[ch]))}</div>`) + '</div>'; }).join('') : `<div class="muted">${esc(W.tgt.noSubs)}</div>`); }
+    if (cur === 3) { const codes = S.codes, byCh = S.byCh, chs = S.live;
+      const skuChTbl = byCh ? `<div class="tablewrap"><table class="tbl simple fsktbl fskch"><thead><tr><th>SKU</th>${chs.map(ch => `<th class="num">${esc(C.channel[ch])} %</th>`).join('')}</tr></thead><tbody>` +
+        F.skus.map(sk => `<tr><td>${esc(sk.nickname || sk.name)} <span class="muted small">${esc(C.step.p.roles[sk.role || 'core'])}</span></td>${chs.map(ch => `<td class="num">${inp(`data-fskc="${esc(sk.code)}|${ch}"`, pct1((B.skuCh[ch] || {})[sk.code]))}</td>`).join('')}</tr>`).join('') +
+        `<tr class="fsubsum"><td></td>${chs.map(ch => `<td>${sumLine('skuch:' + ch, codes.map(k => (B.skuCh[ch] || {})[k]))}</td>`).join('')}</tr></tbody></table></div>` : '';
+      const skuRows = F.skus.map(sk => `<tr><td>${esc(sk.nickname || sk.name)} <span class="muted small">${esc(C.step.p.roles[sk.role || 'core'])}</span></td><td class="num">${inp(`data-fsk="${esc(sk.code)}"`, pct1(B.sku[sk.code]))}</td><td class="num">${inp(`data-fskb="${esc(sk.code)}"`, fmtB(tot * (B.sku[sk.code] || 0) / 100), 'wide')}</td></tr>`).join('');
+      body = `<div class="tb-row"><span class="muted small">${esc(X.skuDef)}</span><label class="chk"><input type="checkbox" data-fskuch${byCh ? ' checked' : ''}${dis}><span>${esc(X.skuByCh)}</span></label></div>` +
+        (byCh ? `<div class="muted small">${esc(X.skuChHelp)}</div>${skuChTbl}` : `<div class="tablewrap"><table class="tbl simple fsktbl"><thead><tr><th>SKU</th><th class="num">%</th><th class="num">฿</th></tr></thead><tbody>${skuRows}</tbody></table></div>${sumLine('sku', F.skus.map(s => B.sku[s.code]))}`); }
+    if (cur === 4) { const mx = Math.max(...ms.map(m => B.months[m] || 0), 0.0001), all4 = S.ok.every(Boolean);
+      const mCols = `<div class="tablewrap"><table class="tbl simple fmtbl"><thead><tr><th></th>${ms.map(m => `<th class="num">${esc(R.monthShort(m))}${m.slice(5) === '01' || m === ms[0] ? `<small>${m.slice(0, 4)}</small>` : ''}</th>`).join('')}<th class="num">${esc(C.common.total)}</th></tr></thead><tbody>` +
+        `<tr><td>%</td>${ms.map(m => `<td class="num">${inp(`data-fm="${m}"`, pct1(B.months[m]))}</td>`).join('')}<td class="num"><b>${esc(pct1(ms.reduce((a, m) => a + (B.months[m] || 0), 0)))}</b></td></tr>` +
+        `<tr><td>฿</td>${ms.map(m => `<td class="num">${inp(`data-fmb="${m}"`, fmtB(tot * (B.months[m] || 0) / 100), 'wide')}</td>`).join('')}<td class="num"><b>${esc(fmtB(tot))}</b></td></tr>` +
+        `<tr class="fbars"><td></td>${ms.map(m => `<td><i style="height:${Math.round(4 + (B.months[m] || 0) / mx * 22)}px"></i></td>`).join('')}<td></td></tr></tbody></table></div>`;
+      const filled = B.filledAt ? `<span class="muted small">${esc(X.filledAt(R.dmy(String(B.filledAt).slice(0, 10))))}</span>${B.edited ? ` <span class="chip warn">${esc(SP.tb.edited)}</span>` : ''}` : '';
+      body = `<div class="tb-row">${U.segHTML('data-fpreset', ['even', 'launch', 'follow', 'custom'].map(v => ({ v, label: SP.tb.curves[v] })), B.preset)}</div>${mCols}${sumLine('months', ms.map(m => B.months[m]))}` +
+        `<div class="tb-row tb-act fillrow"><span data-fwill>${esc(Y.will(S.nCells, S.nSku, S.nSubs, S.mOn, R.baht(tot)))}</span><label class="chk"><input type="radio" name="tf_mode" data-fmode="replace"${st.fillMode !== 'empty' ? ' checked' : ''}${dis}><span>${esc(X.replace)}</span></label>` +
+        `<label class="chk"><input type="radio" name="tf_mode" data-fmode="empty"${st.fillMode === 'empty' ? ' checked' : ''}${dis}><span>${esc(X.empty)}</span></label>` +
+        (ed ? `<button type="button" class="btn primary small" data-ffill${!all4 || !(tot > 0) ? ` disabled title="${esc(!(tot > 0) ? SP.tb.errFull : Y.needAll)}"` : ''}>${esc(X.fill)}</button>` : '') + `${filled}</div>`; }
+    const nav = `<div class="fnav">${cur > 1 ? `<button type="button" class="btn small" data-fprev>${esc(Y.prev)}</button>` : '<span></span>'}${cur < 4 ? `<button type="button" class="btn small primary" data-fnext>${esc(Y.next)}</button>` : ''}</div>`;
     box.innerHTML = `<details${open ? ' open' : ''} data-fopen><summary><b>${esc(X.title)}</b> <span class="muted small">${esc(X.sub)}</span>${B.edited ? ` <span class="chip warn">${esc(SP.tb.edited)}</span>` : ''}</summary><div class="tb-body">` +
       `<div class="tb-row"><label class="tb-l" for="tf_total">${esc(X.total)}</label><input id="tf_total" class="inp num tb-full" data-ftotal inputmode="decimal" value="${esc(tot ? fmtB(tot) : '')}"${dis}>` +
       `<span class="tb-l">${esc(X.from)}</span><label class="chk"><input type="radio" name="tf_from" data-ffrom="suggest"${B.from !== 'copy' ? ' checked' : ''}${dis}><span>${esc(X.suggest)}</span></label><label class="chk"><input type="radio" name="tf_from" data-ffrom="copy"${B.from === 'copy' ? ' checked' : ''}${dis}><span>${esc(X.copy)}</span></label>` +
       `<select class="inp sm" data-fcopy${dis}${B.from === 'copy' ? '' : ' disabled'}><option value="">—</option>${others.map(x => `<option value="${esc(x.id)}"${x.id === B.copy ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>` +
-      `<h4 class="bf-h4">A · ${esc(X.chT)}</h4><div class="tablewrap"><table class="tbl simple fchtbl"><thead><tr><th>${esc(X.chCol)}</th><th class="num">%</th><th class="num">฿</th><th class="num">${esc(X.ofTotal)}</th></tr></thead><tbody>${chs.length ? chRows : `<tr><td colspan="4" class="muted">${esc(W.tgt.noSubs)}</td></tr>`}</tbody></table></div>${chs.length ? sumLine('ch', chs.map(k => B.ch[k])) : ''}` +
-      `<h4 class="bf-h4">B · ${esc(X.skuT)}</h4><div class="tb-row"><span class="muted small">${esc(X.skuDef)}</span><label class="chk"><input type="checkbox" data-fskuch${byCh ? ' checked' : ''}${dis}><span>${esc(X.skuByCh)}</span></label></div>` +
-      (byCh ? `<div class="muted small">${esc(X.skuChHelp)}</div>${skuChTbl}` : `<div class="tablewrap"><table class="tbl simple fsktbl"><thead><tr><th>SKU</th><th class="num">%</th><th class="num">฿</th></tr></thead><tbody>${skuRows}</tbody></table></div>${sumLine('sku', F.skus.map(s => B.sku[s.code]))}`) +
-      `<h4 class="bf-h4">C · ${esc(X.monT)}</h4><div class="tb-row">${U.segHTML('data-fpreset', ['even', 'launch', 'follow', 'custom'].map(v => ({ v, label: SP.tb.curves[v] })), B.preset)}</div>${mCols}${sumLine('months', ms.map(m => B.months[m]))}` +
-      `<div class="tb-row tb-act fillrow"><span data-fwill>${esc(X.will(F.skus.length, F.subs.length, ms.length, nCells, R.baht(tot)))}</span><label class="chk"><input type="radio" name="tf_mode" data-fmode="replace"${st.fillMode !== 'empty' ? ' checked' : ''}${dis}><span>${esc(X.replace)}</span></label>` +
-      `<label class="chk"><input type="radio" name="tf_mode" data-fmode="empty"${st.fillMode === 'empty' ? ' checked' : ''}${dis}><span>${esc(X.empty)}</span></label>` +
-      (ed ? `<button type="button" class="btn primary small" data-ffill${bad || !(tot > 0) ? ` disabled title="${esc(!(tot > 0) ? SP.tb.errFull : X.notSum)}"` : ''}>${esc(X.fill)}</button>` : '') + `${filled}</div></div></details>`;
+      `<div class="fsteps" role="list">${head}</div><div class="fbody" data-fbody="${cur}">${body}</div>${nav}</div></details>`;
   }
   /* a level of the filler typed (% or ฿ — the other one follows) · a month typed → Custom from what is shown */
   function readFill(t) {
@@ -587,17 +630,22 @@ CP.steps = (function () {
     B.filledAt = at(); B.edited = false; touch('target'); U.toast(W.tgt.f.filled(R.baht(R.planTotals(liveVer()).target)));
   }
   /* 6.4 — the grid: ฿ by default (remembered a person) · tabs All · MT · TT · ECOM · grouped sub-channel › SKU or SKU › sub-channel · hide empty rows · a phone: read only */
-  function gridRows(c) {
-    const F = st.F, X = W.tgt, tab = st.tab, chs = R.CHANNELS.filter(ch => tab === 'all' || tab === ch), rows = [], has = new Map();
+  /* the filters of the grid: remembered a person a plan (localStorage · broken → none) */
+  const fltKey = () => `s15flt.${(me() || {}).id || ''}.${st.id}`;
+  function flt() { if (!st.flt || st.flt.key !== fltKey()) { let v = null; try { v = pref.json(fltKey(), null); } catch (e) { v = null; } const ok = a => (Array.isArray(a) ? a.map(String) : []);
+      st.flt = { key: fltKey(), ch: ok(v && v.ch), sub: ok(v && v.sub), sku: ok(v && v.sku) }; } return st.flt; }
+  function setFlt(k, vals) { const f = flt(); f[k] = vals.map(String); if (k === 'ch' && f.ch.length) f.sub = f.sub.filter(id => f.ch.includes((subOf(id) || {}).ch)); try { pref.setJson(fltKey(), { ch: f.ch, sub: f.sub, sku: f.sku }); } catch (e) { /* not kept */ } }
+  function gridRows(c, o = {}) {
+    const F = st.F, X = W.tgt, fl = o.all ? { ch: [], sub: [], sku: [] } : flt(), chs = R.CHANNELS.filter(ch => !fl.ch.length || fl.ch.includes(ch)), rows = [], has = new Map(), skus = F.skus.filter(s => !fl.sku.length || fl.sku.includes(s.code));
     F.cells.forEach((o, k) => { if (o.amount || o.qty) { const [code, ch, sub] = k.split('|'); has.set(`${code}|${ch}|${sub}`, true); } });
-    const subsIn = ch => { const ids = F.subs.filter(id => (subOf(id) || {}).ch === ch); if ([...has.keys()].some(k => { const [, c2, s2] = k.split('|'); return c2 === ch && !s2; })) ids.push(''); return ids; };
-    const subLabel = (ch, id) => (id ? (subOf(id) || {}).name || id : `${ch} · ${X.unspecified}`);
+    const subsIn = ch => { const ids = F.subs.filter(id => (subOf(id) || {}).ch === ch && (!fl.sub.length || fl.sub.includes(id))); if (!fl.sub.length && [...has.keys()].some(k => { const [, c2, s2] = k.split('|'); return c2 === ch && !s2; })) ids.push(''); return ids; };
+    const subLabel = (ch, id) => (id ? R.subName(id) : `${ch} · ${X.unspecified}`);
     const hide = key => st.hideEmpty && !has.has(key);
     if (st.group === 'sku') {
-      F.skus.forEach(sk => { const kids = []; chs.forEach(ch => subsIn(ch).forEach(id => { const key = `${sk.code}|${ch}|${id}`; if (!hide(key)) kids.push({ key, label: subLabel(ch, id), sub: C.channel[ch], level: 1, leaf: true }); }));
+      skus.forEach(sk => { const kids = []; chs.forEach(ch => subsIn(ch).forEach(id => { const key = `${sk.code}|${ch}|${id}`; if (!hide(key)) kids.push({ key, label: subLabel(ch, id), sub: C.channel[ch], level: 1, leaf: true }); }));
         if (!kids.length) return; const g = 'K|' + sk.code, open = !st.folded.has(g); rows.push({ key: g, label: sk.nickname || sk.name, sub: sk.code, level: 0, fold: true, open }); kids.forEach(x => rows.push(Object.assign(x, { hidden: !open }))); });
     } else {
-      chs.forEach(ch => { const ids = subsIn(ch), block = []; ids.forEach(id => { const kids = F.skus.map(sk => ({ key: `${sk.code}|${ch}|${id}`, label: `${sk.nickname || sk.name}${sk.role === 'hero' ? ' (Hero)' : ''}`, sub: sk.code, level: 2, leaf: true })).filter(x => !hide(x.key));
+      chs.forEach(ch => { const ids = subsIn(ch), block = []; ids.forEach(id => { const kids = skus.map(sk => ({ key: `${sk.code}|${ch}|${id}`, label: `${sk.nickname || sk.name}${sk.role === 'hero' ? ' (Hero)' : ''}`, sub: sk.code, level: 2, leaf: true })).filter(x => !hide(x.key));
           if (!kids.length) return; const g = `S|${ch}|${id}`; block.push({ g, label: subLabel(ch, id), kids }); });
         if (!block.length) return; const gc = 'C|' + ch, openC = !st.folded.has(gc); rows.push({ key: gc, label: C.channel[ch], sub: C.channelLong[ch], level: 0, fold: true, open: openC });
         block.forEach(b => { const open = openC && !st.folded.has(b.g); rows.push({ key: b.g, label: b.label, level: 1, fold: true, open, hidden: !openC }); b.kids.forEach(x => rows.push(Object.assign(x, { hidden: !open }))); }); });
@@ -606,19 +654,23 @@ CP.steps = (function () {
   }
   function drawGrid(c, plan, ed0) {
     const F = st.F, X = W.tgt, box = $('tg_grid'); if (!box) return; const mob = innerWidth < 768, ed = ed0 && !mob, T = R.planTotals(liveVer()), ms = months(liveCamp(c));
-    const tabs = ['all'].concat(R.CHANNELS.filter(ch => F.subs.some(id => (subOf(id) || {}).ch === ch) || (T.byChannel[ch] || {}).amount)).map(k => `<button type="button" role="tab" data-ttab="${k}" class="${st.tab === k ? 'on' : ''}" aria-selected="${st.tab === k}">${esc(k === 'all' ? X.all : C.channel[k])} <span class="n">${esc(R.shortBaht(k === 'all' ? T.target : (T.byChannel[k] || {}).amount || 0))}</span></button>`).join('');
-    const byCh = R.CHANNELS.filter(k => T.byChannel[k]).map(k => `<span><b>${esc(C.channel[k])}</b> ${esc(R.baht(T.byChannel[k].amount))} · ≈${esc(C.common.pcs(R.fmtNum(Math.round(T.byChannel[k].qty))))}</span>`).join('<span class="sep">·</span>');
+    const FL = C.s15.flt, f = flt(), chOpts = R.CHANNELS.filter(ch => F.subs.some(id => (subOf(id) || {}).ch === ch)).map(ch => ({ value: ch, label: C.channel[ch] }));
+    const subOpts = F.subs.filter(id => !f.ch.length || f.ch.includes((subOf(id) || {}).ch)).map(id => ({ value: id, label: R.subName(id), sub: (subOf(id) || {}).ch || '' }));
+    const skuOpts = F.skus.map(sk => ({ value: sk.code, label: sk.nickname || sk.name, sub: sk.code }));
+    const ms3 = (id, k, opts, l, o2) => U.multiSelect(Object.assign({ id, options: opts, value: f[k].filter(v => opts.some(x => x.value === v)), label: `${l}: ${U.msLabel(f[k].filter(v => opts.some(x => x.value === v)), opts, FL.all)}`, aria: l,
+      onChange: vals => { setFlt(k, vals); drawGrid(c, plan, ed0); } }, o2 || {}));
+    const fbar = `<div class="tgfilt" data-tgfilt>${ms3('tgf_ch', 'ch', chOpts, FL.ch)}${ms3('tgf_sub', 'sub', subOpts, FL.sub)}${ms3('tgf_sku', 'sku', skuOpts, FL.sku, { searchable: true, placeholder: FL.searchSku })}` +
+      `<button type="button" class="link small" data-tgfclear${f.ch.length || f.sub.length || f.sku.length ? '' : ' disabled'}>${esc(FL.clear)}</button><span class="spacer"></span>${U.segHTML('data-tunit', [{ v: 'baht', label: '฿' }, { v: 'qty', label: X.pieces }], st.unit, { label: X.unitL })}</div>`;
     /* §6.4 (CR-14.2) — the tools of the row chosen in the grid: Spread this row's total (a SKU row: over the months · a sub-channel / channel / SKU group row: over
        its rows by the shares of the filler, then the months) · Copy from another row · Clear row */
     const spreadF = ed ? `<div class="tgspread tgrow" data-tgrow><span class="small" data-trowname>${esc(X.rowL)}: <b>${esc(X.rowNone)}</b></span><span class="sep">·</span>` +
       `<input class="inp sm num" data-tsamt inputmode="decimal" placeholder="฿" disabled><button type="button" class="btn small" data-tsgo disabled>${esc(X.spreadRow)}</button><span class="sep">·</span>` +
       `<select class="inp sm" data-tcopy disabled><option value="">${esc(X.copyFrom)}</option></select><button type="button" class="btn small" data-tcopygo disabled>${esc(X.copyGo)}</button>` +
       `<button type="button" class="btn small ghost" data-tclear disabled>${esc(X.clearRow)}</button></div>` : '';
-    box.innerHTML = `<div class="card-head"><h3>${esc(X.gridT)}</h3><div class="ctl">${U.segHTML('data-tunit', [{ v: 'baht', label: '฿' }, { v: 'qty', label: X.pieces }], st.unit, { label: X.unitL })}</div></div>` +
-      `<div class="sttabs ktabs" role="tablist">${tabs}</div><div class="tgtools">${U.segHTML('data-tgroup', [{ v: 'sub', label: X.gSub }, { v: 'sku', label: X.gSku }], st.group, { label: X.groupL })}` +
+    box.innerHTML = `<div class="card-head"><h3>${esc(X.gridT)}</h3></div>${fbar}<div class="sumline tgshow" data-tgshow></div><div class="tgtools">${U.segHTML('data-tgroup', [{ v: 'sub', label: X.gSub }, { v: 'sku', label: X.gSku }], st.group, { label: X.groupL })}` +
       `<label class="chk"><input type="checkbox" data-thide${st.hideEmpty ? ' checked' : ''}><span>${esc(X.hideEmpty)}</span></label><button type="button" class="link small" data-texp>${esc(X.expand)}</button><button type="button" class="link small" data-tcol>${esc(X.collapse)}</button>` +
       (ed ? `<button type="button" class="btn small ghost" data-tundo>${esc(P.grid.undo)}</button><button type="button" class="btn small ghost" data-tredo>${esc(P.grid.redo)}</button>` : '') + `</div>${spreadF}` +
-      `<div class="sumline">${byCh}<span class="sep">·</span><span><b>${esc(C.common.total)}</b> ${esc(R.baht(T.target))}</span></div>` + (mob ? `<div class="nsband"><span class="nsb-t">${esc(X.onComputer)}</span></div>` : '') +
+      (mob ? `<div class="nsband"><span class="nsb-t">${esc(X.onComputer)}</span></div>` : '') +
       (F.skus.length && F.subs.length ? `<div id="tg_g" class="cp-grid"></div>` : `<div class="c3-empty">${esc(F.skus.length ? X.noSubs : X.noSku)}</div>`) + `<div class="muted small cp-keys">${ed ? esc(P.grid.keys) : ''}</div>`;
     if (!$('tg_g')) return;
     const rows = gridRows(c), sm = new Map(F.skus.map(s => [s.code, s])); st.gk = rows.map(r => r.key);
@@ -628,11 +680,37 @@ CP.steps = (function () {
       onChange: ch => { ch.forEach(x => { const [code, c2, sub] = x.r.split('|'), k = `${x.r}|${x.c}`, p = priceAt(sm.get(code), c2, sub);
           if (x.v == null || x.v === 0) { F.cells.delete(k); return; }
           if (st.unit === 'qty') F.cells.set(k, { qty: Math.round(x.v), amount: p != null ? Math.round(x.v) * p : null, basis: 'qty' }); else F.cells.set(k, { amount: Math.round(x.v), qty: p ? Math.round(x.v / p) : null, basis: 'amount' }); });
-        if (F.builder && F.builder.filledAt) F.builder.edited = true; touch('target'); const sl = box.querySelector('.sumline'); if (sl) { const T2 = R.planTotals(liveVer()); sl.innerHTML = R.CHANNELS.filter(k => T2.byChannel[k]).map(k => `<span><b>${esc(C.channel[k])}</b> ${esc(R.baht(T2.byChannel[k].amount))} · ≈${esc(C.common.pcs(R.fmtNum(Math.round(T2.byChannel[k].qty))))}</span>`).join('<span class="sep">·</span>') + `<span class="sep">·</span><span><b>${esc(C.common.total)}</b> ${esc(R.baht(T2.target))}</span>`; } },
+        if (F.builder && F.builder.filledAt) F.builder.edited = true; touch('target'); showLine(c); },
       onFold: k => { if (st.folded.has(k)) st.folded.delete(k); else st.folded.add(k); drawGrid(c, plan, ed0); } });
     const gb = $('tg_g'); if (ed && gb) { const upd = () => rowTools(c); gb.addEventListener('click', upd); gb.addEventListener('keyup', upd); gb.addEventListener('focusin', upd); }
     if (st.rowKey && st.gk.includes(st.rowKey) && st.g) st.g.setActive(st.gk.indexOf(st.rowKey), 0);
-    rowTools(c);
+    rowTools(c); showLine(c); void T;
+  }
+  /* Showing ฿x of ฿y · n of m cells (filter: …) — the rows shown (filters · Hide empty rows) against all · ฿ of the cells shown */
+  function showLine(c) {
+    const box = host && host.querySelector('[data-tgshow]'); if (!box) return; const F = st.F, f = flt(), ms = months(liveCamp(c));
+    const leaves = rs => rs.filter(r => r.leaf).map(r => r.key), shown = leaves(gridRows(c)), all = leaves(gridRows(c, { all: true })), T = R.planTotals(liveVer());
+    let amt = 0; shown.forEach(k => ms.forEach(m => { const o = F.cells.get(`${k}|${m}`); if (o) amt += +o.amount || 0; }));
+    const lbl = [f.ch.map(k => C.channel[k]).join(' · '), f.sub.map(R.subName).join(' · '), f.sku.length > 2 ? C.s15.fill.skuN(f.sku.length) : f.sku.map(k => { const sk = F.skus.find(x => x.code === k); return sk ? sk.nickname || sk.name : k; }).join(' · ')].filter(Boolean).join(' · ');
+    box.innerHTML = esc(C.s15.flt.showing(R.baht(amt), R.baht(T.target), R.fmtNum(shown.length * ms.length), R.fmtNum(all.length * ms.length), lbl));
+  }
+  const riskOk = r => R.riskOk(r);
+  function drawRisk(c, plan) {
+    const box = $('tg_risk'); if (!box) return; const F = st.F, K = C.s15.risk, ed = !ro(plan, 'target'), dis = ed ? '' : ' disabled', r = F.salesRisk || {}, n = String(r.text || '').trim().length;
+    box.innerHTML = `<div class="card-head"><h3>${esc(K.title)} <span class="req">*</span></h3><div class="ctl">${riskOk(r) ? `<span class="okx small">✓</span>` : `<span class="neg small">✕ ${esc(K.need)}</span>`}</div></div>` +
+      `<p class="muted small">${esc(K.help)}</p><div class="kform rskform"><div class="frow"><div class="field"><label for="rk_lv">${esc(K.level)} <span class="req">*</span></label><select id="rk_lv" class="inp" data-rk="level"${dis || (r.none ? ' disabled' : '')}><option value=""></option>` +
+      ['low', 'medium', 'high'].map(k => `<option value="${k}"${r.level === k ? ' selected' : ''}>${esc(K.levels[k])}</option>`).join('') + `</select></div>` +
+      `<div class="field"><label>&nbsp;</label><label class="chk"><input type="checkbox" data-rk="none"${r.none ? ' checked' : ''}${dis}><span>${esc(K.none)}</span></label></div></div>` +
+      `<div class="field"><label for="rk_tx">${esc(K.text)}${r.none ? '' : ' <span class="req">*</span>'}</label><textarea id="rk_tx" class="inp" rows="3" maxlength="800" data-rk="text" placeholder="${esc(K.ph)}"${dis}>${esc(r.text || '')}</textarea>` +
+      `<div class="help" data-rkmore>${!r.none && n < 10 ? esc(K.more(10 - n)) : ''}</div></div>${r.by ? `<div class="muted small" data-rkby>${esc(K.by(r.by, R.dmy(String(r.at || '').slice(0, 10))))}</div>` : ''}</div>`;
+  }
+  function onRisk(t, type) {
+    const F = st.F, c = campOf(st.id), plan = planOf(st.id); if (!t.dataset.rk || ro(plan, 'target')) return false;
+    const r = F.salesRisk = Object.assign({ level: '', text: '', none: false }, F.salesRisk || {}), k = t.dataset.rk;
+    if (k === 'none') { r.none = t.checked; if (r.none) r.level = 'low'; } else r[k] = t.value;
+    r.by = me().name; r.at = at(); touch('target');
+    if (type === 'change' || k === 'none') drawRisk(c, plan); else { const m = host.querySelector('[data-rkmore]'), n = String(r.text || '').trim().length; if (m) m.textContent = !r.none && n < 10 ? C.s15.risk.more(10 - n) : ''; }
+    return true;
   }
   /* the row chosen (the active cell of the grid) → the tools: its name · Copy from (the other SKU rows) · on / off */
   function rowLabel(key) {
@@ -654,6 +732,8 @@ CP.steps = (function () {
     if (a === 'S') return F.skus.map(s => `${s.code}|${b}|${cc}`);
     if (a === 'K') return F.subs.map(id => `${b}|${(subOf(id) || {}).ch}|${id}`);
     return [key]; }
+  /* CR-15 §6.3 — the tools of a row work on the rows shown only (the filters) */
+  const shownLeaves = key => leavesOf(key).filter(k => (st.gk || []).includes(k));
   /* a ฿ total over leaf rows (their weights from the filler) and the months (C) · whole baht, Σ = the total */
   function spreadKeys(c, keys, total) {
     const F = st.F, B = builderOf(c), ms = months(liveCamp(c)), cells = [];
@@ -666,7 +746,7 @@ CP.steps = (function () {
     return true;
   }
   function rowAct(c, plan, what) {
-    const F = st.F, X = W.tgt, key = st.rowKey; if (!key) return; const ms = months(liveCamp(c)), keys = leavesOf(key), name = rowLabel(key);
+    const F = st.F, X = W.tgt, key = st.rowKey; if (!key) return; const ms = months(liveCamp(c)), keys = shownLeaves(key), name = rowLabel(key);
     if (what === 'spread') { const v = num((host.querySelector('[data-tsamt]') || {}).value); if (v == null || v < 0) return; if (!spreadKeys(c, keys, Math.round(v))) return; U.toast(X.rowSpread(name, R.baht(Math.round(v)))); }
     if (what === 'clear') { keys.forEach(k => [...F.cells.keys()].forEach(x => { if (x.startsWith(k + '|')) F.cells.delete(x); })); U.toast(X.rowCleared(name)); }
     if (what === 'copy') { const from = (host.querySelector('[data-tcopy]') || {}).value; if (!from) return; const [code, ch, sub] = key.split('|'), sk = F.skus.find(s => s.code === code), p = priceAt(sk, ch, sub);
@@ -692,28 +772,32 @@ CP.steps = (function () {
         F.builder = Object.assign(F.builder || {}, B.from === 'suggest' && t.matches('[data-ffrom]') ? {} : B); touch('target'); st.fillOpen = true; drawFiller(c, plan, ed); return true; }
       readFill(t); touch('target'); if (e.type === 'change') { st.fillOpen = true; const keep = t.outerHTML.match(/data-f\w+(="[^"]*")?/); drawFiller(c, plan, ed); if (keep) { const x = $('tg_fill').querySelector(`[${keep[0]}]`); if (x && document.activeElement === document.body) x.focus(); } } return true; }
     if (t.matches('[data-thide]')) { st.hideEmpty = t.checked; drawGrid(c, plan, ed); return true; }
+    if (t.matches('[data-rk]')) return onRisk(t, e.type);
     if (t.matches('[data-tdpct]') || t.matches('[data-tdch]') || t.matches('[data-tsrow]') || t.matches('[data-tsamt]') || t.matches('[data-tcopy]')) return true;
     if (t.matches('[data-tsch]')) { const ch = t.dataset.tsch, ids = subsAll().filter(x => x.ch === ch && x.active !== false).map(x => x.id); const has = ids.filter(id => [...F.cells].some(([k, o]) => k.split('|')[2] === id && (o.amount || o.qty)));
-      if (!t.checked && has.length) { st.rmSub = has[0]; t.checked = true; drawSubs(c, plan, ed); return true; }
+      if (!t.checked && has.length) { st.rmSub = has[0]; t.checked = true; drawFiller(c, plan, ed); return true; }
       setSubs(t.checked ? [...new Set(F.subs.concat(ids))] : F.subs.filter(id => !ids.includes(id))); renderTarget(c, plan); return true; }
     return false;
   }
   function onTargetClick(t) {
     const F = st.F, c = campOf(st.id), plan = planOf(st.id), ed = !ro(plan, 'target');
-    const sb = t.closest('[data-tsub]'); if (sb) { const id = sb.dataset.tsub; if (F.subs.includes(id)) { const has = [...F.cells].some(([k, o]) => k.split('|')[2] === id && (o.amount || o.qty)); if (has) { st.rmSub = id; drawSubs(c, plan, ed); return true; } setSubs(F.subs.filter(x => x !== id)); } else setSubs(F.subs.concat([id])); renderTarget(c, plan); return true; }
+    const sb = t.closest('[data-tsub]'); if (sb) { const id = sb.dataset.tsub; if (F.subs.includes(id)) { const has = [...F.cells].some(([k, o]) => k.split('|')[2] === id && (o.amount || o.qty)); if (has) { st.rmSub = id; st.fillOpen = true; drawFiller(c, plan, ed); return true; } setSubs(F.subs.filter(x => x !== id)); } else setSubs(F.subs.concat([id])); st.fillOpen = true; renderTarget(c, plan); return true; }
     if (t.closest('[data-tsrmyes]')) { const id = st.rmSub; [...F.cells.keys()].forEach(k => { if (k.split('|')[2] === id) F.cells.delete(k); }); st.rmSub = null; setSubs(F.subs.filter(x => x !== id)); renderTarget(c, plan); return true; }
-    if (t.closest('[data-tsrmno]')) { st.rmSub = null; drawSubs(c, plan, ed); return true; }
+    if (t.closest('[data-tsrmno]')) { st.rmSub = null; drawFiller(c, plan, ed); return true; }
     const pn = t.closest('[data-tpnew]'); if (pn) { const [code, id] = pn.dataset.tpnew.split('|'), sk = F.skus.find(s => s.code === code); if (sk) { sk.prices[id] = Object.assign({}, sk.prices[id] || {}, { std: stdOf(sk, id) }); repriced(code, id); touch('target'); drawPrices(c, plan, ed); drawGrid(c, plan, ed); } return true; }
     if (t.closest('[data-tdgo]')) { const ch = (host.querySelector('[data-tdch]') || {}).value, pc = num((host.querySelector('[data-tdpct]') || {}).value); if (!ch || pc == null) return true;
       F.skus.forEach(sk => F.subs.forEach(id => { const x = subOf(id); if (!x || x.ch !== ch) return; const sd = (sk.prices[id] || {}).std != null ? sk.prices[id].std : stdOf(sk, id); if (sd == null) return; sk.prices[id] = Object.assign({}, sk.prices[id] || {}, { std: sd, camp: Math.round(sd * (1 - pc / 100)) }); repriced(sk.code, id); }));
       touch('target'); st.priceOpen = true; drawPrices(c, plan, ed); drawGrid(c, plan, ed); return true; }
     if (t.closest('[data-tdclear]')) { F.skus.forEach(sk => Object.keys(sk.prices || {}).forEach(id => { if (sk.prices[id].camp != null) { sk.prices[id].camp = null; repriced(sk.code, id); } })); touch('target'); drawPrices(c, plan, ed); drawGrid(c, plan, ed); return true; }
+    const fst = t.closest('[data-fstep]'); if (fst) { st.fstep = +fst.dataset.fstep; st.fillOpen = true; drawFiller(c, plan, ed); return true; }
+    if (t.closest('[data-fprev]')) { st.fstep = Math.max(1, (st.fstep || 1) - 1); st.fillOpen = true; drawFiller(c, plan, ed); return true; }
+    if (t.closest('[data-fnext]')) { st.fstep = Math.min(4, (st.fstep || 1) + 1); st.fillOpen = true; drawFiller(c, plan, ed); return true; }
     const fs = t.closest('[data-fspread]'); if (fs) { spreadIt(fs.dataset.fspread); touch('target'); st.fillOpen = true; drawFiller(c, plan, ed); return true; }
     const pr = t.closest('.seg[data-fpreset] button'); if (pr) { const B = F.builder || builderOf(c); B.preset = pr.dataset.v; if (B.preset !== 'custom') B.months = presetW(B.preset, liveCamp(c), months(liveCamp(c))); F.builder = B; touch('target'); st.fillOpen = true; drawFiller(c, plan, ed); return true; }
     if (t.closest('[data-ffill]')) { const has = [...F.cells.values()].some(o => o.amount || o.qty);
       if (has && st.fillMode !== 'empty') { U.confirmDialog(SP.tb.replaceQ, SP.tb.replaceBody, SP.tb.replace, false, C.common.cancel).then(ok => { if (ok) { fillGrid(c); renderTarget(c, plan); } }); return true; }
       fillGrid(c); renderTarget(c, plan); return true; }
-    const tb = t.closest('[data-ttab]'); if (tb) { st.tab = tb.dataset.ttab; drawGrid(c, plan, ed); return true; }
+    if (t.closest('[data-tgfclear]')) { ['ch', 'sub', 'sku'].forEach(k => setFlt(k, [])); drawGrid(c, plan, ed); return true; }
     const gp = t.closest('.seg[data-tgroup] button'); if (gp) { st.group = gp.dataset.v; drawGrid(c, plan, ed); return true; }
     const un = t.closest('.seg[data-tunit] button'); if (un) { st.unit = un.dataset.v; pref.set(unitKey(), st.unit); drawGrid(c, plan, ed); return true; }
     if (t.closest('[data-texp]')) { st.folded.clear(); drawGrid(c, plan, ed); return true; }
@@ -731,9 +815,11 @@ CP.steps = (function () {
   const linesOf = g => st.F.lines.filter(L => L.type === g);
   const lineTotal = L => [...L.months.values()].reduce((a, b) => a + (+b || 0), 0);
   const usedTotal = g => linesOf(g).filter(L => L.used).reduce((a, L) => a + lineTotal(L), 0);
-  function spreadLine(c, L, total) { const ms = bmonths(liveCamp(c)), w = R.phaseWeights(ms, liveCamp(c), L.phasing, targetByMonth(), L.custom), v = R.spreadWhole(Math.round(total), w); L.months = new Map(); ms.forEach((m, i) => { if (v[i]) L.months.set(m, v[i]); }); }
-  /* the template of a group (R.EXP_TEMPLATE — the one place to change it) + the other known lines (0 · not used) */
-  function templateOf(g) { const t = (R.EXP_TEMPLATE[g] || []).slice(), known = (CP.mock.lines() || {})[g] || []; known.forEach(l => { if (!t.some(x => x[0] === l)) t.push([l, 0, g === 'marketing' ? 'mkt' : g === 'sales' ? 'sales' : 'even']); }); return t; }
+  function spreadLine(c, L, total) { const ms = bmonths(liveCamp(c)), cu = L.phasing === 'custom' && L.months.size ? Object.fromEntries([...L.months]) : L.custom, w = R.phaseWeights(ms, liveCamp(c), L.phasing === 'custom' && !cu ? defPhase(L.type) : L.phasing, targetByMonth(), cu), v = R.spreadWhole(Math.round(total), w); L.months = new Map(); ms.forEach((m, i) => { if (v[i]) L.months.set(m, v[i]); }); }
+  /* §7.2 — the target by month changed (step 2): the lines of Sales on the automatic rule follow it (their total kept) — the data of a done step too */
+  function syncSales(c) { let n = 0; st.F.lines.forEach(L => { if (L.type !== 'sales' || !L.used || L.phasing !== 'sales') return; const t = lineTotal(L); if (!t) return; const was = JSON.stringify([...L.months]); spreadLine(c, L, t); if (JSON.stringify([...L.months]) !== was) n++; }); return n; }
+  /* the template of a group (Settings › Expense template — R.expTemplate) + the other known lines (0 · not used) */
+  function templateOf(g) { const t = R.expTemplate(g).slice(), known = (CP.mock.lines() || {})[g] || []; known.forEach(l => { if (!t.some(x => x[0] === l)) t.push([l, 0, g === 'marketing' ? 'mkt' : g === 'sales' ? 'sales' : 'even']); }); return t; }
   /* §7.2 — the first time a group opens with no line: the template × the envelope (whole baht, Σ = the envelope) · the lines of 0 % = not used */
   function prefill(c, g) {
     const F = st.F, E = R.envOf(liveVer())[g], env = E.none ? 0 : E.amount || 0, t = templateOf(g), used = t.filter(x => x[1] > 0), amt = lrSplit(env, used.map(x => x[1]));
@@ -743,6 +829,7 @@ CP.steps = (function () {
   function renderExpenses(c, plan) {
     const a = me(), F = st.F, mine = GROUPS.filter(g => { const s = R.stepState(plan, GSTEP[g], U.today()); return a && (s.assignee === a.name); }), order = mine.concat(GROUPS.filter(g => !mine.includes(g)));
     GROUPS.forEach(g => { if (!linesOf(g).length && canStep(plan, GSTEP[g]).ok && R.stepState(plan, GSTEP[g], U.today()).status !== 'done' && !(F.brief.envelope[g] || {}).none) prefill(c, g); });
+    if (canStep(plan, 'exp_sls').ok && syncSales(c)) { F.dirty++; dirtyNote(); }
     if (!st.expOpen.size) (mine.length ? mine : [order[0]]).forEach(g => st.expOpen.add(g));
     $('cp_body').innerHTML = order.map(g => `<div class="card excard" id="ex_${g}" data-exg="${g}"></div>`).join('');
     order.forEach(g => drawGroup(c, plan, g));
@@ -752,29 +839,28 @@ CP.steps = (function () {
     const v = liveVer(), E = R.envOf(v)[g], T = R.planTotals(v), env = E.none ? 0 : E.amount, alloc = usedTotal(g), left = env - alloc, over = alloc - env, open = st.expOpen.has(g), ms = bmonths(liveCamp(c));
     const pctE = L => (env > 0 ? lineTotal(L) / env * 100 : null), bar = env > 0 ? Math.min(100, alloc / env * 100) : alloc > 0 ? 100 : 0;
     const head = `<div class="exh"><div class="exh-t"><b>${esc(`${R.STEP_NUM[k]} ${SP.names[k]}`)}</b> <span class="muted small">${esc(`${s.assignee || '—'}${s.due ? ' · ' + SP.due(R.dmy(s.due)) : ''} · ${SP.state[s.status]}`)}</span>${s.env ? ` <span class="chip warn">${esc(SP.envChanged)}</span>` : ''}${s.none ? ` <span class="chip">${esc(X.none)}</span>` : ''}</div>` +
-      `<div class="exh-n"><span>${esc(X.head(R.baht(env), E.pct == null ? '—' : R.pct(E.pct / 100, 1), E.src === 'target' ? X.ofTarget : X.ofEst, R.baht(alloc), R.baht(Math.max(0, left))))}</span><span class="envbar" aria-hidden="true"><i class="ok" style="width:${bar.toFixed(1)}%"></i>${over > R.ENV_TOL && env > 0 ? `<i class="ov" style="width:${Math.min(100, over / env * 100).toFixed(1)}%"></i>` : ''}</span>` +
-      `${env > 0 && Math.abs(over) > R.ENV_TOL ? `<span class="chip warn" data-exwarn="${g}">${esc(over > 0 ? W.ck.envOver(R.baht(over)) : W.ck.envUnder(R.baht(-over)))}</span>` : ''}</div>` +
+      `<div class="exh-n"><span>${esc(X.head(R.baht(env), E.pct == null ? '—' : R.pct(E.pct / 100, 1), E.src === 'target' ? X.ofTarget : X.ofEst, R.baht(alloc), R.baht(Math.max(0, left))))}</span><span class="envbar" aria-hidden="true"><i class="ok" style="width:${bar.toFixed(1)}%"></i>${over > R.envTol() && env > 0 ? `<i class="ov" style="width:${Math.min(100, over / env * 100).toFixed(1)}%"></i>` : ''}</span>` +
+      `${env > 0 && Math.abs(over) > R.envTol() ? `<span class="chip warn" data-exwarn="${g}">${esc(over > 0 ? W.ck.envOver(R.baht(over)) : W.ck.envUnder(R.baht(-over)))}</span>` : ''}</div>` +
       `<div class="exh-b">${ed && s.status !== 'done' ? `<button type="button" class="btn small" data-enone="${k}">${esc(X.noneBtn)}</button><button type="button" class="btn small primary" data-cpdone="${k}">${esc(SP.markDone)}</button>` : ''}${!ed && w.reopen ? `<button type="button" class="btn small" data-reopen="${k}">${esc(W.reopen)}</button>` : ''}` +
       `<button type="button" class="icon-btn" data-extog="${g}" aria-expanded="${open}" aria-label="${esc(SP.names[k])}">${ICON.chevronDown}</button></div></div>`;
     if (!open) { box.innerHTML = head; box.classList.add('shut'); return; } box.classList.remove('shut');
-    const lines = linesOf(g), pfSug = g === 'sales' && (T.byChannel.ECOM || {}).amount ? Math.round(T.byChannel.ECOM.amount * ((window.CP_MOCK_SCENARIO || {}).platformFeeRate || 0.12)) : null;
-    const PH = ['even', 'mkt', 'sales', 'before', 'first', 'one', 'custom'];
+    const lines = linesOf(g), pfSug = g === 'sales' && (T.byChannel.ECOM || {}).amount ? Math.round(T.byChannel.ECOM.amount * (R.cfg().platformFee / 100)) : null;
     const row = (L, i) => { const tot = L.used ? lineTotal(L) : 0, mo = st.monthsOpen.has(`${g}|${i}`), pe = pctE(L);
-      const sug = L.line === 'Platform Fee' && pfSug != null ? `<div class="muted small exsug">${esc(X.pfSug(R.pct(((window.CP_MOCK_SCENARIO || {}).platformFeeRate || 0.12), 0), R.baht(T.byChannel.ECOM.amount)))} <b>${esc(R.baht(pfSug))}</b>${ed ? ` <button type="button" class="link small" data-epf="${i}">${esc(X.use)}</button>` : ''}</div>` : '';
-      return `<tr class="exl${L.used ? '' : ' dim'}" data-exl="${i}"><td><label class="chk"><input type="checkbox" data-eu="${g}|${i}"${L.used ? ' checked' : ''}${dis}><span></span></label></td><td>${esc(L.line)}${sug}</td>` +
+      const sug = L.line === 'Platform Fee' && pfSug != null ? `<div class="muted small exsug">${esc(X.pfSug(R.pct((R.cfg().platformFee / 100), 0), R.baht(T.byChannel.ECOM.amount)))} <b>${esc(R.baht(pfSug))}</b>${ed ? ` <button type="button" class="link small" data-epf="${i}">${esc(X.use)}</button>` : ''}</div>` : '';
+      const cust = L.used && L.phasing === 'custom' ? ` <span class="chip" data-ecust>${esc(C.s15.exp.custom)}</span>${ed ? ` <button type="button" class="link small" data-eauto="${g}|${i}">${esc(C.s15.exp.backAuto)}</button>` : ''}` : '';
+      return `<tr class="exl${L.used ? '' : ' dim'}" data-exl="${i}"><td><label class="chk"><input type="checkbox" data-eu="${g}|${i}"${L.used ? ' checked' : ''}${dis}><span></span></label></td><td>${esc(L.line)}${cust}${sug}</td>` +
         `<td class="num"><input class="inp sm num wide" data-ea="${g}|${i}" inputmode="decimal" value="${esc(L.used ? fmtB(tot) : '0')}"${dis || (L.used ? '' : ' disabled')}></td><td class="num"><input class="inp sm num" data-ep="${g}|${i}" inputmode="decimal" value="${esc(L.used && pe != null ? pct1(pe) : '')}"${dis || (L.used && env > 0 ? '' : ' disabled')}></td>` +
-        `<td><select class="inp sm" data-eph="${g}|${i}"${dis || (L.used ? '' : ' disabled')}>${PH.map(p => `<option value="${p}"${L.phasing === p ? ' selected' : ''}>${esc(X.ph[p])}</option>`).join('')}</select>${L.phasing === 'one' ? `<select class="inp sm" data-eone="${g}|${i}"${dis}>${ms.map(m => `<option value="${m}"${(L.custom && L.custom[m]) ? ' selected' : ''}>${esc(R.monthShort(m))} ${m.slice(0, 4)}</option>`).join('')}</select>` : ''}</td>` +
         `<td><button type="button" class="link small" data-emo="${g}|${i}" aria-expanded="${mo}">${mo ? '▾' : '▸'}</button></td></tr>` +
-        (mo ? `<tr class="exm"><td></td><td colspan="5"><div class="exms">${ms.map(m => `<label class="tb-pin"><span>${esc(R.monthShort(m))}</span><input class="inp sm num" data-em="${g}|${i}|${m}" inputmode="decimal" value="${esc(L.used && L.months.get(m) ? fmtB(L.months.get(m)) : '')}"${dis || (L.used ? '' : ' disabled')}></label>`).join('')}</div></td></tr>` : ''); };
+        (mo ? `<tr class="exm"><td></td><td colspan="4"><div class="exms">${ms.map(m => `<label class="tb-pin"><span>${esc(R.monthShort(m))}</span><input class="inp sm num" data-em="${g}|${i}|${m}" inputmode="decimal" value="${esc(L.used && L.months.get(m) ? fmtB(L.months.get(m)) : '')}"${dis || (L.used ? '' : ' disabled')}></label>`).join('')}</div></td></tr>` : ''); };
     const pre = st.prefilled && st.prefilled.has(g) ? `<div class="nsband"><span class="nsb-t">${esc(X.prefilled)}</span></div>` : '';
     const envCh = s.env ? `<div class="nsband warnb"><span class="nsb-t">${esc(X.envChanged(R.baht(env)))}</span>${ed ? ` <button type="button" class="btn small" data-escale="${g}">${esc(X.rescale)}</button>` : ''}</div>` : '';
     const known = templateOf(g).map(x => x[0]).filter(l => !lines.some(L => L.line === l));
     const all = st.gridAll[g];
     const gbar = all && ed ? `<div class="gridbar exgbar">${[['fillRight', P.grid.fillRight], ['spreadTotal', P.grid.spread], ['clearRow', P.grid.clearRow], ['undo', P.grid.undo], ['redo', P.grid.redo]].map(([k, l]) => `<button type="button" class="btn small${k === 'undo' || k === 'redo' ? ' ghost' : ''}" data-gxtool="${k}" data-g="${g}">${esc(l)}</button>`).join('')}</div>` : '';
-    box.innerHTML = head + pre + envCh + (all ? `${gbar}<div class="exgrid" id="exg_${g}"></div>` : `<div class="tablewrap"><table class="tbl simple extbl"><thead><tr><th>${esc(X.used)}</th><th>${esc(X.line)}</th><th class="num">฿</th><th class="num">${esc(X.pctEnv)}</th><th>${esc(X.phasing)}</th><th></th></tr></thead><tbody>` +
-      lines.map(L => row(L, F.lines.indexOf(L))).join('') + `<tr class="total"><td></td><td>${esc(C.common.total)}</td><td class="num">${esc(R.baht(alloc))}</td><td class="num">${env > 0 ? esc(pct1(alloc / env * 100)) : ''}</td><td colspan="2"></td></tr></tbody></table></div>`) +
+    box.innerHTML = head + pre + envCh + (all ? `${gbar}<div class="exgrid" id="exg_${g}"></div>` : `<div class="tablewrap"><table class="tbl simple extbl"><thead><tr><th>${esc(X.used)}</th><th>${esc(X.line)}</th><th class="num">฿</th><th class="num">${esc(X.pctEnv)}</th><th></th></tr></thead><tbody>` +
+      lines.map(L => row(L, F.lines.indexOf(L))).join('') + `<tr class="total"><td></td><td>${esc(C.common.total)}</td><td class="num">${esc(R.baht(alloc))}</td><td class="num">${env > 0 ? esc(pct1(alloc / env * 100)) : ''}</td><td></td></tr></tbody></table></div><div class="muted small exauto" data-exauto>${esc(C.s15.exp.auto)}</div>`) +
       `<div class="exf">${ed ? `<span class="exadd"><input class="inp sm" data-eaddname="${g}" list="exl_${g}" placeholder="${esc(X.otherPh)}"><datalist id="exl_${g}">${known.map(l => `<option value="${esc(l)}">`).join('')}</datalist><button type="button" class="btn small" data-eadd="${g}">${esc(X.other)}</button></span>` +
-        `<button type="button" class="btn small" data-erest="${g}"${left > R.ENV_TOL ? '' : ' disabled'}>${esc(X.rest)}</button><select class="inp sm" data-ecopy="${g}" aria-label="${esc(X.copyFrom)}"><option value="">${esc(X.copyFrom)}</option>${allCamps().filter(x => x.id !== c.id && x.approval === 'approved').sort((p, q) => q.start.localeCompare(p.start)).map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}</select>` : ''}<button type="button" class="link small" data-eall="${g}">${esc(all ? X.lessMonths : X.allMonths)}</button></div>`;
+        `<button type="button" class="btn small" data-erest="${g}"${left > R.envTol() ? '' : ' disabled'}>${esc(X.rest)}</button><select class="inp sm" data-ecopy="${g}" aria-label="${esc(X.copyFrom)}"><option value="">${esc(X.copyFrom)}</option>${allCamps().filter(x => x.id !== c.id && x.approval === 'approved').sort((p, q) => q.start.localeCompare(p.start)).map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}</select>` : ''}<button type="button" class="link small" data-eall="${g}">${esc(all ? X.lessMonths : X.allMonths)}</button></div>`;
     if (all) { const usedLines = lines.filter(L => L.used); st.gx[g] = U.grid($('exg_' + g), { id: 'gx' + g, rows: usedLines.map(L => ({ key: String(F.lines.indexOf(L)), label: L.line, level: 0, leaf: true })), cols: monthCols(ms), corner: X.line, aria: SP.names[k], readOnly: !ed,
       get: (rk, m) => { const v2 = F.lines[+rk].months.get(m); return v2 == null || v2 === 0 ? null : v2; }, canEdit: () => ed,
       onChange: ch => { ch.forEach(x => { const L = F.lines[+x.r]; if (x.v == null || x.v === 0) L.months.delete(x.c); else L.months.set(x.c, Math.round(x.v)); L.phasing = 'custom'; }); touch(k); } }); }
@@ -793,13 +879,11 @@ CP.steps = (function () {
   function onExpenses(e) {
     const t = e.target, F = st.F, c = campOf(st.id), plan = planOf(st.id);
     if (t.matches('[data-ecopy]')) { if (e.type === 'change' && t.value) { const g = t.dataset.ecopy, x = campOf(t.value), n = copyLines(c, g, t.value); if (n) U.toast(W.exp.copied(x ? x.name : t.value, n)); drawGroup(c, plan, g); } return true; }
-    const key = t.dataset.eu || t.dataset.ea || t.dataset.ep || t.dataset.eph || t.dataset.em || t.dataset.eone; if (!key) return t.matches('[data-eaddname]');
+    const key = t.dataset.eu || t.dataset.ea || t.dataset.ep || t.dataset.em; if (!key) return t.matches('[data-eaddname]');
     const [g, i, m] = key.split('|'), L = F.lines[+i], k = GSTEP[g]; if (!L) return true; const env = (E => (E.none ? 0 : E.amount))(R.envOf(liveVer())[g]);
     if (t.dataset.eu) { L.used = t.checked; touch(k); drawGroup(c, plan, g); return true; }
     if (t.dataset.ea) { const v = num(t.value); spreadLine(c, L, v == null ? 0 : Math.max(0, v)); touch(k); if (e.type === 'change') drawGroup(c, plan, g); else liveGroup(g, L, t); return true; }
     if (t.dataset.ep) { const v = num(t.value); if (env > 0) spreadLine(c, L, v == null ? 0 : env * Math.max(0, v) / 100); touch(k); if (e.type === 'change') drawGroup(c, plan, g); else liveGroup(g, L, t); return true; }
-    if (t.dataset.eph) { L.phasing = t.value; if (L.phasing === 'one' && !L.custom) L.custom = { [R.ym(liveCamp(c).start)]: 1 }; spreadLine(c, L, lineTotal(L)); touch(k); drawGroup(c, plan, g); return true; }
-    if (t.dataset.eone) { L.custom = { [t.value]: 1 }; spreadLine(c, L, lineTotal(L)); touch(k); drawGroup(c, plan, g); return true; }
     if (t.dataset.em) { const v = num(t.value); if (v == null || !v) L.months.delete(m); else L.months.set(m, Math.round(v)); L.phasing = 'custom'; touch(k); if (e.type === 'change') drawGroup(c, plan, g); return true; }
     return true;
   }
@@ -819,8 +903,9 @@ CP.steps = (function () {
       const add = lrSplit(left, use.map(lineTotal)); use.forEach((L, i) => spreadLine(c, L, lineTotal(L) + add[i])); touch(GSTEP[g]); drawGroup(c, plan, g); return true; }
     const sc = t.closest('[data-escale]'); if (sc) { const g = sc.dataset.escale, E = R.envOf(liveVer())[g], env = E.none ? 0 : E.amount, use = linesOf(g).filter(L => L.used && lineTotal(L) > 0), alloc = usedTotal(g); if (!(alloc > 0)) return true;
       const nw = lrSplit(env, use.map(lineTotal)); use.forEach((L, i) => spreadLine(c, L, nw[i])); touch(GSTEP[g]); drawGroup(c, plan, g); return true; }
-    const pf = t.closest('[data-epf]'); if (pf) { const L = F.lines[+pf.dataset.epf], T = R.planTotals(liveVer()); if (L && T.byChannel.ECOM) { L.used = true; spreadLine(c, L, Math.round(T.byChannel.ECOM.amount * ((window.CP_MOCK_SCENARIO || {}).platformFeeRate || 0.12))); touch('exp_sls'); drawGroup(c, plan, 'sales'); } return true; }
+    const pf = t.closest('[data-epf]'); if (pf) { const L = F.lines[+pf.dataset.epf], T = R.planTotals(liveVer()); if (L && T.byChannel.ECOM) { L.used = true; spreadLine(c, L, Math.round(T.byChannel.ECOM.amount * (R.cfg().platformFee / 100))); touch('exp_sls'); drawGroup(c, plan, 'sales'); } return true; }
     const nn = t.closest('[data-enone]'); if (nn) { markDone(nn.dataset.enone, true); return true; }
+    const au = t.closest('[data-eauto]'); if (au) { const [g, i] = au.dataset.eauto.split('|'), L = F.lines[+i]; if (L) { const tot = lineTotal(L); L.phasing = defPhase(g); L.custom = null; spreadLine(c, L, tot); touch(GSTEP[g]); drawGroup(c, plan, g); } return true; }
     return false;
   }
 
@@ -847,7 +932,7 @@ CP.steps = (function () {
     return `<div class="tablewrap"><table class="tbl simple cltbl" data-cltbl><thead><tr><th>${esc(X.cols.step)}</th><th>${esc(X.cols.state)}</th><th>${esc(X.cols.result)}</th>${o.links === false ? '' : '<th></th>'}</tr></thead><tbody>` +
       cl.rows.map(r => `<tr data-clk="${r.k}" class="${r.errs.length ? 'err' : r.warns.length ? 'warn' : 'ok'}"><td><b>${esc(stepLabel(r.k))}</b></td><td>${esc(r.state)}</td>` +
         `<td>${r.errs.map(x => `<div class="neg small">✕ ${esc(x)}</div>`).join('')}${r.warns.map(x => `<div class="warnx small">⚠ ${esc(x)}</div>`).join('')}${!r.errs.length && !r.warns.length ? '<span class="muted">—</span>' : ''}</td>` +
-        (o.links === false ? '' : r.k === 'plan' ? '<td></td>' : `<td>${r.s.status === 'done' && r.reopen ? `<button type="button" class="link small" data-reopen="${r.k}">${esc(X.editStep)}</button>` : `<a class="link small" href="#planning/${esc(st.id)}/plan/${r.go}" data-cppage="${r.go}">${esc(X.goStep)}</a>`}</td>`) + '</tr>').join('') + '</tbody></table></div>';
+        (o.links === false ? '' : r.k === 'plan' ? '<td></td>' : r.k === 'fin' && r.errs.length && st.page === 'summary' ? `<td><button type="button" class="link small" data-cljump="sm_fc">${esc(C.s15.sum.writeReview)}</button></td>` : `<td>${r.s.status === 'done' && r.reopen ? `<button type="button" class="link small" data-reopen="${r.k}">${esc(X.editStep)}</button>` : `<a class="link small" href="#planning/${esc(st.id)}/plan/${r.go}" data-cppage="${r.go}">${esc(X.goStep)}</a>`}</td>`) + '</tr>').join('') + '</tbody></table></div>';
   }
   /* §8.4 — the summaries: by channel ▸ sub-channel · by SKU · by month (the chart of CR-13) — no GP % · each total = the P&L */
   function sumHTML(ver, c, key, o = {}) {
@@ -901,26 +986,40 @@ CP.steps = (function () {
       return `<div class="exsg"><div class="exsh"><b>${esc(P.grid.groups[g])}</b> <span class="muted small" data-exs="${g}">${esc(X.envVs(R.baht(env), R.baht(al), R.signedShort(al - env)))}</span>${e.none ? ` <span class="chip">${esc(W.exp.none)}</span>` : ''}</div>` +
         (lines.length ? `<table class="tbl simple exstbl"><tbody>${lines.map(([l, a]) => `<tr><td>${esc(l)}</td><td class="num">${esc(R.baht(a))}</td></tr>`).join('')}</tbody></table>` : '') + '</div>'; }).join('')}</div>`;
   }
+  /* §6.4 · §8.1 — the sales risk as read: level (High = orange) · what · who · when · — when none (a plan before CR-15) */
+  function riskHTML(ver, o = {}) {
+    const K = C.s15.risk, r = (ver && ver.salesRisk) || null;
+    if (!r || !(r.none || r.level)) return `<div class="rskro muted" data-riskro>${esc(K.noneYet)}</div>`;
+    const lv = r.none ? 'low' : r.level, chip = `<span class="chip ${lv === 'high' ? 'warn rskhigh' : lv === 'medium' ? 'rskmed' : ''}" data-risklv="${esc(lv)}">${esc(K.levels[lv] || lv)}</span>`;
+    return `<div class="rskro" data-riskro>${chip} ${esc(r.none ? K.none : r.text || '')}${r.by ? ` <span class="muted small">· ${esc(K.by(r.by, R.dmy(String(r.at || '').slice(0, 10))))}</span>` : ''}${o.link ? ` <a class="link small" href="#planning/${esc(st.id)}/plan/target" data-cppage="target">${esc(K.editAt)}</a>` : ''}</div>`;
+  }
   /* who did what (§8.1 — and the sign-off of the PDF) */
   function whoRows(plan) { return R.STEP_KEYS.map(k => { const s = R.stepState(plan, k, U.today()); return { k, who: s.status === 'done' ? s.by || s.assignee : s.assignee, done: s.status === 'done' ? s.done_at : null, dept: R.STEP_DEPT[k] }; }); }
   function renderSummary(c, plan) {
     const F = st.F, X = W.sum, lv = liveVer(), lp = livePlan(plan), cl = checklist(plan, c, { live: true }), finEd = canStep(plan, 'fin').ok || (R.stepState(plan, 'fin', U.today()).status === 'done' && false), subEd = canStep(plan, 'submit').ok;
     const fs = R.stepState(plan, 'fin', U.today()), fe = R.canDoStep(me(), plan, 'fin'), finCan = fe.ok, subS = R.stepState(plan, 'submit', U.today());
-    const head = `<div class="smhead"><div>${U.apChip(plan.approval)} ${cl.errN ? `<span class="neg small" data-left>${esc(X.left(cl.errN))}</span>` : `<span class="okx small">${esc(X.ready)}</span>`}${cl.warnN ? ` <span class="warnx small">⚠ ${cl.warnN}</span>` : ''}</div>` +
+    const head = `<div class="smhead"><div>${U.apChip(plan.approval)} ${cl.errN ? `<button type="button" class="link neg small" data-left>${esc(X.left(cl.errN))} · ${esc(C.s15.sum.jumpTo)}</button>` : `<span class="okx small">${esc(X.ready)}</span>`}${cl.warnN ? ` <span class="warnx small">⚠ ${cl.warnN}</span>` : ''}</div>` +
       `<div class="smbtn"><button type="button" class="btn" data-xlsx>${ICON.download}<span>${esc(W.xl.btn)}</span></button><button type="button" class="btn" data-pdf>${ICON.download}<span>${esc(W.pdf.btn)}</span></button>${subEd ? `<button type="button" class="btn primary" data-cpact="submit"${cl.errN ? ` disabled title="${esc(X.left(cl.errN))}"` : ''}>${esc(P.btn.submit)}</button>` : ''}</div></div>`;
-    const fin = `<div class="card smfin"><div class="card-head"><h3>${esc(X.finT)}</h3><div class="ctl">${fs.refresh ? `<span class="chip warn">${esc(W.recheck)}</span>` : fs.status === 'done' ? `<span class="okx small">✓ ${esc(`${fs.by || fs.assignee || '—'} · ${fs.done_at ? R.dmy(String(fs.done_at).slice(0, 10)) : ''}`)}</span>` : ''}</div></div>` +
-      `<div class="field"><label for="sm_fc">${esc(X.finL)} <span class="req">*</span></label><textarea id="sm_fc" class="inp" rows="3" maxlength="800" data-fcmt${finCan ? '' : ' disabled'}>${esc(F.forecast.comment || '')}</textarea></div>` +
+    const Z = C.s15, fc0 = R.planForecast(lv), wb = `<div class="pl-in smwb" data-smwb><span class="muted small">${esc(Z.sum.worstBest)}</span><label class="tb-pin"><span>${esc(W.pl.worstL)}</span><input class="inp sm num" data-fworst inputmode="decimal" value="${esc(Math.round(fc0.f.worst * 100))}"${finCan ? '' : ' disabled'}><span class="muted">%</span></label>` +
+      `<label class="tb-pin"><span>${esc(W.pl.bestL)}</span><input class="inp sm num" data-fbest inputmode="decimal" value="${esc(Math.round(fc0.f.best * 100))}"${finCan ? '' : ' disabled'}><span class="muted">%</span></label></div>`;
+    const fin = `<div class="card smfin" id="sm_comments"><div class="card-head"><h3>${esc(Z.sum.comments)}</h3></div>` +
+      `<h4 class="bf-h4">${esc(Z.risk.title)}</h4>${riskHTML(lv, { link: true })}` +
+      `<h4 class="bf-h4">${esc(X.finT)} <span class="ctl">${fs.refresh ? `<span class="chip warn">${esc(W.recheck)}</span>` : fs.status === 'done' ? `<span class="okx small">✓ ${esc(`${fs.by || fs.assignee || '—'} · ${fs.done_at ? R.dmy(String(fs.done_at).slice(0, 10)) : ''}`)}</span>` : ''}</span></h4>` +
+      `<div class="field"><label for="sm_fc">${esc(X.finL)} <span class="req">*</span></label><textarea id="sm_fc" class="inp" rows="3" maxlength="800" data-fcmt${finCan ? '' : ' disabled'}>${esc(F.forecast.comment || '')}</textarea></div>${wb}` +
       (finCan ? `<div class="ov-btns"><button type="button" class="btn primary" data-cpdone="fin">${esc(fs.refresh || fs.status === 'done' ? W.confirmAgain : W.confirm)}</button></div>` : !fe.ok && fe.reopen ? `<div class="ov-btns"><button type="button" class="btn" data-reopen="fin">${esc(W.reopen)}</button></div>` : fs.open ? '' : `<div class="muted small">${esc(X.finWait)}</div>`) +
-      `<div class="field"><label for="sm_note">${esc(X.noteL)}</label><textarea id="sm_note" class="inp" rows="2" maxlength="600" data-rcmt${subEd ? '' : ' disabled'}>${esc(F.review.comment || '')}</textarea></div>` +
+      `<h4 class="bf-h4">${esc(X.noteL)}</h4><div class="field"><label for="sm_note" class="sr-only">${esc(X.noteL)}</label><textarea id="sm_note" class="inp" rows="2" maxlength="600" data-rcmt${subEd ? '' : ' disabled'}>${esc(F.review.comment || '')}</textarea></div>` +
       (subEd && F.dirty ? `<div class="ov-btns"><button type="button" class="btn" data-cpact="save">${esc(P.btn.save)}</button></div>` : '') + '</div>';
     const who = whoRows(lp).filter(r => r.k !== 'submit' || subS.status === 'done');
     const whoT = `<div class="card"><div class="card-head"><h3>${esc(X.whoT)}</h3></div><div class="tablewrap"><table class="tbl simple"><thead><tr><th>${esc(X.cols.step)}</th><th>${esc(X.who)}</th><th>${esc(X.doneAt)}</th></tr></thead><tbody>` +
       who.map(r => `<tr><td>${esc(`${R.STEP_NUM[r.k]} ${SP.names[r.k]}`)}</td><td>${esc(r.who || '—')}</td><td>${esc(r.done ? R.dmy(String(r.done).slice(0, 10)) : '—')}</td></tr>`).join('') + '</tbody></table></div></div>';
-    $('cp_body').innerHTML = head + `<div class="card"><div class="card-head"><h3>${esc(X.readyT)}</h3></div>${checklistHTML(cl)}</div>` +
-      `<div class="card"><div class="card-head"><h3>P&amp;L</h3></div><div id="sm_pl">${plTable(lv, { edit: finCan })}</div></div>` +
+    $('cp_body').innerHTML = head + `<div class="card"><div class="card-head"><h3>${esc(X.readyT)}</h3></div>${checklistHTML(cl)}</div>` + fin +
+      `<div class="card"><div class="card-head"><h3>P&amp;L</h3></div><div id="sm_pl">${plTable(lv)}</div></div>` +
       `<div class="card"><div class="card-head"><h3>${esc(X.sumT)}</h3></div>${sumHTML(lv, liveCamp(c), 'st')}</div>` +
-      `<div class="card"><div class="card-head"><h3>${esc(X.expT)}</h3></div>${expHTML(lv)}</div>` + fin + whoT;
+      `<div class="card"><div class="card-head"><h3>${esc(X.expT)}</h3></div>${expHTML(lv)}</div>` + whoT;
     drawSummary(lv, liveCamp(c), 'st');
+    /* §8.1 — the one with the Finance review to do: straight to its field (once a visit) · the others: the top */
+    const fkey = `${st.id}|${(me() || {}).name || ''}`;
+    if (finCan && fs.status !== 'done' && fs.open && fs.assignee === (me() || {}).name && st.finFocus !== fkey) { st.finFocus = fkey; setTimeout(() => { const ta = $('sm_fc'); if (ta) { ta.scrollIntoView({ block: 'center' }); ta.focus(); } }, 30); }
   }
   function onSummary(e) {
     const t = e.target, F = st.F;
@@ -928,35 +1027,62 @@ CP.steps = (function () {
     if (t.matches('[data-rcmt]')) { F.review.comment = t.value; touch('submit'); return true; }
     if (t.matches('[data-fach]') || t.matches('[data-fworst]') || t.matches('[data-fbest]')) { const v = num(t.value); if (v == null) return true;
       if (t.dataset.fach) { F.forecast.ach = Object.assign({}, F.forecast.ach || {}); F.forecast.ach[t.dataset.fach] = v / 100; } else if (t.matches('[data-fworst]')) F.forecast.worst = v / 100; else F.forecast.best = v / 100;
-      touch('fin'); if (e.type === 'change') { const box = $('sm_pl'); if (box) box.innerHTML = plTable(liveVer(), { edit: true }); } return true; }
+      touch('fin'); if (e.type === 'change') { const box = $('sm_pl'); if (box) box.innerHTML = plTable(liveVer()); } return true; }
     return false;
   }
 
   /* ===================== §10 — Export PDF (D139): a print page (#printDoc) + window.print() → Save as PDF of Edge / Chrome · no library · the approval is the one in the system ===================== */
+  /* §9.2 — the sign-off rows (Settings › Signers): a row a person a section · the name = the one who did the step / a person / blank · done in the system =
+     the day that person marked the step done (a reviewer with no task = —) · the approval: the Executive · approved in the system dd/mm/yyyy */
+  function signRows(plan, ver) {
+    const Z = C.s15, S = plan.steps || {}, ppl = CP.store.data().people || [], pOf = n => ppl.find(x => x.name === n) || null, d10 = x => (x ? R.dmy(String(x).slice(0, 10)) : '');
+    const stepOf = { brief: S.submit && S.submit.status === 'done' ? 'submit' : 'brief', target: 'target', exp_mkt: 'exp_mkt', exp_sls: 'exp_sls', exp_oth: S.fin && S.fin.status === 'done' ? 'fin' : 'exp_oth' };
+    const appr = plan.approval === 'approved', exec = (ppl.find(x => x.active !== false && x.role === 'manager') || {}).name || '';
+    return R.cfg().signers.slice(0, 12).map(r => {
+      let name = '', done = '';
+      if (r.sec === 'approve') { const who = appr ? ver.decided_by || exec : exec; name = r.who === 'blank' ? '' : r.who === 'person' ? r.person : who; done = appr && name === ver.decided_by ? Z.pdf.approvedIn(d10(ver.decided_at)) : '—'; }
+      else { const k = stepOf[r.sec], s = S[k] || {}, doer = s.status === 'done' ? s.by || s.assignee : s.assignee || (r.sec === 'brief' ? plan.owner : '');
+        name = r.who === 'blank' ? '' : r.who === 'person' ? r.person : (r.sec === 'brief' ? plan.owner || doer : doer) || '';
+        done = name && s.status === 'done' && (s.by || s.assignee) === name ? d10(s.done_at) : '—'; }
+      const p = pOf(name), title = r.title || (p && (p.title || (p.dept ? C.actor.depts[p.dept] : ''))) || '';
+      return { sec: r.sec, title, name: name ? `${name}${r.sec === 'brief' && name === plan.owner ? ' ' + Z.pdf.ownerTag : ''}` : '', done };
+    });
+  }
   function pdfHTML(plan, c, o = {}) {
-    const X = W.pdf, ver = o.ver || (plan.approval === 'approved' ? R.approvedVersion(plan) : R.working(plan)), T = R.planTotals(ver), w = R.working(plan), draft = plan.approval === 'draft' || plan.approval === 'returned';
+    const X = W.pdf, Z = C.s15, ver = o.ver || (plan.approval === 'approved' ? R.approvedVersion(plan) : R.working(plan)), w = R.working(plan), draft = plan.approval === 'draft' || plan.approval === 'returned';
     const status = plan.approval === 'approved' ? X.approved(ver.decided_by || '—', R.dmy(String(ver.decided_at || '').slice(0, 10))) : plan.approval === 'submitted' ? X.submitted(R.dmy(String(w.submitted_at || '').slice(0, 10))) : X.draft;
     const now = R.nowLocal(), d = ver.details || {}, subs = (ver.subs || []).map(R.subName).join(' · ') || '—', a = me();
     const skus = (ver.skus || []).map(s => `${s.code} ${s.nickname || s.name} (${SP.p.roles[s.role || 'core']}${s.temp || /^TMP-/i.test(s.code) ? ' · ' + W.brief.b.tempTag : ''})`).join(' · ');
     const lp = Object.assign({}, plan, { versions: plan.versions }), cl = checklist(lp, c, { withPlan: true });
-    const people0 = new Map(); whoRows(plan).forEach(r => { if (!r.who) return; const p = people0.get(r.who) || { name: r.who, dept: r.dept, roles: [], done: null }; p.roles.push(SP.names[r.k]); if (r.done && (!p.done || r.done > p.done)) p.done = r.done; people0.set(r.who, p); });
-    const signRows = [...people0.values()].map(p => `<tr><td>${esc(p.roles.join(' · '))}</td><td>${esc(SP.dept[p.dept] || p.dept)}</td><td>${esc(p.name)}</td><td>${esc(p.done ? R.dmy(String(p.done).slice(0, 10)) : '—')}</td><td class="sign">…………………………</td><td class="sign">………</td></tr>`).join('') +
-      `<tr><td>${esc(X.approve)}</td><td>${esc(X.exec)}</td><td>${esc(plan.approval === 'approved' ? ver.decided_by || '—' : '—')}</td><td>${esc(plan.approval === 'approved' ? X.inSystem(R.dmy(String(ver.decided_at || '').slice(0, 10))) : '—')}</td><td class="sign">…………………………</td><td class="sign">………</td></tr>`;
+    const rows = signRows(plan, ver), many = rows.length > 8;
+    let last = null; const signBody = rows.map(r => { const first = r.sec !== last; last = r.sec;
+      return `<tr class="${first ? 'pd-sfirst' : ''}"><td>${first ? `<b>${esc(Z.set.sign.secs[r.sec] || r.sec)}</b>` : ''}</td><td>${esc(r.title)}</td><td>${esc(r.name)}</td><td>${esc(r.done)}</td><td class="sign">…………………………</td><td class="sign">………</td></tr>`; }).join('');
     const sec = (h, body, cls) => `<section class="pd-sec${cls ? ' ' + cls : ''}"><h2>${esc(h)}</h2>${body}</section>`;
-    return `<div class="pd-doc${draft ? ' draft' : ''}">${draft ? `<div class="pd-wm">${esc(X.wm)}</div>` : ''}<header class="pd-h"><div class="pd-brand">Charmiss · ${esc(X.title)}</div><h1>${esc(c.name)} <small>v${ver.v || 1}</small></h1>` +
-      `<div class="pd-meta"><b>${esc(status)}</b> · ${esc(X.printed(R.dmy(now.slice(0, 10)), now.slice(11, 16), a ? a.name : '—'))}</div></header>` +
+    const head = `<header class="pd-h"><div class="pd-brand">Charmiss · ${esc(X.title)}</div><h1>${esc(c.name)} <small>v${ver.v || 1}</small></h1><div class="pd-meta"><b>${esc(status)}</b> · ${esc(X.printed(R.dmy(now.slice(0, 10)), now.slice(11, 16), a ? a.name : '—'))}</div></header>`;
+    const n = o.pages || '{{PAGES}}';
+    return `<div class="pd-doc${draft ? ' draft' : ''}">${draft ? `<div class="pd-wm">${esc(X.wm)}</div>` : ''}<div class="pd-body">${head}` +
       sec(X.campaign, `<table class="pd-kv"><tbody><tr><td>${esc(W.brief.a.start)}</td><td>${esc(R.dmy(c.start))}</td><td>${esc(W.brief.a.endMkt)}</td><td>${esc(c.end_marketing ? R.dmy(c.end_marketing) : '—')}</td><td>${esc(W.brief.a.end)}</td><td>${esc(R.dmy(c.end))}</td></tr>` +
-        `<tr><td>${esc(W.brief.a.owner)}</td><td colspan="5">${esc(plan.owner || '—')}</td></tr><tr><td>${esc(W.brief.a.note)}</td><td colspan="5">${esc(d.note || d.objective || '—')}</td></tr><tr><td>${esc(W.tgt.subsT)}</td><td colspan="5">${esc(subs)}</td></tr><tr><td>SKU</td><td colspan="5">${esc(skus || '—')}</td></tr></tbody></table>`) +
-      sec('P&L', plTable(ver, { chart: false }).replace(/<button[^>]*>.*?<\/button>/g, '')) +
-      sec(X.checks, `<ul class="pd-ck">${cl.rows.map(r => `<li>${r.errs.length ? '✕' : '✓'} ${esc(stepLabel(r.k))}${r.warns.length ? ` — ⚠ ${esc(r.warns.join(' · '))}` : ''}</li>`).join('')}</ul>` +
-        `<p><b>${esc(W.sum.finL)}:</b> ${esc((ver.forecast || {}).comment || '—')}</p><p><b>${esc(W.sum.noteL)}:</b> ${esc((ver.review || {}).comment || '—')}</p>`) +
-      sec(X.sign, `<table class="tbl pd-sign"><thead><tr><th>${esc(X.role)}</th><th>${esc(X.dept)}</th><th>${esc(X.name)}</th><th>${esc(X.doneSys)}</th><th>${esc(X.signC)}</th><th>${esc(X.date)}</th></tr></thead><tbody>${signRows}</tbody></table><p class="pd-note">${esc(X.note)}</p>`) +
-      sec(W.sum.sumT, sumHTML(ver, c, 'pdf', { noChart: true }), 'pd-detail') + sec(W.sum.expT, expHTML(ver)) +
+        `<tr><td>${esc(Z.hd.owner)}</td><td colspan="5">${esc(plan.owner || '—')}</td></tr><tr><td>${esc(W.brief.a.note)}</td><td colspan="5">${esc(d.note || d.objective || '—')}</td></tr><tr><td>${esc(W.tgt.subsT)}</td><td colspan="5">${esc(subs)}</td></tr><tr><td>SKU</td><td colspan="5">${esc(skus || '—')}</td></tr></tbody></table>`) +
+      sec('P&L', plTable(ver, { chart: false, print: true }).replace(/<button[^>]*>.*?<\/button>/g, '')) +
+      sec(Z.pdf.comments, `<p><b>${esc(Z.risk.title)}:</b></p>${riskHTML(ver)}<p><b>${esc(W.sum.finL)}:</b> ${esc((ver.forecast || {}).comment || '—')}</p><p><b>${esc(W.sum.noteL)}:</b> ${esc((ver.review || {}).comment || '—')}</p>`) +
+      `<div class="pd-detail">${sec(W.sum.sumT, sumHTML(ver, c, 'pdf', { noChart: true }))}${sec(W.sum.expT, expHTML(ver))}` +
+      sec(X.checks, `<ul class="pd-ck">${cl.rows.map(r => `<li>${r.errs.length ? '✕' : '✓'} ${esc(stepLabel(r.k))}${r.warns.length ? ` — ⚠ ${esc(r.warns.join(' · '))}` : ''}</li>`).join('')}</ul>`) + '</div></div>' +
+      /* §9.1 — the last page: the sign-off alone (a new page always) · the head again · I have read all n pages */
+      `<section class="pd-signpage${many ? ' many' : ''}" data-pdsign>${head}<h2>${esc(Z.pdf.signT)}</h2><p class="pd-read" data-pdread>${esc(Z.pdf.read(n))}</p>` +
+      `<table class="tbl pd-sign"><thead><tr><th>${esc(Z.pdf.sec)}</th><th>${esc(Z.pdf.pos)}</th><th>${esc(Z.pdf.name)}</th><th>${esc(X.doneSys)}</th><th>${esc(X.signC)}</th><th>${esc(X.date)}</th></tr></thead><tbody>${signBody}</tbody></table>` +
+      `<p class="pd-note">${esc(X.note)}</p></section>` +
       `<footer class="pd-f">Campaign P&amp;L · ${esc(c.name)} v${ver.v || 1} · ${esc(X.printedShort(R.dmy(now.slice(0, 10)), now.slice(11, 16)))}</footer></div>`;
+  }
+  /* the pages of the PDF (A4 · 186 × 271 mm inside the margins): the first part · the details (a new page) · the sign-off (a new page) — measured off screen */
+  function pdfPages(box) {
+    const mm = 96 / 25.4, Hp = 271 * mm, m = document.createElement('div'); m.className = 'pd-measure'; m.style.cssText = `position:absolute;left:-10000px;top:0;width:${186 * mm}px;visibility:hidden`;
+    m.innerHTML = box.innerHTML; document.body.appendChild(m);
+    const body = m.querySelector('.pd-body'), det = m.querySelector('.pd-detail'), h1 = body && det ? det.offsetTop - body.offsetTop : body ? body.offsetHeight : 0, h2 = det ? det.offsetHeight : 0;
+    m.remove(); return Math.max(1, Math.ceil(h1 / Hp)) + (det ? Math.max(1, Math.ceil(h2 / Hp)) : 0) + 1;
   }
   function pdf(plan, c, o = {}) {
     let box = $('printDoc'); if (!box) { box = document.createElement('div'); box.id = 'printDoc'; box.setAttribute('aria-hidden', 'true'); document.body.appendChild(box); }
-    box.innerHTML = pdfHTML(plan, c, o); if (o.preview) return box.innerHTML;
+    box.innerHTML = pdfHTML(plan, c, o); const n = pdfPages(box); box.innerHTML = box.innerHTML.split('{{PAGES}}').join(String(n)); box.dataset.pages = n; if (o.preview) return box.innerHTML;
     const ver = plan.approval === 'approved' ? R.approvedVersion(plan) : R.working(plan), old = document.title;
     document.title = W.pdf.file(c.name, (ver && ver.v) || 1); document.body.classList.add('printing');
     const done = () => { document.title = old; document.body.classList.remove('printing'); window.removeEventListener('afterprint', done); };
@@ -967,13 +1093,13 @@ CP.steps = (function () {
   /* ===================== §12.5 — Export of the plan (.xlsx): P&L (no GP %) · Target (with its sub-channel) · Expenses (with Used) ===================== */
   function xlsx(plan, c, o = {}) {
     const X = W.xl, K = X.cols, ver = o.ver || (plan.approval === 'approved' ? R.approvedVersion(plan) : R.working(plan)), fc = R.planForecast(ver), sm = R.skuMap(ver), L = W.pl;
-    const cols4 = [['plan', L.plan], ['base', L.fc(R.pct(fc.baseAch == null ? 1 : fc.baseAch, 1))], ['worst', L.worst(R.pct(fc.f.worst))], ['best', L.best(R.pct(fc.f.best))]];
+    const cols4 = [['worst', L.worst(R.pct(fc.f.worst))], ['plan', L.plan], ['best', L.best(R.pct(fc.f.best))]];
     const plRows = [['rev', L.rev, 'money'], ['cogs', 'COGS', 'money'], ['gp', L.gp, 'money'], ['mkt', L.mkt, 'money'], ['sls', L.sls, 'money'], ['oth', L.oth, 'money'], ['spend', L.spend, 'money'], ['ap', L.ap, 'pct'], ['profit', L.profit, 'money'], ['margin', L.margin, 'pct'], ['roi', 'ROI', 'num']]
       .map(([k, l]) => [l].concat(cols4.map(([s]) => fc[s][k] == null ? null : fc[s][k])));
     const tRows = (ver.target || []).map(r => { const s = sm.get(r.code) || {}, a = R.rowAmount(r, s); return [r.code, s.nickname || s.name || '', C.channel[r.channel] || r.channel, r.sub ? R.subName(r.sub) : W.tgt.unspecified, R.monthName(r.month), +r.qty || 0, a == null ? null : a, r.basis === 'qty' ? K.pcs : '฿']; });
-    const bRows = (ver.budget || []).filter(r => +r.amount || r.used === false).map(r => [P.grid.groups[r.type] || r.type, r.line, R.monthName(r.month), +r.amount || 0, r.used === false ? K.no : K.yes, W.exp.ph[r.phasing] || r.phasing || '']);
+    const bRows = (ver.budget || []).filter(r => +r.amount || r.used === false).map(r => [P.grid.groups[r.type] || r.type, r.line, R.monthName(r.month), +r.amount || 0, r.used === false ? K.no : K.yes, r.phasing === 'custom' ? C.s15.exp.custom : W.exp.ph[r.phasing] || r.phasing || '']);
     U.saveXlsx(X.file, `${c.name} v${ver.v || 1}`, [
-      { key: 'pl', title: L.title, header: [''].concat(cols4.map(x => x[1])), cols: ['text', 'money', 'money', 'money', 'money'], rows: plRows.map((r, i) => i === 7 || i === 9 ? [r[0]].concat(r.slice(1).map(v => ({ v, fmt: 'pct' }))) : r) },
+      { key: 'pl', title: L.title, header: [''].concat(cols4.map(x => x[1])), cols: ['text', 'money', 'money', 'money'], rows: plRows.map((r, i) => i === 7 || i === 9 ? [r[0]].concat(r.slice(1).map(v => ({ v, fmt: 'pct' }))) : r) },
       { key: 'target', title: X.target, header: [K.sku, K.product, K.ch, K.sub, K.month, K.qty, K.amount, K.basis], cols: tRows.length ? ['text', 'text', 'text', 'text', 'text', 'num', 'money', 'text'] : [], rows: tRows },
       { key: 'exp', title: X.exp, header: [K.group, K.line, K.month, K.amount, K.used, K.phasing], cols: bRows.length ? ['text', 'text', 'text', 'money', 'text', 'text'] : [], rows: bRows }],
       [[C.camps.meta.at, R.dmy(U.today())], [A.state[plan.approval] || plan.approval, `v${ver.v || 1}`]]);
@@ -988,6 +1114,8 @@ CP.steps = (function () {
     const dn = t.closest('[data-cpdone]'); if (dn) return markDone(dn.dataset.cpdone, false);
     const rp = t.closest('[data-reopen]'); if (rp) return reopen(rp.dataset.reopen);
     if (t.closest('[data-pdf]')) { pdf(plan, c); return; }
+    const cj = t.closest('[data-cljump]'); if (cj) { const x = $(cj.dataset.cljump); if (x) { x.scrollIntoView({ behavior: 'smooth', block: 'center' }); x.focus(); } return; }
+    if (t.closest('[data-left]')) { const r = host.querySelector('[data-cltbl] tr.err'); if (r) { const k = r.dataset.clk; if (k === 'fin') { const x = $('sm_fc'); if (x) { x.scrollIntoView({ behavior: 'smooth', block: 'center' }); x.focus(); } } else { r.scrollIntoView({ behavior: 'smooth', block: 'center' }); r.classList.add('flash'); setTimeout(() => r.classList.remove('flash'), 1200); } } return; }
     if (t.closest('[data-xlsx]')) { xlsx(livePlan(plan), liveCamp(c)); return; }
     if (st.page === 'brief' && await onBriefClick(t)) return;
     if (st.page === 'target' && onTargetClick(t)) return;
@@ -1008,6 +1136,6 @@ CP.steps = (function () {
   document.addEventListener('toggle', e => { if (!host || !host.contains(e.target)) return; if (e.target.matches('[data-fopen]')) st.fillOpen = e.target.open; if (e.target.matches('[data-tpopen]')) st.priceOpen = e.target.open; }, true);
   async function confirmLeave() { if (!isDirty()) return true; const G = P.grid; const ok = await U.confirmDialog(G.leaveQ, G.leaveBody, G.leave, true, G.stay); if (ok) st.F = null; return ok; }
   window.addEventListener('beforeunload', e => { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
-  return { render, isDirty, confirmLeave, saveDraft: () => (st.F && st.F.dirty ? doSave(true) : Promise.resolve(true)), reset: () => { st.F = null; }, detach: () => { host = null; st.plPop = false; st.ckOpen = false; }, draft: () => st.F, current: () => st.id, page: () => st.page, PAGES, pageOf, firstPage, plTable, sumHTML, drawSummary, expHTML, checklist, checklistHTML,
-    pdf, pdfHTML, xlsx, serialize, grid: () => st.g, gridKeys: () => (st.gk || []).slice(), gridX: () => st.gx, dirtyCount: () => (st.F ? st.F.dirty : 0), builderOf: c => builderOf(c), redraw };
+  return { render, isDirty, confirmLeave, saveDraft: () => (st.F && st.F.dirty ? doSave(true) : Promise.resolve(true)), reset: () => { st.F = null; }, detach: () => { host = null; st.plPop = false; st.ckOpen = false; st.finFocus = null; }, draft: () => st.F, current: () => st.id, page: () => st.page, PAGES, pageOf, firstPage, plTable, sumHTML, drawSummary, expHTML, checklist, checklistHTML,
+    pdf, pdfHTML, xlsx, serialize, riskHTML, beHTML, signRows, grid: () => st.g, gridKeys: () => (st.gk || []).slice(), gridX: () => st.gx, dirtyCount: () => (st.F ? st.F.dirty : 0), builderOf: c => builderOf(c), redraw };
 })();

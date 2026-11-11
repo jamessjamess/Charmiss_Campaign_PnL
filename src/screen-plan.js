@@ -25,7 +25,7 @@ CP.cpage = (function () {
   function render(root, id, sub) {
     el = root; const c = campOf(id), plan = planOf(id);
     if (st.id !== id) st = Object.assign(st, { id, hf: 'all', editD: false, ver: null });
-    if (!c || !plan) { el.innerHTML = `<div class="pbanner"><div class="crumb"><a href="#planning">${esc(SP.title)}</a></div><h1>${esc(P.notFound)}</h1></div>`; return; }
+    if (!c || !plan) { el.innerHTML = `<div class="pbanner cpban"><div class="cpb">${backHTML()}<div class="cpb-main"><h1>${esc(P.notFound)}</h1></div></div></div>`; return; }
     const live = plan.approval === 'approved', S = CP.steps;
     let [t0, t1] = String(sub || '').split('/'); if (S.pageOf(t0)) { t1 = t0; t0 = 'plan'; }
     const tabs = live ? TABS_LIVE : TABS_DRAFT;
@@ -33,13 +33,13 @@ CP.cpage = (function () {
     const page = st.tab === 'plan' && !live ? S.pageOf(t1) || (S.current() === id ? S.page() : null) || S.firstPage(plan) : null;
     const want = `#planning/${encodeURIComponent(id)}/${st.tab}${page ? '/' + page : ''}`;
     if (location.hash !== want) history.replaceState(null, '', want);
-    if (!el.querySelector('#cp_tabs')) { el.innerHTML = `<div class="pbanner" id="cp_ban"></div><div class="cp-head" id="cp_head"></div><div class="ptabs cptabs" role="tablist" id="cp_tabs"></div><div id="cp_main"></div>`; stick = U.stickyTabs(el, $('cp_tabs')); }
-    $('cp_ban').innerHTML = `<div class="crumb"><a href="#planning">${esc(SP.title)}</a><span>›</span>${esc(c.name)}</div><h1>${esc(c.name)}</h1>`;
+    if (!el.querySelector('#cp_tabs')) { el.innerHTML = `<div class="pbanner cpban" id="cp_ban"></div><div class="ptabs cptabs" role="tablist" id="cp_tabs"></div><div id="cp_main"></div>`; stick = U.stickyTabs(el, $('cp_tabs')); }
     $('cp_tabs').innerHTML = tabs.map(t => `<a role="tab" href="#planning/${esc(id)}/${t}" data-cptab="${t}" class="${t === st.tab ? 'on' : ''}" aria-selected="${t === st.tab}">${esc(CG.tabs[t])}</a>`).join('');
     const main = $('cp_main');
     if (page) S.render(main, c, plan, page, el);
     else { S.detach(); ({ overview: renderOverview, plan: renderPlanRO, requests: renderRequests, history: renderHistoryTab })[st.tab](c, plan); }
-    $('cp_head').innerHTML = headHTML(c, plan);
+    $('cp_ban').innerHTML = headHTML(c, plan);
+    $('cp_tabs').insertAdjacentHTML('beforeend', st.act ? `<span class="spacer"></span><span class="cp-act cp-tabact" data-cptabact>${st.act}</span>` : '');
     document.title = `${c.name} · ${SP.title} · ${C.app.title}`;
   }
   /* ---------- CR-13 §2.2 — the head: the approval chip (Approved v2) · the state of the campaign (On going · 26 days left · Ended · to close · Closed …) ·
@@ -56,20 +56,26 @@ CP.cpage = (function () {
     return `<span class="st ongoing">${esc(X.ongoing(cs.n))}</span>`;
   }
   const pendingOf = plan => ((plan && plan.requests) || []).filter(q => q.status === 'pending');
-  const kindOf = q => (q.type === 'period' || q.type === 'close' ? q.type : 'budget');
+  const kindOf = q => (['period', 'close', 'cancel'].includes(q.type) ? q.type : 'budget');
+  /* CR-15 §4.1 (D154) — ‹ Campaign Planning: back to the list it came from (its tab · year · search · sort · scroll) · a link opened straight = Plans › In progress */
+  const backHTML = () => `<a class="cpback" href="#planning/plans" data-cpback title="${esc(C.s15.hd.backTip)}" aria-label="${esc(C.s15.hd.backTip)}"><span class="cpb-a" aria-hidden="true">‹</span><span class="cpb-l">${esc(C.s15.hd.back)}</span></a>`;
   const changeX = (c, plan, kind) => { const cs = stateNow(c, plan); return { kind, closed: cs.key === 'closed', cancelled: cs.key === 'cancelled' }; };
   function headHTML(c, plan) {
     const a = me(), w = R.working(plan), appr = plan.approval, live = appr === 'approved', ver = live ? R.approvedVersion(plan) : w, cs = live ? stateNow(c, plan) : null;
     const apc = live ? `<span class="st aapproved">${esc(CG.apprV(A.state.approved, ver ? ver.v : 1))}</span>` : U.apChip(appr, { tip: appr === 'returned' && w && w.comment ? w.comment : '' });
-    const pend = [...new Set(pendingOf(plan).map(kindOf))].map(k => `<a class="chip warn pchip" href="#planning/${esc(c.id)}/requests">${esc(CG.pending[k])}</a>`).join('');
-    const chips = apc + (live ? stateChip(cs, c) : isCancelled(c) ? statusChip(R.CANCELLED) : '') + pend;
-    const meta = [plan.owner ? P.owner(plan.owner) : '', `${R.dmy(c.start)} – ${R.dmy(c.end)}${c.end_marketing ? ` (${CG.endMktOf(R.dmy(c.end_marketing))})` : ''}`].filter(Boolean).map(esc).join('<span class="sep">·</span>');
+    /* CR-15 §4.1 — next to the name: the status of the plan (Draft · In review · Approved · Cancelled · Cancel requested) · the rest (On going · n days left · a request
+       waiting) start the second line — the head stays two lines (≤ 72 px) */
+    const kinds = [...new Set(pendingOf(plan).map(kindOf))], pchip = k => `<a class="chip warn pchip" href="#planning/${esc(c.id)}/requests">${esc(CG.pending[k])}</a>`;
+    const chips = apc + (!live && isCancelled(c) ? statusChip(R.CANCELLED) : live && cs.key === 'cancelled' ? statusChip(R.CANCELLED) : '') + (kinds.includes('cancel') ? pchip('cancel') : '');
+    const chips2 = (live && cs.key !== 'cancelled' ? stateChip(cs, c) : '') + kinds.filter(k => k !== 'cancel').map(pchip).join('');
+    /* CR-15 §4.1 — one line under the name: Owner Ploy · 01/01/2027 – 30/06/2027 · End marketing 31/03/2027 (no "…" — it wraps) */
+    const H = C.s15.hd, meta = [plan.owner ? `${H.owner} ${plan.owner}` : '', `${R.dmy(c.start)} – ${R.dmy(c.end)}`, c.end_marketing ? `${H.endMkt} ${R.dmy(c.end_marketing)}` : ''].filter(Boolean).map(esc).join('<span class="sep">·</span>');
     const b = [], can = x => R.canDo(x, a, plan);
     if (!live) {
       if (appr === 'submitted') { const d = can('approve'); if (d.ok) b.push(`<button type="button" class="btn primary" data-cpact="review">${esc(SP.reviewBtn)}</button>`); else if (d.why) b.push(`<button type="button" class="btn primary" disabled title="${esc(d.why)}">${esc(P.btn.approve)}</button>`); }
       if (can('withdraw').ok) b.push(`<button type="button" class="btn" data-cpact="withdraw">${esc(P.btn.withdraw)}</button>`);
       if (can('duplicate').ok && appr === 'rejected') b.push(`<button type="button" class="btn" data-cpact="duplicate">${esc(P.btn.duplicate)}</button>`);
-      if (isCancelled(c) && a && R.canDo('details', a, plan).ok) b.push(`<button type="button" class="btn primary" data-cpact="restore">${esc(C.camps.menu.restore)}</button>`);
+      if (isCancelled(c) && a && R.canDo('restore', a, plan, { cancelled: true }).ok) b.push(`<button type="button" class="btn primary" data-cpact="restore">${esc(C.s15.cx.restoreBtn)}</button>`);
     } else {
       /* §3 — Request change ▾ (Budget change · Period change · Close campaign / Close early) while not closed · Campaign Tracking › */
       if (cs.key !== 'closed' && cs.key !== 'cancelled' && ['budget', 'period', 'close'].some(k => R.canDo('change', a, plan, changeX(c, plan, k)).ok))
@@ -77,8 +83,11 @@ CP.cpage = (function () {
       b.push(`<a class="btn ghost" href="#tracking/${esc(c.id)}">${esc(CG.toTracking)}</a>`);
     }
     /* CR-14 §10.1 — Export PDF is in the ⋯ of every Campaign page */
-    return `<div class="cp-ttl"><div class="cp-chips">${chips}</div><div class="cp-meta">${meta}</div></div><div class="cp-act">${b.join('')}` +
-      `<button type="button" class="icon-btn" data-cpmore aria-haspopup="menu" aria-label="${esc(P.btn.more)}" title="${esc(P.btn.more)}">${ICON.more}</button></div>`;
+    if (live && isCancelled(c) && a && R.canDo('restore', a, plan, { cancelled: true }).ok) b.push(`<button type="button" class="btn" data-cpact="restore">${esc(C.s15.cx.restoreBtn)}</button>`);
+    /* CR-15 §4.1 — the head = ‹ · the name · the status · ⋯ (the buttons of the one acting sit at the right of the tabs, they stay there while it scrolls) */
+    st.act = b.join('');
+    return `<div class="cpb">${backHTML()}<div class="cpb-main"><div class="cpb-r1"><h1>${esc(c.name)}</h1><span class="cp-chips">${chips}</span></div><div class="cp-meta">${chips2 ? `<span class="cp-chips cp-chips2">${chips2}</span>` : ''}${meta}</div></div><div class="cp-act">` +
+      `<button type="button" class="icon-btn" data-cpmore aria-haspopup="menu" aria-label="${esc(P.btn.more)}" title="${esc(P.btn.more)}">${ICON.more}</button></div></div>`;
   }
   /* the menu of Request change (a menu under the button) */
   function changeMenu(btn, id) {
@@ -100,12 +109,13 @@ CP.cpage = (function () {
   function renderOverview(c, plan) {
     const a = me(), cs = stateNow(c, plan), ver = R.approvedVersion(plan) || R.working(plan), D = (ver && ver.details) || {}, X = CG.d, F = X.f, edit = st.editD && R.canDo('details.approved', a, plan, { closed: cs.key === 'closed' }).ok;
     const canEd = R.canDo('details.approved', a, plan, { closed: cs.key === 'closed' }), canPer = R.canDo('change', a, plan, changeX(c, plan, 'period')).ok;
-    const kv = (k, v) => `<dt>${esc(k)}</dt><dd>${v}</dd>`, brands = people().filter(p => (p.dept === 'brand' || p.role === 'admin') && p.active !== false);
+    const kv = (k, v) => `<dt>${esc(k)}</dt><dd>${v}</dd>`;
     const subs = (ver.subs || []).map(R.subName).join(' · '), note = D.note != null ? D.note : D.objective;
-    const view = `<dl class="kv ov-kv">${kv(F.name, esc(c.name))}${kv(F.brand, esc(D.brand || '—'))}${kv(F.category, esc(D.category || '—'))}${kv(W.brief.a.note, esc(note || '—'))}` +
+    const view = `<dl class="kv ov-kv">${kv(F.name, esc(c.name))}${kv(F.category, esc(D.category || '—'))}${kv(W.brief.a.note, esc(note || '—'))}` +
       `${kv(F.channels, esc(subs || (D.channels || []).map(k => C.channel[k]).join(' · ') || '—'))}${kv(F.owner, esc(plan.owner || '—'))}</dl>`;
-    const form = `<div class="kform ov-form"><div class="frow"><div class="field"><label for="ov_name">${esc(F.name)}</label><input id="ov_name" class="inp" maxlength="80" value="${esc(c.name)}"></div><div class="field"><label for="ov_owner">${esc(F.owner)}</label><select id="ov_owner" class="inp">${brands.map(p => `<option${p.name === plan.owner ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div></div>` +
-      `<div class="frow"><div class="field"><label for="ov_brand">${esc(F.brand)}</label><input id="ov_brand" class="inp" value="${esc(D.brand || '')}"></div><div class="field"><label>${esc(F.category)}</label><div class="muted ov-ro">${esc(D.category || '—')}</div></div></div>` +
+    /* CR-15 §3 · §5.1 — the owner is read only (Admin: ⋯ Transfer owner…) · no Brand (the data keeps Charmiss) */
+    const form = `<div class="kform ov-form"><div class="frow"><div class="field"><label for="ov_name">${esc(F.name)}</label><input id="ov_name" class="inp" maxlength="80" value="${esc(c.name)}"></div><div class="field"><label>${esc(F.owner)}</label><div class="muted ov-ro" id="ov_owner_ro">${esc(plan.owner || '—')}</div></div></div>` +
+      `<div class="frow"><div class="field"><label>${esc(F.category)}</label><div class="muted ov-ro">${esc(D.category || '—')}</div></div></div>` +
       `<div class="field"><label for="ov_obj">${esc(W.brief.a.note)}</label><textarea id="ov_obj" class="inp" rows="2" maxlength="600">${esc(note || '')}</textarea></div>` +
       `<div class="ferr" id="ov_e"></div><div class="ov-btns"><button type="button" class="btn" data-ovcancel>${esc(X.cancel)}</button><button type="button" class="btn primary" data-ovsave>${esc(X.save)}</button></div></div>`;
     const per = `<div class="ov-per"><div class="ov-pl">${esc(X.period)}</div><div class="cperiod ov-period" id="ov_period">${U.periodHTML(c, { today: U.today(), chips: '' })}</div>` +
@@ -118,6 +128,7 @@ CP.cpage = (function () {
     const use = `<div class="card ov-use"><div class="card-head"><h3>${esc(U2.title)}</h3></div><div class="muted small">${esc(U2.approved(ver.v, R.dmy(String(ver.decided_at || '').slice(0, 10)), ver.decided_by || '—'))}</div>` +
       row(U2.target, R.baht(T.target)) + row(U2.budget, R.baht(cur), t ? U2.budgetSub(R.shortBaht(t.original), R.signedShort(t.changes)) : '') +
       row(U2.profit, R.baht(T.gp - cur), chg ? U2.planWas(R.baht(T.profit)) : '') + row(U2.ap, R.pct(R.ratio(cur, T.target), 1), chg ? U2.planWas(R.pct(T.ap, 1)) : '') +
+      `<div class="ov-r ov-risk" data-ovrisk><span>${esc(C.s15.risk.title)}</span>${CP.steps.riskHTML(ver)}</div>` +
       `<div class="ov-line">${esc(U2.line(R.pct(sp && sp.ach), R.pct(t && t.used)))} · <a class="link" href="#tracking/${esc(c.id)}">${esc(CG.toTracking)}</a></div><a class="link" href="#planning/${esc(c.id)}/plan" data-cptab="plan">${esc(U2.open)}</a></div>`;
     const pl = `<div class="card ov-pl"><div class="card-head"><h3>${esc(W.pl.title)} <span class="hnote">${esc(P.v(ver.v))}</span></h3><div class="ctl"><button type="button" class="btn small" data-cppdf>${ICON.download}<span>${esc(W.pdf.btn)}</span></button></div></div>${CP.steps.plTable(ver)}</div>`;
     /* Open items: the requests waiting (pending · returned) · Close campaign when it ended and is not closed */
@@ -132,7 +143,7 @@ CP.cpage = (function () {
   }
   /* the words of a request in a list (Summary): +฿500,000 · ADS · Nov · End 30/11 → 31/12/2026 · Close · unused ฿0 */
   function reqSummary(q) {
-    if (q.type === 'period' || q.type === 'close') return R.reqWords(q);
+    if (['period', 'close', 'cancel'].includes(q.type)) return R.reqWords(q);
     const t = R.sumLines(q.lines), l0 = (q.lines || [])[0];
     if (R.requestType(q.lines) === 'reallocation') { const from = (q.lines || []).find(l => +l.amount < 0), to = (q.lines || []).find(l => +l.amount > 0);
       return `${reqAmount(q)}${from && to ? ` · ${from.line} → ${to.line}` : ''}`; }
@@ -210,12 +221,12 @@ CP.cpage = (function () {
   /* the details of an approved Campaign: name · owner · brand · the campaign details (CR-14: no channels / category to type — D128) */
   async function saveDetails(c, plan) {
     const a = me(), name = ($('ov_name') || {}).value.trim(), e = $('ov_e'), ver = R.approvedVersion(plan) || R.working(plan), D = ver.details || {};
-    const det = { brand: $('ov_brand').value.trim(), note: $('ov_obj').value.trim() };
+    const det = { note: $('ov_obj').value.trim() };
     if (!name) { if (e) e.textContent = C.camps.v.nameReq; return; }
     const row = CP.store.data().list.rows.find(r => r.id === c.id);
     if (row && name !== row.campaign) { try { await CP.store.saveList({ action: 'edit', id: c.id, values: { campaign: name, start: row.start, end: row.end, end_marketing: row.end_marketing, status: 'auto' } }, { today: U.today() }); } catch (x) { if (e) e.textContent = (x.errors && x.errors.name) || A.toast.failed; return; } }
     const changed = Object.keys(det).filter(k => JSON.stringify(det[k]) !== JSON.stringify(k === 'note' ? (D.note != null ? D.note : D.objective || '') : D[k]));
-    const owner = $('ov_owner').value, p = await save(c.id, x => R.planAct(x, { type: 'details', details: Object.fromEntries(changed.map(k => [k, det[k]])), owner, name, oldName: c.name, by: a.name, at: at() }), CG.d.saved(name), { rev: plan.rev || 0 });
+    const owner = plan.owner, p = await save(c.id, x => R.planAct(x, { type: 'details', details: Object.fromEntries(changed.map(k => [k, det[k]])), owner, name, oldName: c.name, by: a.name, at: at() }), CG.d.saved(name), { rev: plan.rev || 0 });
     if (p) { st.editD = false; CP.steps.reset(); CP.app.refresh(); }
   }
   async function onClick(e) {
@@ -240,10 +251,12 @@ CP.cpage = (function () {
       if (w === 'withdraw') { if (CP.steps.isDirty()) CP.steps.reset(); const p = await save(st.id, x => R.planAct(x, { type: 'withdraw', by: a.name, at: at() }), A.toast.withdrawn(c.name), { rev: plan.rev || 0 }); if (p) { CP.steps.reset(); CP.app.refresh(); } return; }
       if (w === 'request') return CP.reqdraw.open(st.id);
       if (w === 'duplicate') return CP.screens.planning.duplicate(st.id);
-      if (w === 'restore') { await CP.screens.planning.run({ action: 'restore', id: st.id, values: {} }, c.name); CP.steps.reset(); CP.app.refresh(); return; }
+      if (w === 'restore') { CP.screens.planning.askRestore(c); return; }
     }
     if (t.closest('[data-cpmore]')) return CP.screens.planning.menuFor(t.closest('[data-cpmore]'), st.id, true);
   }
+  /* ‹ Campaign Planning (the page may have changes: the app asks on the hash change) */
+  document.addEventListener('click', e => { const b = e.target.closest('[data-cpback]'); if (!b) return; e.preventDefault(); CP.screens.planning.goBack(); });
   function onInput(e) { const t = e.target; if (t.matches('[data-cpver]')) { st.ver = +t.value; renderPlanRO(campOf(st.id), planOf(st.id)); } }
   document.addEventListener('click', e => { if (el && el.contains(e.target) && el.offsetParent) onClick(e); });
   document.addEventListener('change', e => { if (el && el.contains(e.target) && el.offsetParent) onInput(e); });
@@ -283,7 +296,7 @@ CP.review = (function () {
       const S = CP.steps, X = C.s14, cl = S.checklist(it.plan, c, { withPlan: true }), fcm = (it.v.forecast || {}).comment, rnote = (it.v.review || {}).comment;
       out.push(sec(A.rv.plan, S.plTable(it.v) + `<div class="ov-btns"><button type="button" class="btn small" data-rvpdf>${ICON.download}<span>${esc(X.pdf.btn)}</span></button></div>`));
       out.push(sec(X.sum.readyT, `<details class="rvck"><summary data-rvck>${esc(X.sum.short(cl.errN, cl.warnN))}</summary>${S.checklistHTML(cl, { links: false })}</details>` +
-        `<div class="rv-note"><b>${esc(X.sum.finL)}:</b> ${esc(fcm || '—')}</div>` + (rnote ? `<div class="rv-note"><b>${esc(X.sum.noteL)}:</b> ${esc(rnote)}</div>` : '')));
+        `<div class="rv-note" data-rvrisk><b>${esc(C.s15.risk.title)}:</b> ${S.riskHTML(it.v)}</div>` + `<div class="rv-note"><b>${esc(X.sum.finL)}:</b> ${esc(fcm || '—')}</div>` + (rnote ? `<div class="rv-note"><b>${esc(X.sum.noteL)}:</b> ${esc(rnote)}</div>` : '')));
       out.push(sec(X.sum.sumT, S.sumHTML(it.v, c, 'rv')), sec(X.sum.expT, S.expHTML(it.v)));
       /* CR-06 §7.3 — the plan's COGS / net price against the Product Master (only the SKUs that differ) */
       const dr = R.planCogsDrift(it.v, CP.store.data().products, { prices: true }), G = P.grid;
@@ -291,6 +304,12 @@ CP.review = (function () {
         dr.map(d => `<tr><td>${esc(d.nickname || d.name)} <span class="muted small">${esc(d.code)}</span></td><td class="num">${esc(R.fmtNum(d.cogs, 2))}</td><td class="num${d.cogsDiff ? ' warnx' : ''}">${esc(R.fmtNum(d.master.cogs, 2))}</td>` +
           R.CHANNELS.map(k => { const x = d.prices[k]; return `<td class="num">${x ? `${esc(R.fmtNum(x.plan, 2))} <span class="muted small">${esc(G.mcols.vs(R.fmtNum(x.master, 2), R.pct(x.off, 0)))}</span>` : ''}</td>`; }).join('') + '</tr>').join('') +
         `</tbody></table></div><div class="muted small">${esc(A.rv.masterNote)}</div>`));
+    } else if (it.req.type === 'cancel') {
+      /* CR-15 §2.3 — a cancel request: the reason · what happens (sent with it · now) */
+      const q = it.req, X = C.s15.cx, im = q.cancel || null, now = q.status === 'pending' && it.plan.approval === 'approved' ? (R.closeChecks(U.seed(), c.id, it.plan, U.today()) || {}) : null;
+      const wait = (it.plan.requests || []).filter(x => x !== q && (x.status === 'pending' || x.status === 'returned')).length;
+      out.push(sec(X.type, `<div class="rv-reason" data-rvcxreason><b>${esc(C.req.reason)}:</b> ${esc(q.reason)}</div>` +
+        (now || im ? `<div class="rv-note" data-rvcximpact><b>${esc(X.impactL)}:</b> ${esc(X.impact(R.baht(now ? now.rev || 0 : im.sales), R.baht(now ? now.spent || 0 : im.spent), wait))}</div>` : `<div class="rv-note">${esc(X.bodyReq)}</div>`)));
     } else if (it.req.type === 'period' || it.req.type === 'close') {
       /* CR-13 §4.2 · §5.3 — a period change: from → to + the Impact (and the warning when only the time makes it better) · a close request: the note · the checks */
       const q = it.req, W = C.cpg, Q = C.req, kv = (k, v) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`;
@@ -349,13 +368,17 @@ CP.review = (function () {
     if (what === 'reject' && !(await U.confirmDialog(A.rv.rejectQ(it.c.name), it.req ? A.rv.rejectReqBody : A.rv.rejectBody, A.rv.reject, true, C.common.cancel))) return;
     const before = R.clonePlan(it.plan), step = it.req ? { approve: 'req.approve', return: 'req.return', reject: 'req.reject', withdraw: 'req.withdraw' }[what] : what;
     let p = null;
-    try { p = await CP.store.savePlan(it.c.id, x => R.planAct(x, { type: step, no: it.req ? it.req.no : undefined, by: a.name, at: R.nowLocal(), comment, steps }), { rev: it.plan.rev || 0 }); }
+    const cxApprove = !!it.req && it.req.type === 'cancel' && what === 'approve';
+    try { p = await CP.store.savePlan(it.c.id, x => R.planAct(x, { type: step, no: it.req ? it.req.no : undefined, by: a.name, at: R.nowLocal(), comment, steps }), { rev: it.plan.rev || 0 });
+      /* CR-15 §2.3 — the cancel approved: the campaign Cancelled (the list row — numbers kept · hidden from the Dashboard by its filter) */
+      if (cxApprove) await CP.store.saveList({ action: 'cancel', id: it.c.id, values: { note: it.req.reason } }, { today: U.today() }); }
     catch (x) { U.toast(x.code === 'conflict' ? A.toast.conflict : A.toast.failed); CP.app.refresh(); draw(); return; }
     const nm = it.req ? `#${it.req.no} · ${it.c.name}` : it.c.name, msg = { approve: A.toast.approved(nm), return: A.toast.returned(nm), revise: A.toast.revised(nm), reject: A.toast.rejected(nm), withdraw: A.toast.withdrawn(nm) }[what];
     if (CP.cpage.reset) CP.cpage.reset();
     CP.app.refresh();
     /* KOL — Undo for 10 s (the plan as it was, one more rev) */
-    U.toastAction(msg, A.toast.undo, async () => { try { await CP.store.savePlan(it.c.id, x => Object.assign(R.clonePlan(before), { rev: x.rev, log: x.log.concat([{ at: R.nowLocal(), by: a.name, action: 'undo', detail: what }]) })); U.toast(A.toast.undone); if (CP.cpage.reset) CP.cpage.reset(); CP.app.refresh(); } catch (y) { U.toast(A.toast.failed); } }, 10000);
+    U.toastAction(msg, A.toast.undo, async () => { try { await CP.store.savePlan(it.c.id, x => Object.assign(R.clonePlan(before), { rev: x.rev, log: x.log.concat([{ at: R.nowLocal(), by: a.name, action: 'undo', detail: what }]) }));
+      if (cxApprove) await CP.store.saveList({ action: 'restore', id: it.c.id, values: {} }, { today: U.today() }); U.toast(A.toast.undone); if (CP.cpage.reset) CP.cpage.reset(); CP.app.refresh(); } catch (y) { U.toast(A.toast.failed); } }, 10000);
     /* the next one waiting (KOL), or close */
     const nx = queue().find(x => !(x.kind === cur.kind && x.id === cur.id && x.no === cur.no));
     if (nx && what !== 'withdraw') { cur = Object.assign({}, nx, { list: queue() }); draw(); } else U.closeModal();

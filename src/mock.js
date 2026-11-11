@@ -168,29 +168,21 @@ CP.mock = (function () {
       .filter(r => r.amount > 0);
   }
 
-  /* ===================== CR-14 §12.5 (D130) — TT = Dealer 60 · Wholesale 40: each row of "Traditional Trade" cut in two (largest remainder on ฿ and on pieces) ·
-     Σ TT of a Campaign × month the same to the baht · done after the budgets and the spend were made from the rows ===================== */
-  const TT_SPLIT = [['Dealer', 60], ['Wholesale', 40]];
-  function lrInt(total, w) {
-    const sc = Number.isInteger(total) ? 1 : 100, T = Math.round(total * sc), t = w.reduce((a, b) => a + b, 0), raw = w.map(x => T * x / t), out = raw.map(Math.floor);
-    let left = T - out.reduce((a, b) => a + b, 0); raw.map((x, i) => [x - out[i], i]).sort((a, b) => b[0] - a[0] || a[1] - b[1]).forEach(([, i]) => { if (left > 0) { out[i]++; left--; } });
-    return out.map(x => x / sc);
-  }
-  function splitTT(rows) {
-    const out = []; rows.forEach(r => { if (r.channel !== 'TT' || r.sub_channel !== 'Traditional Trade') { out.push(r); return; }
-      const w = TT_SPLIT.map(x => x[1]), a = lrInt(r.amount || 0, w), q = lrInt(r.qty || 0, w);
-      TT_SPLIT.forEach(([nm], i) => { if (a[i] || q[i]) out.push(Object.assign({}, r, { sub_channel: nm, amount: a[i], qty: q[i] })); }); });
-    return out;
-  }
+  /* ===================== CR-15 §6.1 (D157) — TT = one sub-channel again: "TT total" (tt-all) — the split of CR-14 §12.5 (Dealer 60 · Wholesale 40) is gone ·
+     the rows of "Traditional Trade" keep their ฿ and pieces (Σ TT of a Campaign × month the same to the baht) · the name shown = a word of the page ===================== */
+  const TT_KEY = 'Traditional Trade';
+  const ttName = () => ((CP.content || {}).s15 || {}).ttAll || 'TT total';
+  function ttAll(rows) { const nm = ttName(); return rows.map(r => (r.channel === 'TT' && r.sub_channel === TT_KEY ? Object.assign({}, r, { sub_channel: nm }) : r)); }
   /* CR-14 §5.2 (D130) — the sub-channels (master data · Admin): id stays · name shown · key = the name in the rows of the data · share = the default of the
      Target filler (% inside its channel) · 7-Eleven new (no sales yet) */
+  /* CR-15 §6.1 — TT total (tt-all, the default name = a word of the page) · Dealer / Wholesale off (kept: plans of v0.14 used them) · ECOM + Website · LINE (no sales yet) */
   const SUBS0 = [['mt-watsons', 'MT', 'Watsons', 'Watsons', 30], ['mt-eveandboy', 'MT', 'Eveandboy', 'Eveandboy', 18], ['mt-konvy', 'MT', 'Konvy', 'Konvy', 12], ['mt-beautrium', 'MT', 'Beautrium', 'Beautrium', 12],
     ['mt-multy', 'MT', 'Multy', 'Multy', 8], ['mt-tsuruha', 'MT', 'Tsuruha', 'Tsuruha', 8], ['mt-cj', 'MT', 'CJ', 'CJ', 7], ['mt-lotuss', 'MT', "Lotus's", 'Lotuss', 5], ['mt-7eleven', 'MT', '7-Eleven', '7-Eleven', 0],
-    ['tt-dealer', 'TT', 'Dealer', 'Dealer', 60], ['tt-wholesale', 'TT', 'Wholesale', 'Wholesale', 40],
-    ['ecom-shopee', 'ECOM', 'Shopee', 'Shopee', 45], ['ecom-tiktok', 'ECOM', 'TikTok', 'Tiktok', 35], ['ecom-lazada', 'ECOM', 'Lazada', 'Lazada', 20]];
+    ['tt-all', 'TT', 'TT total', TT_KEY, 100], ['tt-dealer', 'TT', 'Dealer', 'Dealer', 60, false], ['tt-wholesale', 'TT', 'Wholesale', 'Wholesale', 40, false],
+    ['ecom-shopee', 'ECOM', 'Shopee', 'Shopee', 45], ['ecom-tiktok', 'ECOM', 'TikTok', 'Tiktok', 35], ['ecom-lazada', 'ECOM', 'Lazada', 'Lazada', 20], ['ecom-website', 'ECOM', 'Website', 'Website', 0], ['ecom-line', 'ECOM', 'LINE', 'LINE', 0]];
   const PRICE_NAME = { MT: 'retailer', TT: null, ECOM: 'list' };
-  const subsSeed = () => SUBS0.map(([id, ch, name, key, share], i) => ({ id, ch, name, key, share, priceName: PRICE_NAME[ch] || (id === 'tt-dealer' ? 'dealer' : 'wholesale'), active: true, order: i, rev: 1 }));
-  const subIdOf = (ch, key) => { const x = SUBS0.find(y => y[1] === ch && y[3] === key); return x ? x[0] : ''; };
+  const subsSeed = () => SUBS0.map(([id, ch, name, key, share, on], i) => ({ id, ch, name, key, share, priceName: PRICE_NAME[ch] || (id === 'tt-dealer' ? 'dealer' : id === 'tt-wholesale' ? 'wholesale' : null), active: on !== false, order: i, rev: 1 }));
+  const subIdOf = (ch, key) => { if (ch === 'TT' && (key === TT_KEY || key === ttName())) return 'tt-all'; const x = SUBS0.find(y => y[1] === ch && y[3] === key); return x ? x[0] : ''; };
 
   /* ===================== the seed ===================== */
   const cache = new Map();
@@ -206,7 +198,7 @@ CP.mock = (function () {
         status: cancelled ? 'cancelled' : 'ongoing', year: +c.start.slice(0, 4), note: c.note || null,
         created_at: `${created}T09:30:00`, updated_at: `${upd > created ? upd : created}T${cancelled ? '10:15' : '16:40'}:00`, owner: ownerOf(SC, c, ci), plan: 'web' });
       prods.forEach(p => out.products.push({ campaign_id: p.campaign_id, key: p.key, code: p.code, name: p.name, nickname: p.nickname, group: p.group, category: p.category, cogs: p.cogs }));
-      splitTT(tgt).forEach(r => out.sales.push(r)); splitTT(act).forEach(r => out.sales.push(r));
+      ttAll(tgt).forEach(r => out.sales.push(r)); ttAll(act).forEach(r => out.sales.push(r));
       bud.forEach(r => out.expenses.push(r)); spendOf(c, bud, act, today, SC).forEach(r => out.expenses.push(r));
       const oth = othersOf(c, tgt, SC); oth.forEach(r => out.expenses.push(r)); otherSpendOf(c, oth, today).forEach(r => out.expenses.push(r));
     });
@@ -273,7 +265,7 @@ CP.mock = (function () {
   function data(today) {
     const SC = window.CP_MOCK_SCENARIO || { campaigns: [] }, hit = dcache.get(today); if (hit && hit.sc === SC) return hit.d;
     const base = seed(today), A = SC.approval || {}, appr = A.approver || 'Ann', list = [], plans = {}, extra = [];
-    const people = (SC.people || []).map(p => ({ id: p.id, name: p.name, role: p.role, dept: p.dept || '', active: true }));
+    const people = (SC.people || []).map(p => ({ id: p.id, name: p.name, title: p.title || '', role: R.roleKey(p.role), dept: p.dept || '', active: true }));
     const at = (d, t) => `${d}T${t || '10:00:00'}`, before = (d, n, lim) => { const x = R.addDays(d, -n), y = R.addDays(today, -lim); return x < y ? x : y; };
     /* the master: one product a name — the first Campaign that sells it gives its code, COGS and price (a draft of a later Campaign uses the same code) */
     const master = new Map(), soon = R.addDays(today, 92);
@@ -321,7 +313,7 @@ CP.mock = (function () {
       const ci = (SC.campaigns || []).length + di, pr = productsOf(d, ci);
       /* a product the master has: its code · COGS · net price (the plan's snapshot) — the draft's ECOM price is a promo (−8%, skuOf) */
       pr.forEach(p => { const m = toMaster(p, d); p.code = p.key = m.code; p.cogs = m.cogs; p.price = +m.price.MT; });
-      const tgt0 = targetsOf(d, pr, SC), bud = d.mkt_budget || d.sls_budget ? budgetsOf(d, tgt0, SC) : [], tgt = splitTT(tgt0);
+      const tgt0 = targetsOf(d, pr, SC), bud = d.mkt_budget || d.sls_budget ? budgetsOf(d, tgt0, SC) : [], tgt = ttAll(tgt0);
       const skus = pr.map((p, k) => skuOf(p, d.channels, 0.92, k)); if (d.incomplete && skus[1]) skus[1].price.ECOM = '';
       const lastCode = skus.length ? skus[skus.length - 1].code : null;
       const target = tgt.filter(r => !(d.incomplete && r.product_key === lastCode)).map(r => ({ code: r.product_key, channel: r.channel, sub: subIdOf(r.channel, r.sub_channel), month: r.month, qty: r.qty }));
@@ -385,12 +377,23 @@ CP.store = (function () {
     const s = read(), list = s.list ? { updated_at: s.list.updated_at || null, rows: s.list.rows } : b.list, seed = s.list ? R.applyList(b.seed, list) : b.seed;
     /* QA-v0.13 P9 — every plan read through R.migratePlan (a plan saved before CR-13 gets its envelope step) */
     const camp = campOf(seed), plans = Object.assign({}, b.plans, s.plans || {}), td = CP.ui.today();
-    R.SUBS = s.subchannels || b.subchannels || [];
+    R.SUBS = subsNow(s.subchannels, b.subchannels);
+    /* CR-15 §10 — the settings saved in this browser (none = the defaults of the code) */
+    R.SETTINGS = s.settings || null;
     Object.keys(plans).forEach(id => { plans[id] = R.migratePlan(plans[id], camp(id), td); });
     /* QA-v0.13 B27 — people saved by v0.13.0 lost their department: it comes back from the made-up list (same id or name) */
-    const people = s.people ? s.people.map(p => (p.dept !== undefined ? p : Object.assign({}, p, { dept: ((b.people || []).find(x => x.id === p.id || x.name === p.name) || {}).dept || '' }))) : b.people;
-    st = { base: b, list, seed, plans, people, products: s.products || b.products, subchannels: R.SUBS, actor: b.actor };
+    /* CR-15 §11 — a position (title) · the role "accounting" = a Planner (staff) · people saved before keep theirs (the made-up title when the same person) */
+    const people = (s.people ? s.people.map(p => (p.dept !== undefined ? p : Object.assign({}, p, { dept: ((b.people || []).find(x => x.id === p.id || x.name === p.name) || {}).dept || '' }))) : b.people)
+      .map(p => Object.assign({}, p, { role: R.roleKey(p.role), title: p.title != null ? p.title : (((b.people || []).find(x => x.id === p.id || x.name === p.name) || {}).title || '') }));
+    st = { base: b, list, seed, plans, people, products: s.products || b.products, subchannels: R.SUBS, settings: s.settings || null, settingsLog: s.settingsLog || [], actor: b.actor };
     return st;
+  }
+  /* CR-15 §6.1 — sub-channels saved by v0.14 (Dealer · Wholesale on · no TT total / Website / LINE): the new ones added · Dealer / Wholesale off */
+  function subsNow(saved, made) {
+    if (!saved) return made || [];
+    const out = saved.map(x => Object.assign({}, x, ['tt-dealer', 'tt-wholesale'].includes(x.id) && !x.offByCr15 ? { active: false, offByCr15: true } : {}));
+    (made || []).forEach(x => { if (!out.some(y => y.id === x.id)) out.push(Object.assign({}, x)); });
+    return out;
   }
   const campOf = seed => { const m = new Map(); (seed.allCampaigns || []).concat(seed.campaigns || []).forEach(c => { if (!m.has(c.id)) m.set(c.id, c); }); return id => m.get(id) || null; };
   function write(f) { const s = read(); f(s); try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) { throw err('denied', { cause: e }); } st = null; bump(); }
@@ -409,11 +412,15 @@ CP.store = (function () {
     return next;
   }
   /* Admin — the people of the demo */
-  async function savePeople(rows) {
+  async function savePeople(rows, o = {}) {
     /* QA-v0.13 B27 — the department is kept (a plan's steps go to the people of a department) · at least one active person of Brand stays */
-    const clean = rows.map(r => ({ id: r.id || R.campaignId(r.name, []), name: String(r.name || '').trim(), role: R.roleKey(r.role), dept: R.DEPTS.includes(r.dept) ? r.dept : '', active: r.active !== false })).filter(r => r.name);
+    const clean = rows.map(r => ({ id: r.id || R.campaignId(r.name, []), name: String(r.name || '').trim(), title: String(r.title || '').trim(), role: R.roleKey(r.role), dept: R.DEPTS.includes(r.dept) ? r.dept : '', active: r.active !== false })).filter(r => r.name);
+    /* CR-15 §10.2 — at least one active person of Brand · one Approver (or Admin) · one Admin */
     if (!clean.some(r => r.active && r.dept === 'brand')) throw err('invalid', { errors: { people: 'brand' } });
-    write(s => { s.people = clean; }); return clean;
+    if (!clean.some(r => r.active && (r.role === 'manager' || r.role === 'admin'))) throw err('invalid', { errors: { people: 'approver' } });
+    if (!clean.some(r => r.active && r.role === 'admin')) throw err('invalid', { errors: { people: 'admin' } });
+    const before = data().people || [];
+    write(s => { s.people = clean; logSettings(s, 'users', o.by, o.at, peopleDiff(before, clean)); }); return clean;
   }
   /* the Campaign list (New · Edit · Cancel · Restore — D48) */
   async function saveList(change, ctx) {
@@ -441,7 +448,7 @@ CP.store = (function () {
     const all = (read().subchannels || base().subchannels).map(x => Object.assign({}, x)), i = all.findIndex(x => x.id === id);
     if (o.create ? i >= 0 : i < 0 || (o.rev != null && (all[i].rev || 0) !== o.rev)) { st = null; bump(); throw err(o.create ? 'exists' : 'conflict', { id }); }
     const next = step(o.create ? null : Object.assign({}, all[i])); if (next) { next.rev = (o.create ? 0 : all[i].rev || 0) + 1; if (o.create) all.push(next); else all[i] = next; } else all.splice(i, 1);
-    write(s => { s.subchannels = all; }); return next;
+    write(s => { s.subchannels = all; logSettings(s, 'subs', o.by, o.at, o.what || (next ? `${o.create ? '+ ' : ''}${next.name}` : `− ${id}`)); }); return next;
   }
   /* CR-14 §5.4 (D132) — a temporary SKU gets its real code: (a) an existing product → the temporary row is Merged into it · (b) a new code → it becomes a
      product of that code (NPD) · every plan using it: the code changed (sku.link · one history line each) */
@@ -460,5 +467,22 @@ CP.store = (function () {
   }
   /* the next code of a temporary SKU: TMP- + the highest number + 1 */
   const nextTemp = () => { const n = Math.max(0, ...(data().products || []).map(x => (/^TMP-(\d+)$/i.exec(x.code) || [])[1]).filter(Boolean).map(Number)); return `TMP-${String(n + 1).padStart(4, '0')}`; };
-  return { data, savePlan, savePeople, saveList, saveProduct, saveSubchannel, linkTemp, nextTemp, resetMock: reset, gen: () => gen, KEY };
+  /* ===================== CR-15 §10 — the settings (Admin) · one tab saved at a time · rev guards a save over another tab · null = the defaults again ·
+     every save → the settings history (who · when · tab · before → after, short) ===================== */
+  function logSettings(s, tab, by, at, what) { if (!by) return; s.settingsLog = (s.settingsLog || []).concat([{ at: at || R.nowLocal(), by, tab, what: what || '' }]).slice(-200); }
+  function peopleDiff(a, b) { const out = []; b.forEach(p => { const q = a.find(x => x.id === p.id); if (!q) out.push(`+ ${p.name}`); else ['name', 'title', 'role', 'dept', 'active'].forEach(k => { if (String(q[k]) !== String(p[k])) out.push(`${p.name} ${k}: ${q[k] === '' ? '—' : q[k]} → ${p[k] === '' ? '—' : p[k]}`); }); });
+    a.forEach(q => { if (!b.some(p => p.id === q.id)) out.push(`− ${q.name}`); }); return out.slice(0, 6).join(' · ') + (out.length > 6 ? ` · +${out.length - 6}` : ''); }
+  /* patch = { key: value | null (null = its default again) } · tab = the tab saved (the history) */
+  async function saveSettings(tab, patch, o = {}) {
+    const s0 = read().settings || null, rev = s0 ? s0.rev || 0 : 0;
+    if (o.rev != null && o.rev !== rev) { st = null; bump(); throw err('conflict', { tab }); }
+    write(s => { const next = Object.assign({}, s.settings || {}); Object.entries(patch || {}).forEach(([k, v]) => { if (v == null) delete next[k]; else next[k] = JSON.parse(JSON.stringify(v)); });
+      next.rev = rev + 1; next.at = o.at || R.nowLocal(); next.by = o.by || ''; next.edits = Object.assign({}, next.edits || {}, { [tab]: { at: next.at, by: next.by } });
+      s.settings = next; logSettings(s, tab, o.by, next.at, o.what || ''); });
+    return read().settings;
+  }
+  /* Restore defaults of the people / the sub-channels (their own keys of the store) */
+  async function resetPart(key, tab, o = {}) { write(s => { delete s[key]; const nx = Object.assign({}, s.settings || {}); nx.rev = ((s.settings || {}).rev || 0) + 1; nx.edits = Object.assign({}, nx.edits || {}, { [tab]: { at: o.at || R.nowLocal(), by: o.by || '' } }); s.settings = nx; logSettings(s, tab, o.by, o.at, o.what || ''); }); }
+  function logOnly(tab, by, what) { write(s => logSettings(s, tab, by, R.nowLocal(), what)); }
+  return { data, savePlan, savePeople, saveList, saveProduct, saveSubchannel, linkTemp, nextTemp, saveSettings, resetPart, logOnly, resetMock: reset, gen: () => gen, KEY };
 })();

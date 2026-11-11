@@ -18,10 +18,12 @@ CP.actor = (function () {
   const can = (action, plan, x) => R.canDo(action, get(), plan, x);
 
   /* ---------- the top bar block + the menu ---------- */
+  const titleOf = p => (p && (p.title || (p.dept ? A.depts[p.dept] : '') || A.roles[p.role])) || '';
   function draw() {
     const b = $('actorBtn'), a = get(); if (!b) return;
-    b.innerHTML = `${U.avatar(a.name)}<span class="ab-t"><span class="ab-l">${esc(A.actingAs)}</span><span class="ab-n">${esc(a.name || '—')}</span></span>${U.roleChip(a.role)}<span class="ab-c" aria-hidden="true">▾</span>`;
-    b.title = `${A.actingAs} ${a.name} · ${A.roles[a.role] || a.role} — ${A.switchUser}`; b.setAttribute('aria-label', b.title);
+    /* CR-15 §11.2 — the chip = the position (none = the department) — not the role any more */
+    b.innerHTML = `${U.avatar(a.name)}<span class="ab-t"><span class="ab-l">${esc(A.actingAs)}</span><span class="ab-n">${esc(a.name || '—')}</span></span><span class="rchip ${esc(a.role)} ptitle">${esc(titleOf(a))}</span><span class="ab-c" aria-hidden="true">▾</span>`;
+    b.title = `${A.actingAs} ${a.name} · ${titleOf(a)} · ${A.roles[a.role] || a.role} — ${A.switchUser}`; b.setAttribute('aria-label', b.title);
   }
   let menu = null;
   function closeMenu() { if (menu) { menu.remove(); menu = null; $('actorBtn').setAttribute('aria-expanded', 'false'); } }
@@ -29,7 +31,7 @@ CP.actor = (function () {
     closeMenu();
     const a = get(), list = active(), b = $('actorBtn'), r = b.getBoundingClientRect();
     menu = document.createElement('div'); menu.className = 'amenu'; menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', A.switchUser);
-    menu.innerHTML = `<div class="am-h">${esc(A.switchUser)}</div>` + (list.length ? list.map(p => `<button type="button" role="menuitemradio" aria-checked="${p.id === a.id}" class="am-o${p.id === a.id ? ' on' : ''}" data-actor="${esc(p.id)}">${U.avatar(p.name, true)}<span class="am-n">${esc(p.name)}</span>${U.roleChip(p.role)}<span class="am-k">${p.id === a.id ? '✓' : ''}</span></button>`).join('') : `<div class="am-none">${esc(A.none)}</div>`) +
+    menu.innerHTML = `<div class="am-h">${esc(A.switchUser)}</div>` + (list.length ? list.map(p => `<button type="button" role="menuitemradio" aria-checked="${p.id === a.id}" class="am-o${p.id === a.id ? ' on' : ''}" data-actor="${esc(p.id)}">${U.avatar(p.name, true)}<span class="am-n">${esc(p.name)}<span class="am-s">${esc([p.title, p.dept ? A.depts[p.dept] : ''].filter(Boolean).join(' · '))}</span></span>${U.roleChip(p.role)}<span class="am-k">${p.id === a.id ? '✓' : ''}</span></button>`).join('') : `<div class="am-none">${esc(A.none)}</div>`) +
       `<div class="am-sep"></div>` + (R.canDo('people', a).ok ? `<button type="button" role="menuitem" class="am-o am-x" data-actor-people>${esc(A.people)}</button>` : '') +
       `<button type="button" role="menuitem" class="am-o am-x" data-actor-reset title="${esc(C.demo.resetTip)}">${esc(C.demo.reset)}</button>`;
     document.body.appendChild(menu);
@@ -41,7 +43,7 @@ CP.actor = (function () {
     const b = e.target.closest('#actorBtn'); if (b) { if (menu) closeMenu(); else openMenu(); return; }
     if (!menu) return;
     const o = e.target.closest('[data-actor]'); if (o) { const id = o.dataset.actor; closeMenu(); if (id !== get().id) switchTo(id); return; }
-    if (e.target.closest('[data-actor-people]')) { closeMenu(); editPeople(); return; }
+    if (e.target.closest('[data-actor-people]')) { closeMenu(); editPeople(); return; }   /* CR-15 §10.2 — Settings › Users */
     if (e.target.closest('[data-actor-reset]')) { closeMenu(); resetDemo(); return; }
     if (!e.target.closest('.amenu')) closeMenu();
   });
@@ -52,27 +54,8 @@ CP.actor = (function () {
   });
   window.addEventListener('resize', closeMenu);
 
-  /* ---------- Admin: Edit people… (data/people.csv · Mock: localStorage) ---------- */
-  function editPeople() {
-    const rows = people().map(p => Object.assign({}, p)), Dd = C.camps.d;
-    /* QA-v0.13 B27 — a person has a department (the steps of a plan go to its people · New campaign = Brand) */
-    const row = (p, i) => `<tr data-pi="${i}"><td><input class="inp sm" data-pn value="${esc(p.name)}" aria-label="${esc(A.name)}"></td><td><select class="inp sm" data-pr aria-label="${esc(A.role)}">${R.ROLE_KEYS.map(k => `<option value="${k}"${k === p.role ? ' selected' : ''}>${esc(A.roles[k])}</option>`).join('')}</select></td>` +
-      `<td><select class="inp sm" data-pd aria-label="${esc(A.dept)}"><option value=""${p.dept ? '' : ' selected'}>${esc(A.depts.none)}</option>${R.DEPTS.map(k => `<option value="${k}"${k === p.dept ? ' selected' : ''}>${esc(A.depts[k])}</option>`).join('')}</select></td>` +
-      `<td class="c"><input type="checkbox" data-pa${p.active !== false ? ' checked' : ''} aria-label="${esc(A.active)}"></td></tr>`;
-    const body = () => `<div class="dlg-h">${esc(A.peopleTitle)}</div><div class="dlg-b"><p class="muted small">${esc(A.peopleHelp)}</p><table class="tbl simple ptbl"><thead><tr><th>${esc(A.name)}</th><th>${esc(A.role)}</th><th>${esc(A.dept)}</th><th class="c">${esc(A.active)}</th></tr></thead><tbody>${rows.map(row).join('')}</tbody></table>` +
-      `<button type="button" class="link" data-padd>${esc(A.add)}</button><div class="ferr" id="pp_err"></div></div><div class="dlg-f"><button type="button" class="btn" data-r="0">${esc(Dd.cancel)}</button><button type="button" class="btn primary" data-r="1">${esc(A.save)}</button></div>`;
-    U.openDialog(body(), true);
-    const dlg = $('dlg');
-    const read = () => dlg.querySelectorAll('tr[data-pi]').forEach(tr => { const p = rows[+tr.dataset.pi]; p.name = tr.querySelector('[data-pn]').value; p.role = tr.querySelector('[data-pr]').value; p.dept = tr.querySelector('[data-pd]').value; p.active = tr.querySelector('[data-pa]').checked; });
-    dlg.onclick = async e => {
-      if (e.target.closest('[data-padd]')) { read(); rows.push({ id: '', name: '', role: 'staff', dept: '', active: true }); dlg.innerHTML = body(); const ins = dlg.querySelectorAll('[data-pn]'); ins[ins.length - 1].focus(); return; }
-      const r = e.target.closest('[data-r]'); if (!r) return;
-      if (r.dataset.r === '0') { dlg.onclick = null; U.closeDialog(); return; }
-      read(); r.disabled = true;
-      try { await CP.store.savePeople(rows.map(p => Object.assign({}, p, { id: p.id || R.campaignId(p.name, rows.filter(x => x !== p && x.id)) }))); dlg.onclick = null; U.closeDialog(); U.toast(A.saved); draw(); document.dispatchEvent(new CustomEvent('cp:actor')); }
-      catch (x) { r.disabled = false; $('pp_err').textContent = x.errors && x.errors.people === 'brand' ? A.needBrand : C.appr.toast.failed; }
-    };
-  }
+  /* ---------- Admin: Manage users › — CR-15 §10.2: the people are edited in Settings › Users (was the Edit people… dialog) ---------- */
+  function editPeople() { location.hash = '#settings/users'; }
 
   /* CR-14.1 D149 — a plan with changes not saved: ask before acting as another person — Save as <the one acting now> · Discard · Cancel
      (else what Ploy typed would be saved in the name of Beam) */
@@ -101,5 +84,5 @@ CP.actor = (function () {
     if (await U.confirmDialog(R0.resetQ, R0.resetBody, R0.reset, true, C.common.cancel)) { if (CP.cpage && CP.cpage.reset) CP.cpage.reset(); CP.store.resetMock(); U.toast(R0.resetDone); if (CP.app) CP.app.refresh(); }
   }
   document.addEventListener('cp:plans', draw);
-  return { get, set, can, draw, people: active, editPeople, resetDemo };
+  return { get, set, can, draw, people: active, editPeople, resetDemo, titleOf };
 })();

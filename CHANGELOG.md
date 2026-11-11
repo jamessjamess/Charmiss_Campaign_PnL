@@ -1,5 +1,43 @@
 # Changelog
 
+## v0.15.0 — 07/11/2026 · CR-15: cancel needs approval · the owner locked · the campaign head + Back · the 4 steps reworked · the sign-off last · Settings · role names
+
+- **Cancel** (§2 · D151 · D152) — a reason of at least 10 characters every time (the button waits · *n more*) · a plan never sent = cancelled at once ·
+  sent before (returned · in review · approved, not closed) = **a cancel request** (*Request to cancel…*) the Executive approves / returns / rejects (not
+  their own) — what happens shown (sales actual to date · spent · the requests waiting) · while it waits: a chip (Plans · the head · Tracking · Timeline) · no
+  other request · the steps read only · approved = Cancelled (numbers kept, hidden from the Dashboard by its filter) · the requests waiting = *withdrawn
+  automatically* · Approvals: the type *Cancel campaign* · **Restore**: the Executive / Admin (a reason) · the owner of a draft it cancelled itself.
+- **The owner** (§3 · D153) — the one who makes the campaign (read only *Ploy (you)*) · Admin picks a person of Brand · step 1 and Overview: no Owner field ·
+  **Transfer owner…** (⋯, Admin only: a person of Brand + a reason · the owner's steps go with it · one history line).
+- **The campaign head** (§4.1 · D154) — one line in the banner: **‹ Campaign Planning** (back to the tab · year · search · sort · scroll of the list · a
+  link opened straight → Plans › In progress) · the name · the status · ⋯ + *Owner · dates · End marketing* — no breadcrumb · ≤ 72 px · the buttons of the
+  one acting at the right of the tabs · < 768 px only ‹. **New campaign**: *Campaign details (optional)* after the name.
+- **Step 1 = Campaign setup** (§5 · D155 · D156) — the name everywhere · no Brand (Charmiss kept in the data) · no Owner · no phasing in the envelope ·
+  **the checks bar** stuck to the bottom of the screen, the content column wide (a surface · a 1 px line · square · 56 px · no count of 0 · the last field
+  scrolls above it) · **the product search**: a click shows every product by group (the group heads stay · *Add the whole group*) in a box ≤ 360 px that
+  scrolls · typing filters it · *Add n selected* at its bottom · a click outside closes it.
+- **Step 2** (§6 · D157 – D160) — **TT total** (`tt-all`) the only TT sub-channel (Dealer / Wholesale off, kept) · ECOM + **Website** · **LINE** (not chosen by
+  default) · the seed's TT rows = TT total (Σ TT a campaign × month the same to the baht) · **the filler in 4 parts** (① channel ② sub-channels — the
+  chips of the ones sold ③ SKU ④ months · ✓ ● ✕ ○ · ‹ Back · Next › · *Will fill n cells (k SKU × j sub-channels × m months)* · Fill when ① – ④ ✓) ·
+  **the grid's 3 filters** (channel · sub-channel · SKU, several each · remembered a person a plan) instead of the tabs + *Showing ฿x of ฿y · n of m cells* ·
+  paste / fill / the row tools on the rows shown · **the sales risk** (level · why ≥ 10 · *No risk to report*) — a ✕ of step 2 · shown in step 4 · the
+  review · Overview · the PDF · High = an orange chip on the Approvals card.
+- **Step 3** (§7 · D161) — no phasing column · the months by the group's rule (Marketing → End marketing · Sales → the monthly target · Other → the same
+  every month) · ▸ a month typed = *Custom months* · *Back to automatic* · a plan saved before keeps its months.
+- **Step 4** (§8 · D162 · D163) — Ready? (a ✕ links to its field · *n left* jumps) → **Comments** (the sales risk · the Finance review + Worst / Best % ·
+  the note to the Executive) → **the P&L in 3 columns** (Worst · As planned in the middle · Best — no Finance forecast, no % a channel) + **the break-even
+  as a sum** (spend ÷ (gross profit ÷ sales) · no "GP %") → the summaries → the expenses → who · the one with the Finance review opens on its field.
+- **PDF** (§9 · D164) — Campaign + P&L + the break-even sum · Comments · (a new page) summaries · expenses · checks · **(a new page) the sign-off alone, last**:
+  the head again · *I have read all n pages* · a row a person a section (a section may have several — Sales Manager + Sales Director) from Settings › Signers.
+- **Settings** (§10 · D165) — a new menu SYSTEM › Settings (Admin only · `#settings/<tab>` · Ctrl+K): Users (was *Edit people…*) · Sub-channels (was a tab of
+  Product Master) · Holidays · Due dates (+ a live example) · Expense template · Signers · Plan defaults · Settings history — Save · Restore defaults · *Last
+  edited* · a save over another tab refused · `R.cfg()` reads them (the constants of v0.14.2 = the defaults) · nothing saved before changes by itself.
+- **Roles · positions** (§11 · D166) — Admin · **Approver** · **Planner** · Viewer (the keys stay · *accounting* → Planner) · a **position** a person (the
+  top bar chip · the sign-off rows) · Golf (Sales Director) new.
+- **Data** (§12) — `PLAN_SCHEMA` 15: Dealer / Wholesale rows → TT total (฿ kept) · their campaign prices dropped · `ver.salesRisk` · the cancel request
+  (`type: 'cancel'` · `plan.cancel`) · sub-channels saved by v0.14 get TT total · Website · LINE (Dealer / Wholesale off) · people + `title` · the store `settings`.
+- Numbers: Dashboard / Tracking unchanged (Mock anchor v0.7 the same · Σ TT the same). See `docs/CR-15.md`.
+
 ## v0.14.2 — 07/11/2026 · the last items of CR-14
 
 - **Sales target › the grid (CR-14 §6.4)** — the tools of the row chosen: **Spread this row's total** (a SKU row → its months · a

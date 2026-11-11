@@ -1,4 +1,4 @@
-# Campaign P&L — demo (Charmiss) · v0.14.2
+# Campaign P&L — demo (Charmiss) · v0.15.0
 
 A **demo** of the Campaign P&L web in the look and behaviour of KOL Management v0.1.19: **plan a Campaign in 4 steps with many
 teams**, get it approved by the Executive, **watch it run** (Campaign Tracking) — and the Dashboard of the whole year. **Every number is
@@ -6,7 +6,7 @@ made up** (CR-06 · D51): the page makes them in the browser from `data/mock-sce
 P&L Excel files. The way of the real P&L files (v0.5.0) is kept in [`archive/v0.5-real/`](archive/v0.5-real/README.md). The other retired
 code (the screens CR-07 · CR-08 · CR-13 · CR-14 took out) and the test pictures of CR-02 – CR-13 were deleted on 07/11/2026; the code of
 v0.10.0 · v0.13.0 · v0.13.1 (the 7 pages of CR-13) stays in the git history of `Charmiss_Campaign_PnL`.
-Specs: [CR-01](docs/CR-01.md) · [CR-02](docs/CR-02.md) · [CR-03](docs/CR-03.md) · [CR-04](docs/CR-04.md) · [CR-05](docs/CR-05.md) · [CR-06](docs/CR-06.md) · [CR-07](docs/CR-07.md) · [CR-08](docs/CR-08.md) · [CR-09](docs/CR-09.md) · [CR-10](docs/CR-10.md) · [CR-11](docs/CR-11.md) · [CR-12](docs/CR-12.md) · [CR-13](docs/CR-13.md) · [CR-14](docs/CR-14.md) · [CR-14.1](docs/CR-14.1.md) · QA: [QA-v0.13](docs/QA-v0.13.md) (fixed in v0.13.1) · [regression checklist](docs/REGRESSION.md).
+Specs: [CR-01](docs/CR-01.md) · [CR-02](docs/CR-02.md) · [CR-03](docs/CR-03.md) · [CR-04](docs/CR-04.md) · [CR-05](docs/CR-05.md) · [CR-06](docs/CR-06.md) · [CR-07](docs/CR-07.md) · [CR-08](docs/CR-08.md) · [CR-09](docs/CR-09.md) · [CR-10](docs/CR-10.md) · [CR-11](docs/CR-11.md) · [CR-12](docs/CR-12.md) · [CR-13](docs/CR-13.md) · [CR-14](docs/CR-14.md) · [CR-14.1](docs/CR-14.1.md) · [CR-15](docs/CR-15.md) · QA: [QA-v0.13](docs/QA-v0.13.md) (fixed in v0.13.1) · [regression checklist](docs/REGRESSION.md).
 
 ## Open it
 
@@ -25,16 +25,18 @@ Double-click `index.html` (Edge or Chrome, `file://`). No server, no install, no
 - `?i18n=check` (dev): a panel in the corner + `console.table` — (a) English words with no Thai · (b) Thai keys English does not have ·
   (c) functions whose arguments differ · (d) English words on screen that are not kept and not data. Every change closes with 0.
 - **Acting as** (top bar — no login): choose who you act as. Every action is saved with that name; each browser tab can act as another
-  person. The people of the demo and their department (CR-07 §10):
+  person. The people of the demo — a **position** (shown on the top bar and on the sign-off page of the PDF), a department and a **role**
+  (CR-15 §11: **Admin · Approver · Planner · Viewer** — the keys `admin · manager · staff · viewer` stay):
 
-| Person | Department | Does |
+| Person | Position · Department (role) | Does |
 |---|---|---|
-| Ploy · Nok | Brand (Staff) | New campaign · **1 Campaign brief** · **4 Submit** (the owner of their plans) · Period change · Close campaign |
-| Beam | Sales (Staff) | **2 Sales target** · **3b Sales expenses** |
-| Fah | Marketing (Staff) | **3a Marketing expenses** |
-| Mai | Finance (Staff) | **3c Other expenses** · **4 Finance review** |
-| Ann | Executive (Manager) | approves: Approve · **Revise** (the steps to do again) · Reject · every request (Budget · Period · Close) |
-| Admin | — | everything · *Edit people…* · Reopen a closed Campaign · Product Master › Sub-channels · **Link ERP code** of a temporary SKU (a task from the time the plan is sent · Due = Start − 10 working days) |
+| Ploy · Nok | Brand Manager · Brand (Planner) | New campaign (the owner = the one who makes it) · **1 Campaign setup** · **4 Submit** · Cancel / Request to cancel · Period change · Close |
+| Beam | Sales Manager · Sales (Planner) | **2 Sales target** (+ the sales risk) · **3b Sales expenses** |
+| Golf | Sales Director · Sales (Planner) | no task in the system — signs the PDF (Sales target · Sales expenses) |
+| Fah | Marketing Manager · Marketing (Planner) | **3a Marketing expenses** |
+| Mai | Finance Manager · Finance (Planner) | **3c Other expenses** · **4 Finance review** (+ Worst / Best %) |
+| Ann | Managing Director · Executive (Approver) | approves: Approve · **Revise** · Reject · every request (Budget · Period · Close · **Cancel**) · Restore a cancelled campaign |
+| Admin | System Admin (Admin) | everything · **Settings** (CR-15 §10) · Transfer owner · Reopen a closed Campaign · **Link ERP code** of a temporary SKU (from the time the plan is sent · Due = Start − 10 working days) |
 
 ## Where the data is (D52)
 
@@ -55,7 +57,8 @@ Double-click `index.html` (Edge or Chrome, `file://`). No server, no install, no
 | WORK | **Dashboard** — the year: **Overview · P&L · Sales · Expenses** (CR-10) · toolbar in one line = **Year** · Status …… *As of dd/mm/yyyy* ⓘ · Export | `#dashboard/overview` · `#dashboard/pnl` · `#dashboard/sales` · `#dashboard/expenses` |
 | WORK | **Campaign Tracking** (CR-11 — was Campaign Monitor) — one approved Campaign: **Summary · P&L · Sales · Expenses · History** | `#tracking/<id>/<tab>` |
 | WORK | **Campaign Planning** — **Plans · Timeline · My tasks (n) · My requests (n)** (an Executive: Approvals) · **the campaign page** (CR-13): a draft = the plan in 4 steps (CR-14) · approved = Overview · Plan · Requests · History | `#planning/plans` … `#planning/<id>` · `#planning/<id>/overview\|plan\|requests\|history` · `#planning/<id>/plan/<step>` |
-| MASTER DATA | **Product Master** — **Products** (the SKUs a plan can use · 50 rows a page · temporary SKUs) · **Sub-channels** (CR-14) | `#products` · `#products/subchannels` |
+| MASTER DATA | **Product Master** — the SKUs a plan can use · 50 rows a page · temporary SKUs (the sub-channels moved to Settings — CR-15) | `#products` |
+| SYSTEM | **Settings** (CR-15 §10 — Admin only) — **Users · Sub-channels · Holidays · Due dates · Expense template · Signers · Plan defaults · Settings history** | `#settings/<tab>` |
 
 - **Every Dashboard tab** (CR-08 §2): no question line · no year bar · KPI 4 cards in one row with one anatomy — value + grey suffix · a bar
   (+ the black **Time gone** tick where the number moves with the time) · **a caption of one line** `% · what is left · the time`
@@ -129,39 +132,54 @@ Double-click `index.html` (Edge or Chrome, `file://`). No server, no install, no
 - **No auto close**: an ended Campaign is *Ended · to close* until its close request is approved · My tasks of the owner: *Close campaign*
   Due = End + 30 days (late = red) · it still takes late invoices, a Budget change, a Period change.
 
-## A plan in 4 steps (CR-14 · D126 – D141)
+## A plan in 4 steps (CR-14 · D126 – D141 · CR-15)
 
 | # | Step (key) | Department (who by default) | What | Opens when |
 |---|---|---|---|---|
-| 1 | **Campaign brief** (`brief`) | Brand (the owner) | name · dates · *Campaign details (optional)* · products (search · a whole group · paste codes · temporary SKU) · **estimated target** · **spend envelope** % of the target (Marketing · Sales · Other or *No expense*) · who does each step + the dues | at once |
-| 2 | **Sales target** (`target`) | Sales (Beam) | the sub-channels sold · the prices used (standard / campaign) · the **target filler** (% ↔ ฿) · the grid **SKU × sub-channel × month** | the Brief has a SKU |
-| 3 | **Expense lines** 3a (`exp_mkt`) · 3b (`exp_sls`) · 3c (`exp_oth`) | Marketing (Fah) · Sales (Beam) · Finance (Mai) | the lines of each group, **prefilled from the template** × the envelope | the Brief has that group's envelope |
-| 4 | **Summary & submit** — Finance review (`fin`) · Submit (`submit`) | Finance (Mai) · Brand (the owner) | the checklist (✕ blocks · ⚠ does not) · one **P&L** (As planned · Finance forecast · Worst · Best) · summaries · the Finance comment · the note to the Executive · **Export PDF** · Export (.xlsx) · Submit | Finance: 2 and 3 done · Submit: no ✕ |
+| 1 | **Campaign setup** (`brief` — was *Campaign brief*, CR-15 §5) | Brand (the owner) | name · *Campaign details (optional)* · dates · products (**a click on the search = every product by group** · type to filter · a whole group · paste codes · temporary SKU) · **estimated target** · **spend envelope** % of the target (Marketing · Sales · Other or *No expense* — no phasing) · who does each step + the dues | at once |
+| 2 | **Sales target** (`target`) | Sales (Beam) | the prices used · the **target filler in 4 parts** (① channel ② sub-channels — the ones sold are picked here ③ SKU ④ months · Fill when ① – ④ ✓) · the grid **SKU × sub-channel × month** with **3 filters** (channel · sub-channel · SKU — *Showing ฿x of ฿y*) · **the sales risk** (level + why, or *No risk to report* — needed to mark it done) | the setup has a SKU |
+| 3 | **Expense lines** 3a (`exp_mkt`) · 3b (`exp_sls`) · 3c (`exp_oth`) | Marketing (Fah) · Sales (Beam) · Finance (Mai) | the lines of each group, **prefilled from the template** × the envelope · the months **by the group's rule** (a line typed by month = *Custom months* · *Back to automatic*) | the setup has that group's envelope |
+| 4 | **Summary & submit** — Finance review (`fin`) · Submit (`submit`) | Finance (Mai) · Brand (the owner) | Ready? (a ✕ links to its field) → **Comments** (the sales risk · the Finance review + Worst / Best % · the note to the Executive) → **P&L in 3 columns** (Worst · As planned · Best) + **the break-even as a sum** → the summaries → the expenses → who did what · **Export PDF** (the sign-off alone on the last page) · Export (.xlsx) · Submit | Finance: 2 and 3 done · Submit: no ✕ |
 
+- **The campaign head** (CR-15 §4.1): ‹ Campaign Planning (back to the tab · search · sort · scroll of the list) · the name · the status · ⋯ — the buttons
+  of the one acting sit at the right of the tabs. **Cancel** (CR-15 §2): a reason of 10 characters or more · a plan never sent = at once · sent before =
+  a **cancel request** the Executive decides (the other requests wait · the ones waiting are withdrawn when approved) · **Restore**: the Executive / Admin
+  (a reason) · the owner of a draft it cancelled itself. **The owner** = the one who made it (Admin picks a person of Brand) · **Transfer owner…** = Admin.
 - The target filler can **split the SKU shares by channel** (a column a channel, each 100% · 0% = not sold there) · the checklist ends with **Whole plan** ·
   Acting as another person with changes not saved asks *Save as … · Discard · Cancel* · under 1280 px the stepper is one row (CR-14.1).
-- The target grid: the tools of the row chosen (Spread this row's total · Copy from another row · Clear row) and a column **% of target** · Expense lines ›
-  *Show all months* has the grid toolbar (Fill right · Spread total · Clear row · Undo · Redo) (v0.14.2).
-- **2 and 3 run at the same time** (the envelope is a % of the target — nobody waits) · a page opened before the Brief is done shows
-  *Brief not finished — products / envelope may change* · a done step: **Edit this step** (its assignee · the owner · Admin) · editing 2 or 3
-  after Finance confirmed → Finance review *Needs re-check* · the Executive can send back Brief · 2 · 3a · 3b · 3c.
-- The P&L bar under the stepper (Target · Campaign spend · A&P · Plan profit · Margin · ROI · *See P&L*) · the checks of the page in the bar
-  at the bottom with *Save draft* · *Mark step done* · **no GP % in Planning** (Dashboard / Tracking keep it).
+- The target grid: the tools of the row chosen (Spread this row's total · Copy from another row · Clear row — on the rows shown) and a column
+  **% of target** · Expense lines › *Show all months* has the grid toolbar (Fill right · Spread total · Clear row · Undo · Redo) (v0.14.2).
+- **2 and 3 run at the same time** (the envelope is a % of the target — nobody waits) · a page opened before the setup is done shows
+  *Campaign setup not finished — products / envelope may change* · a done step: **Edit this step** (its assignee · the owner · Admin) · editing 2 or 3
+  after Finance confirmed → Finance review *Needs re-check* · the Executive can send back Campaign setup · 2 · 3a · 3b · 3c.
+- The P&L bar under the stepper (Target · Campaign spend · A&P · Plan profit · Margin · ROI · *See P&L*) · the checks of the page in **the bar
+  stuck to the bottom** (the content column wide · no count of 0) with *Save draft* · *Mark step done* · **no GP % in Planning** (Dashboard / Tracking keep it).
 - Old plans and old routes: every plan is read through `R.migratePlan` (`schema 14`: 1 + 2 + env → brief · 3 → target · 4a/4b/4c →
-  3a/3b/3c · 5 → fin · 6 → submit) · `#planning/<id>/plan/details|products|envelope` → Brief · `target` → Sales target · `budget` →
-  Expense lines · `forecast|review` → Summary & submit.
+  3a/3b/3c · 5 → fin · 6 → submit · **`schema 15`** (CR-15 §12): the target rows of Dealer / Wholesale = **TT total** (฿ and pieces added up — Σ TT
+  the same to the baht) · an expense line whose months were not its group's rule = *Custom months*) · `#planning/<id>/plan/details|products|envelope` →
+  Campaign setup · `target` → Sales target · `budget` → Expense lines · `forecast|review` → Summary & submit · `#products/subchannels` → Settings › Sub-channels.
 
-### Where to change the rules (one place each — `src/rules-plan.js`)
+### Where to change the rules — **Settings** (CR-15 §10 · Admin · `#settings/<tab>`)
 
-- **`DUE_RULES`** — working days: `brief 5 · work 10 (2 ∥ 3) · summary 3 · approval 5 · buffer 10` (= 33) · `squeezeMin 12`. A = the
-  working days from today to Start: A ≥ 33 = back from Start · 12 ≤ A < 33 = every part × A ÷ 33 (≥ 1, the rounding on the Buffer) ·
-  A < 12 or started = forward from today (Brief +1 · 2 ∥ 3 +3 · Finance +4 · Submit +5).
-- **`HOLIDAYS`** — `fixed` (mm-dd, every year: 01-01 · 04-06 · 04-13/14/15 · 05-01 · 05-04 · 06-03 · 07-28 · 08-12 · 10-13 · 10-23 · 12-05 ·
-  12-10 · 12-31) · `dates` (yyyy-mm-dd once: the lunar holidays · substitution days · company days — add them here). Now (CR-14.1): 07/12/2026 · the BOT
-  bank holidays of 2027 (22/02 · 03/05 · 20/05 · 19/07 · 25/10 · 06/12) · the company's own days: when HR confirms them.
-- **`EXP_TEMPLATE`** — the template of the expense lines: `[line, % of the group's envelope, phasing]` for marketing · sales · other (0 % = the
-  line comes unticked) · the phasings `even · mkt · sales · before · first · one · custom`.
-- The Platform Fee suggestion = `platformFeeRate` of `data/mock-scenario.js` (12%) × the ECOM target.
+The values below were constants of `src/rules-plan.js` (CR-14); now they are edited in the page and read through **`R.cfg()`** (one place ·
+`R.CFG0` = the defaults = the values of v0.14.2). Each tab: Save · **Restore defaults** (asked in the page) · *Last edited: who · when* · every
+save in **Settings history**. Kept in this browser (`CP.store`: `settings` · `people` · `subchannels`, a `rev` against a save over another
+tab) · **Reset demo data** = the defaults. Nothing saved before changes by itself: a new value serves what is made from now on (a new plan ·
+*Recalculate due dates* · *Prefill* · a PDF opened again).
+
+- **Users** — name · position · department · role · active · + person (was *Edit people…*) · at least one active person of Brand · one Approver · one Admin.
+- **Sub-channels** — channel · name · price name · active · order · the default share (read only, from the actual sales) · delete only a sub-channel never used.
+  TT = **TT total** (`tt-all`) · Dealer / Wholesale off (kept) · ECOM + Website · LINE (CR-15 §6.1).
+- **Holidays** — a list a year: date · name · kind (*every year* · *this year only* · *company holiday*). The defaults: the fixed bank holidays +
+  07/12/2026 + the BOT days of 2027 (CR-14.1). The company's own days: here (when HR confirms them).
+- **Due dates** — working days: Campaign setup 5 · Sales target ∥ Expense lines 10 · Summary 3 · Approval 5 · Buffer 10 (= 33) · urgent below 12 +
+  a live example (Start 01/03/2027 → …). A = the working days from today to Start: A ≥ 33 back from Start · 12 ≤ A < 33 every part × A ÷ 33 ·
+  A < 12 or started = forward from today.
+- **Expense template** — 3 groups: line · in the template · % (the lines in the template = 100 a group) · the Platform Fee suggested (12 % of the
+  ECOM target). The months of a line follow its group (CR-15 §7.2): Marketing to End marketing · Sales as the monthly target · Other the same every month.
+- **Signers** — the rows of the sign-off page of the PDF: section · position · name = the step's owner / a person / blank · order (≤ 12 rows).
+- **Plan defaults** — the A&P warning (20 %) · Worst / Best (80 % · 110 %) · ฿ off the envelope still complete (฿100) · the SKU shares by role (Hero 2 · Core 1 · GWP 0).
+
 ## Time gone · Pace · issues — one rule everywhere (CR-07 §3 · D67 · D68)
 
 | Value | How |
@@ -212,20 +230,21 @@ src/mock.js               the demo data from mock-scenario.js (+ the Product Mas
 src/ui.js · ui-range.js · ui-grid.js   shared UI (kpiCard + Time gone tick · paceBar · issueChip · donut · timelineLite · rowBars · the axis
                           inside the card · 50-row pager · periodHTML · historyHTML …) · the month-range picker · the one editable grid
 src/xlsx.js · export.js   the .xlsx writer · the rows of each card (Table view = Export)
-src/actor.js              Acting as (top bar · Switch user · Edit people… · Reset demo data) → CP.actor
+src/actor.js              Acting as (top bar: the position · Switch user · Manage users › · Reset demo data) → CP.actor
 src/screen-dashboard.js   banner · the 4 tabs · Year · Status · As of ⓘ · Export · the shared KPI cards → CP.screens.dashboard · CP.dash
 src/screen-overview.js · screen-pnl.js · screen-sales.js · screen-expenses-tab.js   the Dashboard tabs → CP.tabs.* (+ CP.pnl: statement · waterfall · budget table)
 src/screen-tracking.js    Campaign Tracking (CR-11 — was screen-monitor.js)               → CP.screens.tracking
 src/screen-planning.js    Campaign Planning: Plans · Timeline · My tasks · Approvals · New campaign drawer → CP.screens.planning
 src/screen-timeline.js    Planning › Timeline (Gantt)                                     → CP.ktimeline
-src/screen-steps.js       the 4 steps of a plan (CR-14): Brief · Sales target · Expense lines · Summary & submit · the P&L bar · the PDF → CP.steps
+src/screen-steps.js       the 4 steps of a plan (CR-14 · CR-15): Campaign setup · Sales target · Expense lines · Summary & submit · the P&L bar · the PDF → CP.steps
 src/screen-plan.js        the campaign page (Overview · Plan · Requests · History — the Plan tab of a draft = CP.steps)
                           · the review · Request budget · Period change · Close         → CP.cpage · CP.review · CP.reqdraw · CP.chgdraw
 src/screen-products.js    Product Master · its drawer                                     → CP.screens.products · CP.products
+src/screen-settings.js    Settings (CR-15 §10): Users · Sub-channels · Holidays · Due dates · Expense template · Signers · Plan defaults · history → CP.screens.settings
 src/app.js                shell: side menu · top bar (Acting as · ไทย │ EN · Light │ Dark │ System · Display) · Ctrl+K · route (+ the old routes)
 src/styles.css · fonts/   tokens (KOL Light / Dark) and components · Noto Sans Thai (SIL OFL 1.1)
-docs/                     CR-01.md … CR-14.md · CR-14.1.md · QA-CR13.md · QA-v0.13.md · REGRESSION.md · ref/ (KOL pictures)
-                          · tc-cr14/ (pictures of CR-14 · before / after · PDF samples)
+docs/                     CR-01.md … CR-14.md · CR-14.1.md · CR-15.md · QA-CR13.md · QA-v0.13.md · REGRESSION.md · ref/ (KOL pictures)
+                          · tc-cr14/ · tc-cr15/ (pictures of CR-14 / CR-15 · before / after · PDF samples)
 archive/                  v0.5-real/ (the real P&L-file way)
 ```
 

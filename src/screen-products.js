@@ -4,7 +4,7 @@
    Campaigns (how many · their names in the tooltip) · ⋯ (Edit · View campaigns · Discontinue / Reactivate · Delete — Admin, never used).
    The drawer (New / Edit · read only for Staff · Viewer · Accounting): the checks of R.productChecks · the code fixed once a plan uses it · Used in campaigns · History
    (who · when · field · old → new). Discontinue = not offered to a new plan · the plans that have it keep it · Dashboard numbers never change with the master.
-   CR-14 §5: two tabs Products | Sub-channels (Admin: add · rename · order · on / off · delete only when never used) · the net price of a sub-channel (subPrice — empty =
+   CR-14 §5: the net price of a sub-channel (subPrice — empty = the price of its channel · CR-15: not for TT · the Sub-channels tab moved to Settings ›) · (subPrice — empty =
    the price of its channel) · a temporary SKU (TMP-0001 · Temporary (no ERP code yet)) · Link the real code (Admin: an existing product → Merged · a new code → NPD). */
 CP.screens = CP.screens || {};
 CP.products = (function () {
@@ -21,6 +21,8 @@ CP.products = (function () {
   const SORTS = ['code', 'name', 'category', 'status', 'updated'], TABS = ['all', 'npd', 'active', 'clearance', 'temp', 'discontinued'], ST_RANK = { temp: 0, npd: 1, active: 2, clearance: 3, discontinued: 4, merged: 5 };
   const isAdmin = () => { const a = me(); return !!a && a.role === 'admin'; };
   const subsAll = () => (CP.store.data().subchannels || []).slice().sort((a, b) => R.CHANNELS.indexOf(a.ch) - R.CHANNELS.indexOf(b.ch) || (a.order || 0) - (b.order || 0));
+  /* CR-15 §6.1 — TT uses the price of its channel (no sub-channel price shown) */
+  const subsP = () => subsAll().filter(x => x.ch !== 'TT');
   if (!SORTS.includes(st.sort)) st.sort = 'code';
   if (!TABS.includes(st.tab)) st.tab = 'all';
   const keep = () => pref.setJson('prods', { tab: st.tab, cat: st.cat, group: st.group, sort: st.sort, view: st.view });
@@ -33,16 +35,15 @@ CP.products = (function () {
   function render() {
     sec = $('tab-products');
     if (!sec.dataset.built) {
-      sec.innerHTML = `<div class="pbanner"><h1>${esc(M.title)} <span class="pbsub" id="p_sum"></span></h1></div><div class="ptabs pviews" role="tablist" id="p_view"></div><div class="toolbar ctools" id="p_tools"></div>` +
+      sec.innerHTML = `<div class="pbanner"><h1>${esc(M.title)} <span class="pbsub" id="p_sum"></span></h1></div><div id="p_view"></div><div class="toolbar ctools" id="p_tools"></div>` +
         `<div class="sttabs ktabs" role="tablist" id="p_tabs"></div><div class="card ktable" id="p_table"></div>`;
       sec.addEventListener('click', onClick); sec.addEventListener('change', onChange);
       sec.addEventListener('input', e => { if (e.target.matches('[data-pq]')) { st.q = e.target.value; st.page = 1; drawTabs(); drawTable(); } });
       sec.addEventListener('keydown', e => { const tr = e.target.closest('tr[data-pcode]'); if (tr && e.target === tr && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openForm(tr.dataset.pcode); } });
       sec.dataset.built = '1';
     }
-    $('p_view').innerHTML = ['products', 'subs'].map(v => `<a role="tab" href="#products${v === 'subs' ? '/subchannels' : ''}" data-pview="${v}" class="${st.view === v ? 'on' : ''}" aria-selected="${st.view === v}">${esc(M.view[v])}</a>`).join('');
-    const subs = st.view === 'subs'; $('p_tabs').classList.toggle('hidden', subs);
-    if (subs) { drawSubsTools(); drawSubs(); return; }
+    /* CR-15 §10.2 — the Sub-channels tab moved to Settings: one note (the Admin) until it is opened or closed */
+    $('p_view').innerHTML = isAdmin() && pref.get('subsMoved', '') !== '1' ? `<div class="nsband pmoved"><span class="nsb-t"><a href="#settings/subs" data-pmoved>${esc(C.s15.set.subsMoved)}</a></span><button type="button" class="icon-btn" data-pmoved-x aria-label="${esc(C.common.close)}">${ICON.close}</button></div>` : '';
     drawTools(); drawTabs(); drawTable();
   }
   const fold = t => R.foldText(String(t == null ? '' : t));
@@ -185,7 +186,7 @@ CP.products = (function () {
       `<div class="frow f4">${inp('pf_cogs', 'cogs', D.cogs, { req: true, num: true, mode: 'decimal', help: D.exVat })}${R.CHANNELS.map(k => inp('pf_p' + k, 'price.' + k, D.price(k), { num: true, mode: 'decimal', val: v.price[k] == null ? '' : v.price[k] })).join('')}</div>` +
       `<div class="help">${esc(D.priceHelp)}</div>` +
       /* CR-14 §5.3 — the net price of a sub-channel (empty = the price of its channel) */
-      `<fieldset class="field psubs"><legend>${labelInfo(D.subT, C.s14.netTip)}</legend>${R.CHANNELS.map(ch => { const xs = subsAll().filter(x => x.ch === ch && (x.active !== false || money(v.subPrice[x.id]) != null)); return xs.length ? `<div class="psubrow"><b>${esc(C.channel[ch])}</b>` +
+      `<fieldset class="field psubs"><legend>${labelInfo(D.subT, C.s14.netTip)}</legend>${R.CHANNELS.filter(ch => ch !== 'TT').map(ch => { const xs = subsAll().filter(x => x.ch === ch && (x.active !== false || money(v.subPrice[x.id]) != null)); return xs.length ? `<div class="psubrow"><b>${esc(C.channel[ch])}</b>` +
         xs.map(x => `<label class="tb-pin"><span>${esc(x.name)}</span><input class="inp sm num" data-psub="${esc(x.id)}" inputmode="decimal" value="${esc(v.subPrice[x.id] == null ? '' : v.subPrice[x.id])}" placeholder="${esc(fmt2(v.price[ch]))}"${dis}></label>`).join('') + '</div>' : ''; }).join('')}<div class="help">${esc(D.subHelp)}</div></fieldset>` +
       `<div class="field"><label for="pf_note">${esc(D.note)}</label><textarea id="pf_note" class="inp" rows="2" maxlength="300" data-pf="note"${dis}>${esc(v.note || '')}</textarea></div>` +
       (p ? `<section class="psec" id="pf_use"><h4>${esc(D.used)} <span class="n">${F.use.length}</span></h4>${use}</section><section class="psec"><h4>${esc(D.history)}</h4>${hist}</section>` : '') +
@@ -258,67 +259,20 @@ CP.products = (function () {
       catch (x) { e.textContent = x.code === 'exists' ? L.codeDup(to) : C.appr.toast.failed; }
     }));
   }
-  /* ---------- CR-14 §5.2 — Sub-channels: channel · name · price name · active · order · used in campaigns (plans + actual sales) · Admin edits ---------- */
-  function subUse(x) {
-    const ids = new Set(); Object.values(plans()).forEach(p => { if ((p.versions || []).some(v => (v.subs || []).includes(x.id) || (v.target || []).some(r => r.sub === x.id))) ids.add(p.id); });
-    ((U.seed().sales) || []).forEach(r => { if (r.scenario === 'actual' && r.channel === x.ch && r.sub_channel === x.name) ids.add(r.campaign_id); });
-    return ids.size;
-  }
-  function drawSubsTools() {
-    const xs = subsAll(); $('p_sum').textContent = M.sub.n(xs.length);
-    $('p_tools').innerHTML = `<span class="muted small">${esc(isAdmin() ? M.sub.offNote : M.sub.readOnly)}</span><span class="spacer"></span>` + (isAdmin() ? `<button type="button" class="btn primary" data-psadd>${ICON.plus}<span>${esc(M.sub.add)}</span></button>` : '');
-  }
-  function drawSubs() {
-    const S = M.sub, K = S.cols, ad = isAdmin(), xs = subsAll();
-    $('p_table').innerHTML = `<div class="tablewrap"><table class="tbl port pstbl"><thead><tr><th>${esc(K.ch)}</th><th>${esc(K.name)}</th><th>${esc(K.priceName)}</th><th>${esc(K.active)}</th><th class="num">${esc(K.order)}</th><th class="num">${esc(K.used)}</th>${ad ? '<th></th>' : ''}</tr></thead><tbody>` +
-      xs.map(x => { const n = subUse(x); return `<tr data-psid="${esc(x.id)}"${x.active === false ? ' class="pdisc"' : ''}><td><b>${esc(C.channel[x.ch])}</b></td><td>${esc(x.name)}</td><td>${esc(C.s14.priceName[x.priceName] || x.priceName || '—')}</td>` +
-        `<td>${x.active === false ? `<span class="st pdiscontinued">${esc(S.off)}</span>` : `<span class="st pactive">${esc(S.on)}</span>`}</td><td class="num">${esc(String(x.order == null ? '' : x.order))}</td><td class="num">${n || none()}</td>` +
-        (ad ? `<td class="nowrap"><button type="button" class="btn small" data-psedit="${esc(x.id)}">${esc(S.edit)}</button> <button type="button" class="btn small ghost" data-psdel="${esc(x.id)}"${n ? ` disabled title="${esc(S.usedNoDel)}"` : ''}>${esc(S.del)}</button></td>` : '') + '</tr>'; }).join('') + '</tbody></table></div>';
-  }
-  function openSub(id) {
-    const S = M.sub, x = id ? subsAll().find(y => y.id === id) : null; if (id && !x) return;
-    const v = x ? Object.assign({}, x) : { ch: 'MT', name: '', priceName: 'retailer', order: 1 + Math.max(0, ...subsAll().filter(y => y.ch === 'MT').map(y => y.order || 0)), active: true };
-    U.openDialog(`<div class="dlg-h">${esc(x ? S.editT(x.name) : S.addT)}</div><div class="dlg-b kform">` +
-      `<div class="frow"><div class="field"><label for="ps_ch">${esc(S.cols.ch)}</label><select id="ps_ch" class="inp"${x ? ' disabled' : ''}>${R.CHANNELS.map(k => `<option value="${k}"${v.ch === k ? ' selected' : ''}>${esc(C.channel[k])}</option>`).join('')}</select></div>` +
-      `<div class="field"><label for="ps_name">${esc(S.cols.name)} <span class="req">*</span></label><input id="ps_name" class="inp" maxlength="40" value="${esc(v.name)}"></div></div>` +
-      `<div class="frow"><div class="field"><label for="ps_pn">${esc(S.cols.priceName)}</label><select id="ps_pn" class="inp">${Object.keys(C.s14.priceName).map(k => `<option value="${k}"${v.priceName === k ? ' selected' : ''}>${esc(C.s14.priceName[k])}</option>`).join('')}</select></div>` +
-      `<div class="field"><label for="ps_ord">${esc(S.cols.order)}</label><input id="ps_ord" class="inp num" inputmode="numeric" value="${esc(String(v.order || ''))}"></div></div>` +
-      `<label class="chk"><input type="checkbox" id="ps_on"${v.active !== false ? ' checked' : ''}><span>${esc(S.on)}</span></label><div class="help">${esc(S.offNote)}</div><div class="ferr" id="ps_e"></div></div>` +
-      `<div class="dlg-f"><button type="button" class="btn" data-r="0">${esc(C.common.cancel)}</button><button type="button" class="btn primary" data-r="1">${esc(S.save)}</button></div>`);
-    const d = $('dlg'), e = $('ps_e'); $('ps_name').focus();
-    d.querySelectorAll('[data-r]').forEach(b => b.addEventListener('click', async () => {
-      if (b.dataset.r !== '1') { U.closeDialog(); return; }
-      const ch = $('ps_ch').value, name = $('ps_name').value.trim(), ord = +$('ps_ord').value || 0;
-      if (!name) { e.textContent = S.nameReq; return; }
-      if (subsAll().some(y => y.ch === ch && y.id !== id && fold(y.name) === fold(name))) { e.textContent = S.nameDup; return; }
-      const nid = id || (() => { const base = `${ch.toLowerCase()}-${fold(name).replace(/[^a-z0-9\u0E00-\u0E7F]+/g, '-').replace(/^-|-$/g, '') || 'sub'}`; let k = base, i = 2; while (subsAll().some(y => y.id === k)) k = `${base}-${i++}`; return k; })();
-      try { await CP.store.saveSubchannel(nid, prev => Object.assign({}, prev || { id: nid, ch }, { name, priceName: $('ps_pn').value, order: ord, active: $('ps_on').checked }), x ? { rev: x.rev || 0 } : { create: true }); U.closeDialog(); U.toast(S.saved(name)); refresh(); }
-      catch (y) { e.textContent = y.code === 'conflict' ? M.toast.conflict : C.appr.toast.failed; }
-    }));
-  }
-  async function delSub(id) {
-    const S = M.sub, x = subsAll().find(y => y.id === id); if (!x || !isAdmin() || subUse(x)) return;
-    if (!(await U.confirmDialog(S.delQ(x.name), S.delBody, S.del, true, C.common.cancel))) return;
-    try { await CP.store.saveSubchannel(id, () => null, { rev: x.rev || 0 }); U.toast(S.deleted(x.name)); refresh(); } catch (y) { U.toast(C.appr.toast.failed); }
-  }
-
   /* ---------- events of the page ---------- */
   function exportNow() {
     const H = M.cols, cs = camps(), P = plans(), rows = sorted(filtered());
     U.saveXlsx(M.file, st.tab === 'all' ? M.all : M.state[st.tab], [{ key: 'products', title: M.title,
-      header: [H.code, H.barcode, M.d.name, M.d.nickname, H.group, H.category, H.status, M.d.launch, H.cogs].concat(R.CHANNELS.map(k => H.price(k)), subsAll().map(x => M.x.subPrice(x.ch, x.name)), [H.campaigns, M.x.names, M.x.updated, M.d.note]),
-      cols: rows.length ? ['text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'money', 'money', 'money', 'money'].concat(subsAll().map(() => 'money'), ['num', 'text', 'text', 'text']) : [],
+      header: [H.code, H.barcode, M.d.name, M.d.nickname, H.group, H.category, H.status, M.d.launch, H.cogs].concat(R.CHANNELS.map(k => H.price(k)), subsP().map(x => M.x.subPrice(x.ch, x.name)), [H.campaigns, M.x.names, M.x.updated, M.d.note]),
+      cols: rows.length ? ['text', 'text', 'text', 'text', 'text', 'text', 'text', 'text', 'money', 'money', 'money', 'money'].concat(subsP().map(() => 'money'), ['num', 'text', 'text', 'text']) : [],
       rows: rows.map(p => { const use = R.productUse(p.code, P);
         return [{ v: p.code, bold: true }, p.barcode || '', p.name, p.nickname, p.group, p.category, M.state[p.status], p.launch ? R.dmy(p.launch) : '', money(p.cogs)].concat(R.CHANNELS.map(k => money(p.price && p.price[k])),
-          subsAll().map(x => money((p.subPrice || {})[x.id])), [use.length, use.map(u => (cs.get(u.id) || { name: u.id }).name).join(', '), p.updated_at ? R.dmy(p.updated_at.slice(0, 10)) : '', p.note || '']); }) }], [[C.camps.meta.at, R.dmy(U.today())]]);
+          subsP().map(x => money((p.subPrice || {})[x.id])), [use.length, use.map(u => (cs.get(u.id) || { name: u.id }).name).join(', '), p.updated_at ? R.dmy(p.updated_at.slice(0, 10)) : '', p.note || '']); }) }], [[C.camps.meta.at, R.dmy(U.today())]]);
   }
   function onClick(e) {
     const t = e.target;
     if (t.closest('[data-pnew]')) { if (canEdit()) openForm(null); return; }
-    const pv = t.closest('[data-pview]'); if (pv) { e.preventDefault(); st.view = pv.dataset.pview; keep(); history.replaceState(null, '', `#products${st.view === 'subs' ? '/subchannels' : ''}`); render(); return; }
-    if (t.closest('[data-psadd]')) { if (isAdmin()) openSub(null); return; }
-    const se = t.closest('[data-psedit]'); if (se) { if (isAdmin()) openSub(se.dataset.psedit); return; }
-    const sd = t.closest('[data-psdel]'); if (sd) { delSub(sd.dataset.psdel); return; }
+    if (t.closest('[data-pmoved], [data-pmoved-x]')) { pref.set('subsMoved', '1'); if (t.closest('[data-pmoved-x]')) $('p_view').innerHTML = ''; return; }
     if (t.closest('[data-pexport]')) { exportNow(); return; }
     const pg = t.closest('[data-ppage]'); if (pg) { st.page = (st.page || 1) + +pg.dataset.ppage; drawTable(); return; }
     const tb = t.closest('[data-ptab]'); if (tb) { st.tab = tb.dataset.ptab; st.page = 1; keep(); drawTabs(); drawTable(); return; }
@@ -332,6 +286,6 @@ CP.products = (function () {
     if (t.matches('[data-psort]')) { st.sort = t.value; st.page = 1; keep(); drawTable(); }
   }
   /* #products/<code> opens its drawer (Ctrl+K) */
-  CP.screens.products = { render: sub => { if (sub === 'subchannels') { st.view = 'subs'; render(); return; } render(); if (sub) { const code = decodeURIComponent(sub); history.replaceState(null, '', '#products'); if (all().some(p => p.code === code)) openForm(code); else if (sub === 'new' && canEdit()) openForm(null); } } };
+  CP.screens.products = { render: sub => { if (sub === 'subchannels') { location.replace('#settings/subs'); return; } render(); if (sub) { const code = decodeURIComponent(sub); history.replaceState(null, '', '#products'); if (all().some(p => p.code === code)) openForm(code); else if (sub === 'new' && canEdit()) openForm(null); } } };
   return { render, openForm, all };
 })();
